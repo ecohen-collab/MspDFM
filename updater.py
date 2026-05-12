@@ -46,7 +46,7 @@ def load_env():
 load_env()
 
 def cfg(key, default=""):
-    return os.environ.get(key, default)
+    return os.environ.get(key, default).strip()
 
 PORT       = int(cfg("PORT", "8080"))
 HEURE_MAJ  = int(cfg("HEURE_MAJ", "20"))
