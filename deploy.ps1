@@ -14,7 +14,7 @@ $ErrorActionPreference = 'Stop'
 $env:PYTHONIOENCODING = 'utf-8'
 
 $start = Get-Date
-$tag   = $start.ToString('yyyyMMddHHmm')
+$tag   = $start.ToString('yyyyMMddHHmmss')
 
 if ($Commit) {
     $changes = git status --porcelain
