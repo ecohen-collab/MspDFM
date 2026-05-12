@@ -1,12 +1,35 @@
 # deploy.ps1 — build + push + update Container App + smoke prod (silencieux si OK)
-# Usage : .\deploy.ps1
+# Usage :
+#   .\deploy.ps1                              # deploy seul
+#   .\deploy.ps1 -Commit                      # git add+commit+push avant deploy (message auto)
+#   .\deploy.ps1 -Commit -Message "rename X"  # commit avec message custom
 #
 # Tag = YYYYMMDDHHMM. Rollback : az containerapp ingress traffic set ... --revision-weight <old>=100
+param(
+    [switch]$Commit,
+    [string]$Message
+)
+
 $ErrorActionPreference = 'Stop'
 $env:PYTHONIOENCODING = 'utf-8'
 
 $start = Get-Date
 $tag   = $start.ToString('yyyyMMddHHmm')
+
+if ($Commit) {
+    $changes = git status --porcelain
+    if ($changes) {
+        $msg = if ($Message) { $Message } else { "deploy $tag" }
+        git add . 2>&1 | Out-Null
+        git commit -m $msg 2>&1 | Out-Null
+        if ($LASTEXITCODE -ne 0) { Write-Host "FAIL · git commit" -ForegroundColor Red; exit 1 }
+        git push 2>&1 | Out-Null
+        if ($LASTEXITCODE -ne 0) { Write-Host "FAIL · git push" -ForegroundColor Red; exit 1 }
+        Write-Host "git · committed & pushed: $msg" -ForegroundColor DarkCyan
+    } else {
+        Write-Host "git · rien à committer, skip" -ForegroundColor DarkGray
+    }
+}
 $repo  = 'dfmplateformeprocess.azurecr.io/msp-dashboard'
 $img   = "${repo}:${tag}"
 $fqdn  = 'msp-dashboard.gentlesand-80781e11.francecentral.azurecontainerapps.io'
