@@ -1,0 +1,2040 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Console Facturation SSC — DFM</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<style>
+:root {
+  --bg:#0f1117; --surface:#1a1d27; --surface2:#22263a;
+  --border:rgba(255,255,255,0.07); --border2:rgba(255,255,255,0.14);
+  --text:#e8eaf2; --muted:#7b7f96;
+  --accent:#4f7cff; --green:#22c55e; --amber:#f59e0b; --red:#ef4444; --blue:#38bdf8;
+  --font:'Sora',sans-serif; --mono:'DM Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;}
+
+.header{display:flex;align-items:center;justify-content:space-between;padding:1rem 2rem;border-bottom:1px solid var(--border);background:var(--surface);position:sticky;top:0;z-index:20;}
+.logo{display:flex;align-items:center;gap:10px;}
+.logo-dot{width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:0 0 10px var(--accent);}
+.logo-text{font-size:15px;font-weight:600;letter-spacing:.04em;}
+.logo-sub{font-size:11px;color:var(--muted);font-weight:300;}
+.header-right{display:flex;align-items:center;gap:12px;}
+#last-update{font-size:11px;color:var(--muted);font-family:var(--mono);}
+.btn{display:flex;align-items:center;gap:6px;background:var(--surface2);color:var(--text);border:1px solid var(--border2);border-radius:8px;padding:6px 14px;font-size:12px;font-family:var(--font);font-weight:500;cursor:pointer;transition:all .2s;}
+.btn:hover{border-color:var(--accent);color:var(--accent);}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent);}
+.btn-primary:hover{opacity:.85;color:#fff;}
+
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--border);background:var(--surface);padding:0 2rem;overflow-x:auto;}
+.tab{padding:.75rem 1.1rem;font-size:12px;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap;}
+.tab:hover{color:var(--text);}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+.tab-badge{display:inline-block;background:rgba(79,124,255,.2);color:var(--accent);border-radius:10px;padding:1px 7px;font-size:10px;font-family:var(--mono);margin-left:5px;}
+.tab-badge.red{background:rgba(239,68,68,.2);color:var(--red);}
+
+.main{padding:1.5rem 2rem;max-width:1700px;margin:0 auto;}
+.tab-content{display:none;}.tab-content.active{display:block;}
+
+.sources-bar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:1.5rem;}
+.source-pill{display:flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--border2);border-radius:20px;padding:5px 12px;font-size:11px;}
+.src-dot{width:7px;height:7px;border-radius:50%;}
+.src-dot.ok{background:var(--green);}
+.src-dot.error{background:var(--red);}
+
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:1.5rem;}
+.metric{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1rem 1.2rem;}
+.metric-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:7px;}
+.metric-value{font-size:26px;font-weight:600;font-family:var(--mono);line-height:1;}
+.metric-sub{font-size:10px;color:var(--muted);margin-top:4px;}
+.c-green{color:var(--green);}.c-red{color:var(--red);}.c-amber{color:var(--amber);}.c-blue{color:var(--blue);}.c-accent{color:var(--accent);}
+
+.alert-box{background:rgba(239,68,68,.07);border:1px solid rgba(239,68,68,.2);border-radius:10px;padding:.9rem 1.2rem;margin-bottom:1.5rem;font-size:12px;color:#fca5a5;}
+.alert-box strong{color:var(--red);}
+
+.table-toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:10px;}
+.table-filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+.search{background:var(--surface2);border:1px solid var(--border2);color:var(--text);border-radius:8px;padding:7px 12px;font-size:12px;font-family:var(--font);width:200px;outline:none;transition:border-color .2s;}
+.search:focus{border-color:var(--accent);}
+.sel{background:var(--surface2);border:1px solid var(--border2);color:var(--text);border-radius:8px;padding:7px 10px;font-size:12px;font-family:var(--font);outline:none;cursor:pointer;}
+.filter-btns{display:flex;gap:6px;flex-wrap:wrap;}
+.fbtn{background:var(--surface2);border:1px solid var(--border2);color:var(--muted);border-radius:6px;padding:5px 12px;font-size:11px;cursor:pointer;transition:all .15s;}
+.fbtn:hover,.fbtn.active{border-color:var(--accent);color:var(--accent);background:rgba(79,124,255,.1);}
+.fbtn.active-red{border-color:var(--red);color:var(--red);background:rgba(239,68,68,.1);}
+
+.table-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--border);}
+table{width:100%;border-collapse:collapse;font-size:12px;}
+thead th{background:var(--surface2);color:var(--muted);font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.07em;padding:10px 14px;text-align:left;white-space:nowrap;border-bottom:1px solid var(--border);cursor:pointer;user-select:none;}
+thead th:hover{color:var(--text);}
+tbody tr{border-bottom:1px solid var(--border);transition:background .1s;}
+tbody tr:last-child{border-bottom:none;}
+tbody tr:hover{background:rgba(255,255,255,.02);}
+tbody td{padding:9px 14px;vertical-align:middle;}
+.client-code{font-family:var(--mono);font-size:10px;color:var(--muted);}
+.client-name{font-weight:500;font-size:12px;}
+.client-org{font-size:10px;color:var(--muted);margin-top:1px;}
+
+/* Delta cells */
+.delta-pos{color:var(--amber);font-weight:600;font-family:var(--mono);}
+.delta-neg{color:var(--red);font-weight:600;font-family:var(--mono);}
+.delta-zero{color:var(--muted);font-family:var(--mono);}
+.num{font-family:var(--mono);font-size:12px;}
+.num-dim{font-family:var(--mono);font-size:11px;color:var(--muted);}
+
+/* Three-column comparison header */
+.th-group{text-align:center!important;border-left:1px solid var(--border);}
+.td-real{border-left:1px solid var(--border);font-family:var(--mono);font-size:12px;min-width:70px;}
+.td-artis{font-family:var(--mono);font-size:12px;min-width:70px;}
+.td-delta{font-family:var(--mono);font-size:12px;min-width:70px;}
+
+.pagination{display:flex;justify-content:space-between;align-items:center;margin-top:.8rem;}
+.page-info{font-size:11px;color:var(--muted);font-family:var(--mono);}
+.page-btns{display:flex;gap:5px;}
+.btn-page{background:var(--surface2);border:1px solid var(--border2);color:var(--text);border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;transition:all .15s;}
+.btn-page:hover:not(:disabled){border-color:var(--accent);color:var(--accent);}
+.btn-page:disabled{opacity:.3;cursor:default;}
+.no-data{text-align:center;padding:3rem;color:var(--muted);font-size:12px;}
+
+.source-header{display:flex;align-items:center;gap:10px;margin-bottom:1.2rem;}
+.source-header .btn-export{margin-left:auto;}
+.btn-export{background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.4);color:var(--green);border-radius:8px;padding:6px 12px;font-size:11px;font-family:var(--font);font-weight:500;cursor:pointer;transition:all .15s;}
+.btn-export:hover{background:rgba(34,197,94,.22);}
+.source-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;}
+.source-title{font-size:14px;font-weight:600;}
+.source-sub{font-size:11px;color:var(--muted);}
+.error-banner{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:8px;padding:.8rem 1rem;font-size:12px;color:#fca5a5;margin-bottom:1rem;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.2rem;}
+footer{text-align:center;padding:1.5rem;color:var(--muted);font-size:10px;}
+tr.row-clickable{cursor:pointer;transition:background .1s;}
+tr.row-clickable:hover{background:rgba(79,124,255,.08);}
+.admin-only{display:none;}
+body.is-admin .admin-only{display:revert;}
+.user-badge{font-size:11px;color:var(--muted);padding:4px 10px;background:var(--surface2);border-radius:6px;}
+.user-badge.admin{background:rgba(245,158,11,.15);color:var(--amber);font-weight:600;}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:flex-start;justify-content:center;z-index:1000;padding:3rem 1rem;overflow-y:auto;}
+.modal-overlay.show{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:14px;width:min(1100px,100%);max-height:85vh;overflow:hidden;display:flex;flex-direction:column;}
+.modal-header{padding:1rem 1.2rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:1rem;}
+.modal-title{font-size:14px;font-weight:600;flex:1;}
+.modal-sub{font-size:11px;color:var(--muted);}
+.modal-close{background:transparent;border:1px solid var(--border2);color:var(--text);border-radius:8px;width:30px;height:30px;font-size:14px;cursor:pointer;}
+.modal-close:hover{border-color:var(--accent);}
+.modal-body{padding:1rem 1.2rem;overflow-y:auto;flex:1;}
+.modal-section{margin-bottom:1.5rem;}
+.modal-section-title{font-size:12px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.6rem;}
+.modal-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.6rem;}
+.modal-card{background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:.7rem .9rem;}
+.modal-card-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.3rem;}
+.modal-card-value{font-size:13px;font-weight:600;}
+.modal-card-value .num-dim{color:var(--muted);font-weight:400;}
+.modal table{font-size:11px;}
+.modal table th{position:sticky;top:0;background:var(--surface);}
+.svc-badge{display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600;text-transform:uppercase;}
+.svc-datto{background:rgba(34,197,94,.15);color:#86efac;}
+.svc-m365{background:rgba(59,130,246,.15);color:#93c5fd;}
+.svc-sophos{background:rgba(168,85,247,.15);color:#d8b4fe;}
+.svc-veeam_tb,.svc-veeam365{background:rgba(20,184,166,.15);color:#5eead4;}
+.svc-vade{background:rgba(245,158,11,.15);color:#fcd34d;}
+.svc-soc{background:rgba(239,68,68,.15);color:#fca5a5;}
+.svc-none{background:rgba(120,120,120,.15);color:var(--muted);}
+
+/* DFM-3 — grille vendor + drill-down */
+.vendor-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:.8rem;}
+.vendor-card{background:var(--surface2);border:1px solid var(--border2);border-radius:12px;padding:.9rem 1rem;display:flex;flex-direction:column;gap:.35rem;border-left:3px solid var(--border2);position:relative;}
+.vendor-card.vendor-clickable{cursor:pointer;transition:border-color .15s, transform .1s, background .15s;}
+.vendor-card.vendor-clickable:hover{border-color:var(--accent);transform:translateY(-1px);background:rgba(79,124,255,.05);}
+.vendor-card.vendor-ok{border-left-color:var(--green);}
+.vendor-card.vendor-warning{border-left-color:var(--amber);}
+.vendor-card.vendor-critical{border-left-color:var(--red);}
+.vendor-card.vendor-inactive{opacity:.55;}
+.vendor-card.vendor-anomaly{border-left-color:var(--red);}
+.vc-head{display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-bottom:.2rem;}
+.vc-name{font-size:13px;font-weight:600;display:flex;align-items:center;gap:.4rem;}
+.vc-icon{font-size:14px;width:20px;display:inline-block;text-align:center;}
+.vc-pill{font-size:9px;padding:2px 7px;border-radius:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;}
+.vc-kpi{font-family:var(--mono);font-size:28px;font-weight:600;line-height:1.1;color:var(--text);margin-top:.1rem;}
+.vc-kpi-dim{color:var(--muted);}
+.vc-unit{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.4rem;}
+.vc-sub{text-transform:none;}
+.vc-meta{display:flex;justify-content:space-between;align-items:center;font-size:11px;gap:.4rem;}
+.vc-meta-label{color:var(--muted);}
+.vc-meta-val{font-family:var(--mono);text-align:right;}
+
+.modal-breadcrumb{display:flex;align-items:center;gap:.5rem;margin-bottom:1rem;padding-bottom:.7rem;border-bottom:1px solid var(--border);}
+.bc-back{background:var(--surface2);border:1px solid var(--border2);color:var(--text);border-radius:6px;width:28px;height:28px;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.bc-back:hover{border-color:var(--accent);color:var(--accent);}
+.bc-link{color:var(--accent);font-size:12px;cursor:pointer;text-decoration:none;}
+.bc-link:hover{text-decoration:underline;}
+.bc-sep{color:var(--muted);font-size:12px;}
+.bc-current{color:var(--text);font-size:12px;font-weight:600;}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="logo">
+    <div class="logo-dot"></div>
+    <div>
+      <div class="logo-text">Dashboard Console Facturation SSC — DFM</div>
+      <div class="logo-sub">Facturation Artis × services déployés</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <span id="user-badge" class="user-badge">—</span>
+    <span id="last-update">—</span>
+    <span id="snapshot-banner" style="display:none;background:rgba(245,158,11,.15);color:var(--amber);padding:6px 12px;border-radius:6px;font-size:12px"></span>
+    <button class="btn" onclick="creerSnapshot()" title="Sauvegarder un instantané des données actuelles">💾 Sauvegarder</button>
+    <button class="btn btn-primary" onclick="charger()">↻ Actualiser</button>
+    <a class="btn" href="/authelia/logout?rd=https%3A%2F%2F10.127.15.239%2F" title="Se déconnecter">⏻</a>
+  </div>
+</header>
+
+<nav class="tabs">
+  <div class="tab active" onclick="showTab('recon',this)">Vue globale <span class="tab-badge" id="badge-total">—</span></div>
+  <div class="tab" onclick="showTab('datto',this)">DATTO <span class="tab-badge" id="badge-datto">—</span></div>
+  <div class="tab" onclick="showTab('m365',this)">M365 <span class="tab-badge" id="badge-m365">—</span></div>
+  <div class="tab" onclick="showTab('sophos',this)">Sophos <span class="tab-badge" id="badge-sophos">—</span></div>
+  <div class="tab" onclick="showTab('veeam',this)">VEEAM <span class="tab-badge" id="badge-veeam">—</span></div>
+  <div class="tab" onclick="showTab('veeam365',this)">VEEAM365 <span class="tab-badge" id="badge-veeam365">—</span></div>
+  <div class="tab" onclick="showTab('vade',this)">VADE <span class="tab-badge" id="badge-vade">—</span></div>
+  <div class="tab" onclick="showTab('soc',this)">SOC <span class="tab-badge" id="badge-soc">—</span></div>
+  <div class="tab" onclick="showTab('artis',this)">Artis (clients) <span class="tab-badge" id="badge-artis">—</span></div>
+  <div class="tab" onclick="showTab('historique',this);renderHistorique()">📚 Historique <span class="tab-badge" id="badge-historique">—</span></div>
+</nav>
+
+<div class="main">
+
+<div class="sources-bar" id="sources-bar"></div>
+
+<!-- ══════════ VUE GLOBALE ══════════ -->
+<div class="tab-content active" id="tab-recon">
+  <div class="metrics" id="metrics"></div>
+  <div class="alert-box" id="alert-box" style="display:none"></div>
+  <div class="card">
+    <div class="table-toolbar">
+      <div class="table-filters">
+        <input class="search" id="search" type="text" placeholder="Client, code..." oninput="filtrer()">
+        <select class="sel" id="sel-org" onchange="filtrer()"><option value="">Toutes les orgs</option></select>
+        <div class="filter-btns">
+          <button class="fbtn active" id="fbtn-all"     onclick="setFilter('all',this)">Tous</button>
+          <button class="fbtn"        id="fbtn-anomaly" onclick="setFilter('anomaly',this)">⚠ Anomalies</button>
+          <button class="fbtn"        id="fbtn-ok"      onclick="setFilter('ok',this)">✓ OK</button>
+          <button class="fbtn"        id="fbtn-delta"   onclick="setFilter('delta',this)">Δ Écarts</button>
+        </div>
+      </div>
+      <button class="btn-export" onclick="exportTab('recon')">⤓ Export Excel (filtré)</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th onclick="trier('nom')">Client <span id="s-nom"></span></th>
+            <th onclick="trier('org')">Org <span id="s-org"></span></th>
+            <th class="th-group" colspan="2">DATTO</th>
+            <th class="th-group" colspan="2">M365</th>
+            <th class="th-group" colspan="2">Sophos</th>
+            <th class="th-group" colspan="2">VEEAM</th>
+            <th class="th-group" colspan="2">SOC / S1</th>
+            <th class="th-group" colspan="2">VADE</th>
+          </tr>
+          <tr>
+            <th></th><th></th>
+            <th class="td-real">Réel</th><th class="td-artis">Artis</th>
+            <th class="td-real">Réel lic.</th><th class="td-artis">Artis</th>
+            <th class="td-real">Réel EP</th><th class="td-artis">Artis</th>
+            <th class="td-real">Réel TB</th><th class="td-artis">Artis TB</th>
+            <th class="td-real">Réel lic.</th><th class="td-artis">Artis</th>
+            <th class="td-real">Réel lic.</th><th class="td-artis">Artis</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div class="pagination">
+      <span class="page-info" id="page-info">—</span>
+      <div class="page-btns">
+        <button class="btn-page" id="btn-prev" onclick="changerPage(-1)" disabled>← Préc.</button>
+        <button class="btn-page" id="btn-next" onclick="changerPage(1)"  disabled>Suiv. →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ SERVICE TABS ══════════ -->
+
+<div class="tab-content" id="tab-datto">
+  <div class="card">
+    <div class="source-header">
+      <div class="source-icon" style="background:rgba(239,68,68,.15)">🖥</div>
+      <div><div class="source-title">DATTO RMM — Infogérance</div>
+      <div class="source-sub">TOTAL ARTIS = SUMIFS(qteForfaitaire, libelle LIKE "*infogérance*")</div></div>
+      <button class="btn-export" onclick="exportTab('datto')">⤓ Export Excel</button>
+    </div>
+    <div class="error-banner" id="datto-error" style="display:none"></div>
+    <div id="datto-metrics" class="metrics" style="margin-bottom:1rem"></div>
+    <div class="table-filters" style="margin-bottom:.8rem">
+      <input class="search" id="search-datto" type="text" placeholder="Client, code..." oninput="filtrerService('datto')">
+      <select class="sel" id="sel-org-datto" onchange="filtrerService('datto')"><option value="">Toutes les orgs</option></select>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr>
+        <th onclick="trierService('datto','nom')" style="cursor:pointer">Client <span id="s-datto-nom"></span></th>
+        <th>Code</th>
+        <th onclick="trierService('datto','org')" style="cursor:pointer">Org <span id="s-datto-org"></span></th>
+        <th class="td-real">TOTAL DATTO</th>
+        <th class="td-artis">TOTAL ARTIS</th>
+        <th class="td-delta">DELTA</th>
+        <th>Détail (S/D/L)</th>
+      </tr></thead>
+      <tbody id="tbody-datto"></tbody>
+    </table></div>
+  </div>
+</div>
+
+<div class="tab-content" id="tab-m365">
+  <div class="card">
+    <div class="source-header">
+      <div class="source-icon" style="background:rgba(56,189,248,.15)">☁</div>
+      <div><div class="source-title">Microsoft 365</div>
+      <div class="source-sub">TOTAL ARTIS = SUMIFS(qteForfaitaire, MSC LIKE "* 365")</div></div>
+      <button class="btn-export" onclick="exportTab('m365')">⤓ Export Excel</button>
+    </div>
+    <div id="m365-metrics" class="metrics" style="margin-bottom:1rem"></div>
+    <div class="table-filters" style="margin-bottom:.8rem">
+      <input class="search" id="search-m365" type="text" placeholder="Client, code..." oninput="filtrerService('m365')">
+      <select class="sel" id="sel-org-m365" onchange="filtrerService('m365')"><option value="">Toutes les orgs</option></select>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr>
+        <th onclick="trierService('m365','nom')" style="cursor:pointer">Client <span id="s-m365-nom"></span></th>
+        <th>Code</th>
+        <th onclick="trierService('m365','org')" style="cursor:pointer">Org <span id="s-m365-org"></span></th>
+        <th class="td-real">TOTAL M365</th>
+        <th class="td-artis">TOTAL ARTIS</th>
+        <th class="td-delta">DELTA</th>
+      </tr></thead>
+      <tbody id="tbody-m365"></tbody>
+    </table></div>
+  </div>
+</div>
+
+<div class="tab-content" id="tab-sophos">
+  <div class="card">
+    <div class="source-header">
+      <div class="source-icon" style="background:rgba(34,197,94,.15)">🛡</div>
+      <div><div class="source-title">Sophos Central — Antivirus / Firewall</div>
+      <div class="source-sub">TOTAL ARTIS = SUMIFS(qty, MSC LIKE "*Antivirus*") + SUMIFS(qty, MSC LIKE "*firewall*", RFC NOT LIKE "*SG*")</div></div>
+      <button class="btn-export" onclick="exportTab('sophos')">⤓ Export Excel</button>
+    </div>
+    <div class="error-banner" id="sophos-error" style="display:none"></div>
+    <div id="sophos-metrics" class="metrics" style="margin-bottom:1rem"></div>
+    <div class="table-filters" style="margin-bottom:.8rem">
+      <input class="search" id="search-sophos" type="text" placeholder="Client, code..." oninput="filtrerService('sophos')">
+      <select class="sel" id="sel-org-sophos" onchange="filtrerService('sophos')"><option value="">Toutes les orgs</option></select>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr>
+        <th onclick="trierService('sophos','nom')" style="cursor:pointer">Client <span id="s-sophos-nom"></span></th>
+        <th>Code</th>
+        <th onclick="trierService('sophos','org')" style="cursor:pointer">Org <span id="s-sophos-org"></span></th>
+        <th class="td-real">TOTAL SOPHOS</th>
+        <th class="td-artis">TOTAL ARTIS</th>
+        <th class="td-delta">DELTA</th>
+      </tr></thead>
+      <tbody id="tbody-sophos"></tbody>
+    </table></div>
+  </div>
+</div>
+
+<div class="tab-content" id="tab-veeam">
+  <div class="card">
+    <div class="source-header">
+      <div class="source-icon" style="background:rgba(79,124,255,.15)">💾</div>
+      <div><div class="source-title">VEEAM Backup</div>
+      <div class="source-sub">TOTAL ARTIS = SUMIFS(TB extrait du libelle RFC, MSC="SAUVEGARDE", RFC NOT LIKE "*Microsoft 365*")</div></div>
+      <button class="btn-export" onclick="exportTab('veeam')">⤓ Export Excel</button>
+    </div>
+    <div class="error-banner" id="veeam-error" style="display:none"></div>
+    <div id="veeam-metrics" class="metrics" style="margin-bottom:1rem"></div>
+    <div class="table-filters" style="margin-bottom:.8rem">
+      <input class="search" id="search-veeam" type="text" placeholder="Client, code..." oninput="filtrerService('veeam')">
+      <select class="sel" id="sel-org-veeam" onchange="filtrerService('veeam')"><option value="">Toutes les orgs</option></select>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr>
+        <th onclick="trierService('veeam','nom')" style="cursor:pointer">Client <span id="s-veeam-nom"></span></th>
+        <th>Code</th>
+        <th onclick="trierService('veeam','org')" style="cursor:pointer">Org <span id="s-veeam-org"></span></th>
+        <th class="td-real">TOTAL VEEAM (TB utilisé)</th>
+        <th class="td-artis">TOTAL ARTIS (TB facturé)</th>
+        <th class="td-delta">DELTA</th>
+      </tr></thead>
+      <tbody id="tbody-veeam"></tbody>
+    </table></div>
+  </div>
+</div>
+
+<div class="tab-content" id="tab-veeam365">
+  <div class="card">
+    <div class="source-header">
+      <div class="source-icon" style="background:rgba(79,124,255,.1)">📧</div>
+      <div><div class="source-title">VEEAM 365 — Sauvegarde Microsoft 365</div>
+      <div class="source-sub">TOTAL ARTIS = COUNTIFS(MSC="SAUVEGARDE", RFC LIKE "*Microsoft 365*")</div></div>
+      <button class="btn-export" onclick="exportTab('veeam365')">⤓ Export Excel</button>
+    </div>
+    <div class="error-banner" id="veeam365-error" style="display:none"></div>
+    <div id="veeam365-metrics" class="metrics" style="margin-bottom:1rem"></div>
+    <div class="table-filters" style="margin-bottom:.8rem">
+      <input class="search" id="search-veeam365" type="text" placeholder="Client, code..." oninput="filtrerService('veeam365')">
+      <select class="sel" id="sel-org-veeam365" onchange="filtrerService('veeam365')"><option value="">Toutes les orgs</option></select>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr>
+        <th onclick="trierService('veeam365','nom')" style="cursor:pointer">Client <span id="s-veeam365-nom"></span></th>
+        <th>Code</th>
+        <th onclick="trierService('veeam365','org')" style="cursor:pointer">Org <span id="s-veeam365-org"></span></th>
+        <th class="td-real">TOTAL VEEAM365</th>
+        <th class="td-artis">TOTAL ARTIS</th>
+        <th class="td-delta">DELTA</th>
+      </tr></thead>
+      <tbody id="tbody-veeam365"></tbody>
+    </table></div>
+  </div>
+</div>
+
+<div class="tab-content" id="tab-vade">
+  <div class="card">
+    <div class="source-header">
+      <div class="source-icon" style="background:rgba(167,139,250,.15)">✉</div>
+      <div><div class="source-title">VADE Secure — AntiSpam</div>
+      <div class="source-sub">TOTAL ARTIS = SUMIFS(qteForfaitaire, RFC LIKE "*antispam*")</div></div>
+      <button class="btn-export" onclick="exportTab('vade')">⤓ Export Excel</button>
+    </div>
+    <div class="error-banner" id="vade-error" style="display:none"></div>
+    <div id="vade-metrics" class="metrics" style="margin-bottom:1rem"></div>
+    <div class="table-filters" style="margin-bottom:.8rem">
+      <input class="search" id="search-vade" type="text" placeholder="Client, code..." oninput="filtrerService('vade')">
+      <select class="sel" id="sel-org-vade" onchange="filtrerService('vade')"><option value="">Toutes les orgs</option></select>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr>
+        <th onclick="trierService('vade','nom')" style="cursor:pointer">Client <span id="s-vade-nom"></span></th>
+        <th>Code</th>
+        <th onclick="trierService('vade','org')" style="cursor:pointer">Org <span id="s-vade-org"></span></th>
+        <th class="td-real">TOTAL VADE (lic. actives)</th>
+        <th class="td-artis">TOTAL ARTIS</th>
+        <th class="td-delta">DELTA</th>
+      </tr></thead>
+      <tbody id="tbody-vade"></tbody>
+    </table></div>
+  </div>
+</div>
+
+<div class="tab-content" id="tab-soc">
+  <div class="card">
+    <div class="source-header">
+      <div class="source-icon" style="background:rgba(245,158,11,.15)">👁</div>
+      <div><div class="source-title">SOC — SentinelOne</div>
+      <div class="source-sub">TOTAL ARTIS = SUMIFS(qteForfaitaire, RFC LIKE "*SOC*")</div></div>
+      <button class="btn-export" onclick="exportTab('soc')">⤓ Export Excel</button>
+    </div>
+    <div class="error-banner" id="soc-error" style="display:none"></div>
+    <div id="soc-metrics" class="metrics" style="margin-bottom:1rem"></div>
+    <div class="table-filters" style="margin-bottom:.8rem">
+      <input class="search" id="search-soc" type="text" placeholder="Client, code..." oninput="filtrerService('soc')">
+      <select class="sel" id="sel-org-soc" onchange="filtrerService('soc')"><option value="">Toutes les orgs</option></select>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr>
+        <th onclick="trierService('soc','nom')" style="cursor:pointer">Client <span id="s-soc-nom"></span></th>
+        <th>Code</th>
+        <th onclick="trierService('soc','org')" style="cursor:pointer">Org <span id="s-soc-org"></span></th>
+        <th class="td-real">TOTAL SOC (lic. S1)</th>
+        <th class="td-artis">TOTAL ARTIS</th>
+        <th class="td-delta">DELTA</th>
+      </tr></thead>
+      <tbody id="tbody-soc"></tbody>
+    </table></div>
+  </div>
+</div>
+
+<!-- ══════════ ARTIS CLIENTS ══════════ -->
+<div class="tab-content" id="tab-artis">
+  <div class="card">
+    <div class="source-header">
+      <div class="source-icon" style="background:rgba(79,124,255,.15)">🏢</div>
+      <div><div class="source-title">Artis — Contrats Services Informatique</div>
+      <div class="source-sub" id="artis-count">—</div></div>
+      <button class="btn-export" onclick="exportTab('artis')">⤓ Export Excel</button>
+    </div>
+    <div class="error-banner" id="artis-error" style="display:none"></div>
+    <div class="table-filters" style="margin-bottom:.8rem">
+      <input class="search" id="search-artis" type="text" placeholder="Client, code, contrat..." oninput="filtrerService('artis')">
+      <select class="sel" id="sel-org-artis" onchange="filtrerService('artis')"><option value="">Toutes les orgs</option></select>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr>
+        <th onclick="trierService('artis','nom')" style="cursor:pointer">Client <span id="s-artis-nom"></span></th>
+        <th>Code</th>
+        <th onclick="trierService('artis','org')" style="cursor:pointer">Org <span id="s-artis-org"></span></th>
+        <th>N° Contrat</th><th>Statut</th>
+        <th>Infogér.</th><th>M365</th><th>Sophos</th><th>VEEAM TB</th><th>V365</th><th>VADE</th><th>SOC</th>
+      </tr></thead>
+      <tbody id="tbody-artis"></tbody>
+    </table></div>
+  </div>
+</div>
+
+<!-- ══════════ HISTORIQUE ══════════ -->
+<div class="tab-content" id="tab-historique">
+  <div class="card">
+    <div class="source-header">
+      <div class="source-icon" style="background:rgba(245,158,11,.15)">📚</div>
+      <div><div class="source-title">Historique des sauvegardes</div>
+      <div class="source-sub">Snapshots groupés par mois — clic pour charger, ✕ pour supprimer</div></div>
+    </div>
+    <div id="historique-content"></div>
+  </div>
+</div>
+
+</div><!-- /main -->
+<footer>Dashboard Console Facturation SSC — DFM · données issues de msp_data.json</footer>
+
+<script>
+// ══════════════════════════════════════
+// STATE
+// ══════════════════════════════════════
+let DATA = null;
+let CURRENT_USER = { user: null, role: null, is_admin: false };
+let recon = [], filtered = [];
+let page = 1, triCol = null, triAsc = true, filterMode = 'all';
+const PAR_PAGE = 50;
+
+async function detecterUser(){
+  try {
+    const r = await fetch('/api/whoami');
+    if(!r.ok) return;
+    CURRENT_USER = await r.json();
+    document.body.classList.toggle('is-admin', !!CURRENT_USER.is_admin);
+    const b = document.getElementById('user-badge');
+    if(b){
+      // Préférer le nom Entra (friendly), fallback UPN, fallback user
+      const label = CURRENT_USER.name || CURRENT_USER.upn || CURRENT_USER.user || '?';
+      const adminSuffix = CURRENT_USER.is_admin ? ' · admin' : '';
+      const devSuffix = CURRENT_USER.dev_mode ? ' · DEV' : '';
+      b.textContent = label + adminSuffix + devSuffix;
+      b.classList.toggle('admin', !!CURRENT_USER.is_admin);
+    }
+  } catch(_){}
+}
+
+const SVC_TABS = ['datto','m365','sophos','veeam','veeam365','vade','soc','artis'];
+const tabFilter = {};
+SVC_TABS.forEach(n => tabFilter[n] = {q:'', org:'', sortCol:null, sortAsc:true});
+
+function matchTabFilter(r, name){
+  const f = tabFilter[name]; if(!f) return true;
+  if(f.q){
+    const q = f.q;
+    const hay = (r.nom||'').toLowerCase()+' '+(r.code||'').toLowerCase()+' '+(r.contrat_code||'').toLowerCase();
+    if(!hay.includes(q)) return false;
+  }
+  if(f.org && r.org !== f.org) return false;
+  return true;
+}
+function applyTabSort(rows, name){
+  const f = tabFilter[name]; if(!f || !f.sortCol) return rows;
+  const c = f.sortCol;
+  return rows.slice().sort((a,b) => {
+    const va = (c==='nom' ? (a.nom||'') : (a.org||'')).toLowerCase();
+    const vb = (c==='nom' ? (b.nom||'') : (b.org||'')).toLowerCase();
+    return f.sortAsc ? (va>vb?1:va<vb?-1:0) : (va<vb?1:va>vb?-1:0);
+  });
+}
+function filtrerService(name){
+  const q = document.getElementById('search-'+name);
+  const o = document.getElementById('sel-org-'+name);
+  if(q) tabFilter[name].q = q.value.toLowerCase();
+  if(o) tabFilter[name].org = o.value;
+  if(name==='artis') renderArtisTab(); else renderServiceTabs();
+}
+function trierService(name, col){
+  const f = tabFilter[name];
+  if(f.sortCol === col) f.sortAsc = !f.sortAsc;
+  else { f.sortCol = col; f.sortAsc = true; }
+  ['nom','org'].forEach(c => {
+    const el = document.getElementById(`s-${name}-${c}`);
+    if(el) el.textContent = c===col ? (f.sortAsc?'↑':'↓') : '';
+  });
+  if(name==='artis') renderArtisTab(); else renderServiceTabs();
+}
+function populerOrgsTabs(){
+  const orgs = [...new Set((DATA.reconciliation||[]).map(r=>r.org).filter(Boolean))].sort();
+  SVC_TABS.forEach(name => {
+    const sel = document.getElementById('sel-org-'+name);
+    if(sel){
+      const cur = sel.value;
+      sel.innerHTML = '<option value="">Toutes les orgs</option>' + orgs.map(o=>`<option>${esc(o)}</option>`).join('');
+      sel.value = cur;
+    }
+  });
+}
+
+// ══════════════════════════════════════
+// TABS
+// ══════════════════════════════════════
+function showTab(id, el) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  el.classList.add('active');
+}
+
+// ══════════════════════════════════════
+// LOAD
+// ══════════════════════════════════════
+let currentSnapshot = null;  // null = live, sinon { id, mtime }
+
+async function charger(url) {
+  try {
+    const fetchUrl = (typeof url === 'string' && url) ? url : ('msp_data.json?t=' + Date.now());
+    const r = await fetch(fetchUrl);
+    if (!r.ok) throw new Error('Données introuvables');
+    DATA = await r.json();
+    document.getElementById('last-update').textContent = DATA.updated_at_display ? 'Mis à jour ' + DATA.updated_at_display : '';
+    // Cas particuliers : toujours rafraîchir depuis l'API (notes ajoutées entre 2 cycles)
+    try {
+      const rc = await fetch('/api/cas-particulier?t=' + Date.now());
+      if (rc.ok) DATA.cas_particuliers = await rc.json();
+    } catch(_){}
+    updateSnapshotBanner();
+    renderSourcesBar();
+    renderMetrics();
+    renderAlerts();
+    renderRecon();
+    populerOrgsTabs();
+    renderServiceTabs();
+    renderArtisTab();
+    rafraichirBadgeHistorique();
+  } catch(e) {
+    alert('Erreur : ' + e.message);
+  }
+}
+
+async function rafraichirBadgeHistorique(){
+  try {
+    const r = await fetch('/api/snapshots/dashboard?t=' + Date.now());
+    if(!r.ok) return;
+    const j = await r.json();
+    document.getElementById('badge-historique').textContent = (j.snapshots||[]).length;
+  } catch(_){}
+}
+
+function updateSnapshotBanner(){
+  const b = document.getElementById('snapshot-banner');
+  if(currentSnapshot){
+    const d = new Date(currentSnapshot.mtime*1000);
+    b.innerHTML = `📸 Vue snapshot du ${d.toLocaleString('fr-FR')} <a href="#" onclick="event.preventDefault();sortirSnapshot()" style="color:inherit;text-decoration:underline;margin-left:8px">retour live</a>`;
+    b.style.display = '';
+  } else {
+    b.style.display = 'none';
+  }
+}
+function sortirSnapshot(){ currentSnapshot = null; charger(); }
+
+async function creerSnapshot(){
+  if(currentSnapshot){ alert("Tu visualises déjà un snapshot, retourne en mode live d'abord"); return; }
+  if(!confirm("Créer un snapshot des données actuelles ?")) return;
+  try {
+    const r = await fetch('/api/snapshot/dashboard', {method:'POST'});
+    const j = await r.json();
+    if(!r.ok){ alert('Erreur : ' + (j.error||r.status)); return; }
+    alert('Snapshot créé : ' + j.id);
+    if(document.getElementById('tab-historique').classList.contains('active')) renderHistorique();
+  } catch(e){ alert('Erreur : ' + e.message); }
+}
+
+async function chargerSnapshot(id, mtime){
+  currentSnapshot = { id, mtime };
+  await charger('snapshots/dashboard/' + id + '.json?t=' + Date.now());
+  showTab('recon', document.querySelector('.tab'));
+}
+
+async function supprimerSnapshot(id, ev){
+  if(ev) ev.stopPropagation();
+  if(!confirm('Supprimer le snapshot ' + id + ' ?')) return;
+  try {
+    const r = await fetch('/api/snapshot/dashboard/' + id, {method:'DELETE'});
+    const j = await r.json();
+    if(!r.ok){ alert('Erreur : ' + (j.error||r.status)); return; }
+    renderHistorique();
+  } catch(e){ alert('Erreur : ' + e.message); }
+}
+
+async function renderHistorique(){
+  const cont = document.getElementById('historique-content');
+  cont.innerHTML = '<div class="no-data">Chargement...</div>';
+  try {
+    const r = await fetch('/api/snapshots/dashboard?t=' + Date.now());
+    const j = await r.json();
+    const snaps = j.snapshots || [];
+    document.getElementById('badge-historique').textContent = snaps.length;
+    if(!snaps.length){ cont.innerHTML = '<div class="no-data">Aucun snapshot — clique sur 💾 Sauvegarder en haut à droite</div>'; return; }
+    const byMonth = {};
+    const monthLabel = ts => {
+      const d = new Date(ts*1000);
+      const k = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+      return [k, d.toLocaleDateString('fr-FR', {year:'numeric', month:'long'})];
+    };
+    snaps.forEach(s => {
+      const [k, lbl] = monthLabel(s.mtime);
+      (byMonth[k] = byMonth[k] || {label:lbl, items:[]}).items.push(s);
+    });
+    const keys = Object.keys(byMonth).sort().reverse();
+    cont.innerHTML = keys.map(k => {
+      const m = byMonth[k];
+      return `<div style="margin-bottom:1.5rem">
+        <div class="modal-section-title" style="margin-bottom:.5rem;text-transform:capitalize">${esc(m.label)} — ${m.items.length} sauvegarde${m.items.length>1?'s':''}</div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Date</th><th>ID</th><th>Taille</th><th></th></tr></thead>
+          <tbody>${m.items.map(s => {
+            const d = new Date(s.mtime*1000);
+            const sizeKB = Math.round(s.size/1024);
+            return `<tr class="row-clickable" onclick="chargerSnapshot('${esc(s.id)}',${s.mtime})">
+              <td>${d.toLocaleString('fr-FR')}</td>
+              <td class="client-code">${esc(s.id)}</td>
+              <td class="num-dim">${sizeKB.toLocaleString('fr-FR')} Ko</td>
+              <td style="text-align:right"><button class="btn" style="padding:4px 10px;font-size:11px" onclick="supprimerSnapshot('${esc(s.id)}',event)" title="Supprimer">✕</button></td>
+            </tr>`;
+          }).join('')}</tbody>
+        </table></div>
+      </div>`;
+    }).join('');
+  } catch(e){
+    cont.innerHTML = '<div class="error-banner" style="display:block">Erreur : ' + esc(e.message) + ' — le serveur a-t-il été redémarré après la mise à jour du code ?</div>';
+  }
+}
+
+// ══════════════════════════════════════
+// SOURCES BAR
+// ══════════════════════════════════════
+const SOURCE_LABELS = {artis:'Artis', veeam:'VEEAM', sophos:'Sophos', sentinelone:'SentinelOne', datto:'DATTO', vade:'VADE'};
+function renderSourcesBar() {
+  const bar = document.getElementById('sources-bar');
+  bar.innerHTML = '';
+  for (const [key, label] of Object.entries(SOURCE_LABELS)) {
+    const src = DATA.sources[key] || {};
+    const ok = src.status === 'ok';
+    const detail = ok ? (src.count !== undefined ? src.count + ' entrées' : '') : (src.error || 'erreur');
+    bar.innerHTML += `<div class="source-pill">
+      <span class="src-dot ${ok?'ok':'error'}"></span>
+      <span style="font-weight:500">${label}</span>
+      <span style="color:var(--muted)">${detail}</span>
+    </div>`;
+  }
+}
+
+// ══════════════════════════════════════
+// METRICS
+// ══════════════════════════════════════
+function renderMetrics() {
+  const s = DATA.stats || {};
+  const total = s.artis_total || 0;
+  const pct = v => total ? Math.round(v/total*100) + '%' : '—';
+  const cards = [
+    {label:'Clients Artis', val: total,              sub:'Contrats SI',       cls:'c-accent'},
+    {label:'Avec facturation', val: s.with_billing||0, sub:pct(s.with_billing||0)+' couverts', cls:'c-green'},
+    {label:'DATTO',       val: s.datto_matched||0,   sub:pct(s.datto_matched||0),    cls:'c-amber'},
+    {label:'M365',        val: s.m365_matched||0,    sub:pct(s.m365_matched||0),     cls:'c-blue'},
+    {label:'Sophos',      val: s.sophos_matched||0,  sub:pct(s.sophos_matched||0),   cls:'c-green'},
+    {label:'VEEAM',       val: s.veeam_matched||0,   sub:pct(s.veeam_matched||0),    cls:'c-blue'},
+    {label:'SentinelOne', val: s.s1_matched||0,      sub:pct(s.s1_matched||0),       cls:'c-amber'},
+    {label:'VADE',        val: s.vade_matched||0,    sub:pct(s.vade_matched||0),     cls:'c-blue'},
+    {label:'Anomalies',   val: s.anomalies||0,       sub:'0 service détecté',        cls:(s.anomalies||0)>0?'c-red':'c-green'},
+  ];
+  document.getElementById('metrics').innerHTML = cards.map(c =>
+    `<div class="metric"><div class="metric-label">${c.label}</div><div class="metric-value ${c.cls}">${c.val.toLocaleString('fr-FR')}</div><div class="metric-sub">${c.sub}</div></div>`
+  ).join('');
+  document.getElementById('badge-total').textContent = total;
+}
+
+// ══════════════════════════════════════
+// ALERTS
+// ══════════════════════════════════════
+function renderAlerts() {
+  const s = DATA.stats || {};
+  const box = document.getElementById('alert-box');
+  const errs = Object.entries(DATA.sources||{}).filter(([,v]) => v.status === 'error');
+  let html = '';
+  if (errs.length) html += `<strong>${errs.length} source(s) en erreur :</strong> ` + errs.map(([k,v]) => `<b>${SOURCE_LABELS[k]||k}</b> — ${v.error}`).join(' · ') + '<br>';
+  if ((s.anomalies||0) > 0) html += `<strong>${s.anomalies} clients</strong> sans aucun service détecté`;
+  if (html) { box.innerHTML = html; box.style.display = 'block'; }
+  else box.style.display = 'none';
+}
+
+// ══════════════════════════════════════
+// GLOBAL RECONCILIATION TABLE
+// ══════════════════════════════════════
+function renderRecon() {
+  recon = DATA.reconciliation || [];
+  const orgs = [...new Set(recon.map(r => r.org).filter(Boolean))].sort();
+  const sel = document.getElementById('sel-org');
+  sel.innerHTML = '<option value="">Toutes les orgs</option>' + orgs.map(o => `<option>${esc(o)}</option>`).join('');
+  document.getElementById('badge-total').textContent = recon.length;
+  filtrer();
+}
+
+function hasAnomaly(r) { return !r.veeam && !r.sophos && !r.sentinelone && !r.datto; }
+function hasDelta(r) {
+  const a = r.artis || {};
+  if (r.datto && a.datto && Math.abs(r.datto.total - a.datto) > 0) return true;
+  if (r.m365 && a.m365 && Math.abs(r.m365.licenses - a.m365) > 0) return true;
+  if (r.veeam && a.veeam_tb && Math.abs(r.veeam.usedTB - a.veeam_tb) > 0.1) return true;
+  if (r.sophos && a.sophos && Math.abs(r.sophos.endpoints - a.sophos) > 0) return true;
+  if (r.vade && a.vade && Math.abs((r.vade.user_count || r.vade.licenses_active) - a.vade) > 0) return true;
+  return false;
+}
+
+function filtrer() {
+  const q   = document.getElementById('search').value.toLowerCase();
+  const org = document.getElementById('sel-org').value;
+  filtered = recon.filter(r => {
+    if (q && !r.nom.toLowerCase().includes(q) && !r.code.toLowerCase().includes(q)) return false;
+    if (org && r.org !== org) return false;
+    if (filterMode === 'anomaly' && !hasAnomaly(r)) return false;
+    if (filterMode === 'ok'      && hasAnomaly(r))  return false;
+    if (filterMode === 'delta'   && !hasDelta(r))   return false;
+    return true;
+  });
+  if (triCol) {
+    filtered.sort((a, b) => {
+      const va = sortVal(a, triCol), vb = sortVal(b, triCol);
+      return triAsc ? (va > vb ? 1 : -1) : (va < vb ? 1 : -1);
+    });
+  }
+  page = 1;
+  afficher();
+}
+
+function sortVal(r, col) {
+  if (col === 'nom') return r.nom.toLowerCase();
+  if (col === 'org') return (r.org||'').toLowerCase();
+  return '';
+}
+
+function trier(col) {
+  if (triCol === col) triAsc = !triAsc; else { triCol = col; triAsc = true; }
+  ['nom','org'].forEach(c => { document.getElementById('s-' + c).textContent = c === col ? (triAsc ? '↑' : '↓') : ''; });
+  filtrer();
+}
+
+function setFilter(mode, el) {
+  filterMode = mode;
+  document.querySelectorAll('.fbtn').forEach(b => b.classList.remove('active','active-red'));
+  el.classList.add(mode === 'anomaly' ? 'active-red' : 'active');
+  filtrer();
+}
+
+function afficher() {
+  const total = filtered.length;
+  const pages = Math.ceil(total / PAR_PAGE) || 1;
+  const slice = filtered.slice((page-1)*PAR_PAGE, page*PAR_PAGE);
+  document.getElementById('page-info').textContent = `${total.toLocaleString('fr-FR')} résultat${total>1?'s':''} — page ${page}/${pages}`;
+  document.getElementById('btn-prev').disabled = page <= 1;
+  document.getElementById('btn-next').disabled = page >= pages;
+  const tbody = document.getElementById('tbody');
+  if (!slice.length) { tbody.innerHTML = '<tr><td colspan="14" class="no-data">Aucun résultat</td></tr>'; return; }
+  tbody.innerHTML = slice.map(r => {
+    const a = r.artis || {};
+    const anomaly = hasAnomaly(r);
+    const bg = anomaly ? 'background:rgba(239,68,68,.04)' : '';
+    const cas = ((DATA.cas_particuliers||{})[r.code]||[]);
+    const casBadge = cas.length ? `<span title="${esc(cas.length+' note(s) particulière(s)')}" style="margin-left:.35rem;cursor:help">🔶</span>` : '';
+    return `<tr class="row-clickable" style="${bg}" onclick="renderClientModal({code:'${esc(r.code)}'})">
+      <td><div class="client-name">${esc(r.nom)}${casBadge}</div><div class="client-code">${esc(r.code)}</div></td>
+      <td><span class="num-dim">${esc(r.org||'')}</span></td>
+      ${cmpCell(r.datto ? r.datto.total : null, a.datto||0)}
+      ${cmpCell(r.m365 ? r.m365.licenses : null, a.m365||0)}
+      ${cmpCell(r.sophos ? r.sophos.endpoints : null, a.sophos||0)}
+      ${cmpCell(r.veeam ? r.veeam.usedTB : null, a.veeam_tb||0, 2)}
+      ${cmpCell(r.sentinelone ? r.sentinelone.activeLicenses : null, a.soc||0)}
+      ${cmpCell(r.vade ? (r.vade.user_count || r.vade.licenses_active) : null, a.vade||0)}
+    </tr>`;
+  }).join('');
+}
+
+function changerPage(d) { page += d; afficher(); }
+
+// Comparison cell: real | artis (no separate delta column in global view — color-coded)
+function cmpCell(real, artis, decimals=0) {
+  const fmt = (v, d=0) => v === null || v === undefined ? '—' : (+v).toLocaleString('fr-FR', {minimumFractionDigits:d, maximumFractionDigits:d});
+  if (real === null || real === undefined) {
+    return `<td class="td-real" style="color:var(--muted)">—</td><td class="td-artis">${artis > 0 ? '<span class="num">'+fmt(artis, decimals)+'</span>' : '<span class="num-dim">0</span>'}</td>`;
+  }
+  const delta = real - artis;
+  let rColor = 'var(--text)';
+  if (artis > 0) rColor = delta < -0.05 ? 'var(--red)' : delta > 0.05 ? 'var(--amber)' : 'var(--green)';
+  return `<td class="td-real" style="color:${rColor}"><span class="num">${fmt(real, decimals)}</span></td><td class="td-artis"><span class="num-dim">${artis > 0 ? fmt(artis, decimals) : '—'}</span></td>`;
+}
+
+// ══════════════════════════════════════
+// SERVICE TABS
+// ══════════════════════════════════════
+function renderServiceTabs() {
+  const all = DATA.reconciliation || [];
+
+  // ── DATTO ──
+  const dattoBase = all.filter(r => r.datto || (r.artis && r.artis.datto > 0));
+  const dattoRows = applyTabSort(dattoBase.filter(r => matchTabFilter(r,'datto')), 'datto');
+  document.getElementById('badge-datto').textContent = dattoBase.length;
+  document.getElementById('tbody-datto').innerHTML = dattoRows.map(r => {
+    const real = r.datto ? r.datto.total : 0;
+    const billed = (r.artis||{}).datto || 0;
+    const delta = billed - real;
+    const srv = r.datto ? `${r.datto.servers||0}S / ${r.datto.desktops||0}D / ${r.datto.laptops||0}L` : '—';
+    return `<tr class="row-clickable" onclick="renderClientModal({code:'${esc(r.code)}',focus:'datto'})">
+      <td><div class="client-name">${esc(r.nom)}</div></td>
+      <td class="client-code">${esc(r.code)}</td>
+      <td class="num-dim">${esc(r.org||'')}</td>
+      <td class="td-real"><span class="num" style="color:${r.datto?'var(--text)':'var(--muted)'}">${real||'—'}</span></td>
+      <td class="td-artis"><span class="num">${billed||'—'}</span></td>
+      ${deltaCell(delta, billed)}
+      <td class="num-dim">${srv}</td>
+    </tr>`;
+  }).join('') || noData(7);
+  renderSvcMetrics('datto-metrics', dattoRows, r => r.datto ? r.datto.total : null, r => (r.artis||{}).datto||0);
+
+  // ── M365 ──
+  const m365Base = all.filter(r => r.m365 || (r.artis && r.artis.m365 > 0));
+  const m365Rows = applyTabSort(m365Base.filter(r => matchTabFilter(r,'m365')), 'm365');
+  document.getElementById('badge-m365').textContent = m365Base.length;
+  document.getElementById('tbody-m365').innerHTML = m365Rows.map(r => {
+    const real = r.m365 ? r.m365.licenses : 0;
+    const billed = (r.artis||{}).m365 || 0;
+    const delta = billed - real;
+    return `<tr class="row-clickable" onclick="renderClientModal({code:'${esc(r.code)}',focus:'m365'})">
+      <td><div class="client-name">${esc(r.nom)}</div></td>
+      <td class="client-code">${esc(r.code)}</td>
+      <td class="num-dim">${esc(r.org||'')}</td>
+      <td class="td-real"><span class="num" style="color:${r.m365?'var(--text)':'var(--muted)'}">${r.m365?real:'—'}</span></td>
+      <td class="td-artis"><span class="num">${billed||'—'}</span></td>
+      ${deltaCell(delta, billed)}
+    </tr>`;
+  }).join('') || noData(6);
+  renderSvcMetrics('m365-metrics', m365Rows, r => r.m365 ? r.m365.licenses : null, r => (r.artis||{}).m365||0);
+
+  // ── SOPHOS ──
+  const sophBase = all.filter(r => r.sophos || (r.artis && r.artis.sophos > 0));
+  const sophRows = applyTabSort(sophBase.filter(r => matchTabFilter(r,'sophos')), 'sophos');
+  document.getElementById('badge-sophos').textContent = sophBase.length;
+  document.getElementById('tbody-sophos').innerHTML = sophRows.map(r => {
+    const real = r.sophos ? r.sophos.endpoints : 0;
+    const billed = (r.artis||{}).sophos || 0;
+    const delta = billed - real;
+    return `<tr class="row-clickable" onclick="renderClientModal({code:'${esc(r.code)}',focus:'sophos'})">
+      <td><div class="client-name">${esc(r.nom)}</div></td>
+      <td class="client-code">${esc(r.code)}</td>
+      <td class="num-dim">${esc(r.org||'')}</td>
+      <td class="td-real"><span class="num" style="color:${r.sophos?'var(--text)':'var(--muted)'}">${real||'—'}</span></td>
+      <td class="td-artis"><span class="num">${billed||'—'}</span></td>
+      ${deltaCell(delta, billed)}
+    </tr>`;
+  }).join('') || noData(6);
+  renderSvcMetrics('sophos-metrics', sophRows, r => r.sophos ? r.sophos.endpoints : null, r => (r.artis||{}).sophos||0);
+
+  // ── VEEAM ──
+  const veeamBase = all.filter(r => r.veeam || (r.artis && r.artis.veeam_tb > 0));
+  const veeamRows = applyTabSort(veeamBase.filter(r => matchTabFilter(r,'veeam')), 'veeam');
+  document.getElementById('badge-veeam').textContent = veeamBase.length;
+  document.getElementById('tbody-veeam').innerHTML = veeamRows.map(r => {
+    const real = r.veeam ? r.veeam.usedTB : 0;
+    const billed = (r.artis||{}).veeam_tb || 0;
+    const delta = billed - real;
+    const fmtTB = v => (+v).toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2});
+    return `<tr class="row-clickable" onclick="renderClientModal({code:'${esc(r.code)}',focus:'veeam'})">
+      <td><div class="client-name">${esc(r.nom)}</div></td>
+      <td class="client-code">${esc(r.code)}</td>
+      <td class="num-dim">${esc(r.org||'')}</td>
+      <td class="td-real"><span class="num" style="color:${r.veeam?'var(--text)':'var(--muted)'}">${r.veeam ? fmtTB(real) : '—'}</span></td>
+      <td class="td-artis"><span class="num">${billed > 0 ? fmtTB(billed) : '—'}</span></td>
+      ${deltaCell(delta, billed, 2)}
+    </tr>`;
+  }).join('') || noData(6);
+  renderSvcMetrics('veeam-metrics', veeamRows, r => r.veeam ? r.veeam.usedTB : null, r => (r.artis||{}).veeam_tb||0);
+
+  // ── VEEAM365 ──
+  const v365Base = all.filter(r => r.veeam365 || (r.artis && r.artis.veeam365 > 0));
+  const v365Rows = applyTabSort(v365Base.filter(r => matchTabFilter(r,'veeam365')), 'veeam365');
+  document.getElementById('badge-veeam365').textContent = v365Base.length;
+  document.getElementById('tbody-veeam365').innerHTML = v365Rows.map(r => {
+    const real = r.veeam365 ? 1 : 0;
+    const billed = (r.artis||{}).veeam365 || 0;
+    const delta = billed - real;
+    return `<tr class="row-clickable" onclick="renderClientModal({code:'${esc(r.code)}',focus:'veeam365'})">
+      <td><div class="client-name">${esc(r.nom)}</div></td>
+      <td class="client-code">${esc(r.code)}</td>
+      <td class="num-dim">${esc(r.org||'')}</td>
+      <td class="td-real"><span class="num" style="color:${r.veeam365?'var(--green)':'var(--muted)'}">${r.veeam365?'✓ actif':'—'}</span></td>
+      <td class="td-artis"><span class="num">${billed||'—'}</span></td>
+      ${deltaCell(delta, billed)}
+    </tr>`;
+  }).join('') || noData(6);
+
+  // ── VADE ──
+  const vadeBase = all.filter(r => r.vade || (r.artis && r.artis.vade > 0));
+  const vadeRows = applyTabSort(vadeBase.filter(r => matchTabFilter(r,'vade')), 'vade');
+  document.getElementById('badge-vade').textContent = vadeBase.length;
+  document.getElementById('tbody-vade').innerHTML = vadeRows.map(r => {
+    const real = r.vade ? (r.vade.user_count || r.vade.licenses_active) : 0;
+    const billed = (r.artis||{}).vade || 0;
+    const delta = billed - real;
+    return `<tr class="row-clickable" onclick="renderClientModal({code:'${esc(r.code)}',focus:'vade'})">
+      <td><div class="client-name">${esc(r.nom)}</div></td>
+      <td class="client-code">${esc(r.code)}</td>
+      <td class="num-dim">${esc(r.org||'')}</td>
+      <td class="td-real"><span class="num" style="color:${r.vade?'var(--text)':'var(--muted)'}">${real||'—'}</span></td>
+      <td class="td-artis"><span class="num">${billed||'—'}</span></td>
+      ${deltaCell(delta, billed)}
+    </tr>`;
+  }).join('') || noData(6);
+  renderSvcMetrics('vade-metrics', vadeRows, r => r.vade ? (r.vade.user_count || r.vade.licenses_active) : null, r => (r.artis||{}).vade||0);
+
+  // ── SOC ──
+  const socBase = all.filter(r => r.sentinelone || (r.artis && r.artis.soc > 0));
+  const socRows = applyTabSort(socBase.filter(r => matchTabFilter(r,'soc')), 'soc');
+  document.getElementById('badge-soc').textContent = socBase.length;
+  document.getElementById('tbody-soc').innerHTML = socRows.map(r => {
+    const real = r.sentinelone ? r.sentinelone.activeLicenses : 0;
+    const billed = (r.artis||{}).soc || 0;
+    const delta = billed - real;
+    return `<tr class="row-clickable" onclick="renderClientModal({code:'${esc(r.code)}',focus:'soc'})">
+      <td><div class="client-name">${esc(r.nom)}</div></td>
+      <td class="client-code">${esc(r.code)}</td>
+      <td class="num-dim">${esc(r.org||'')}</td>
+      <td class="td-real"><span class="num" style="color:${r.sentinelone?'var(--text)':'var(--muted)'}">${real||'—'}</span></td>
+      <td class="td-artis"><span class="num">${billed||'—'}</span></td>
+      ${deltaCell(delta, billed)}
+    </tr>`;
+  }).join('') || noData(6);
+  renderSvcMetrics('soc-metrics', socRows, r => r.sentinelone ? r.sentinelone.activeLicenses : null, r => (r.artis||{}).soc||0);
+
+  // Source-specific errors
+  showErr('sophos-error', DATA.sources.sophos);
+  showErr('veeam-error',  DATA.sources.veeam);
+  showErr('vade-error',   DATA.sources.vade);
+  showErr('datto-error',  DATA.sources.datto);
+  showErr('soc-error',    DATA.sources.sentinelone);
+}
+
+function renderSvcMetrics(containerId, rows, realFn, billedFn) {
+  const matched = rows.filter(r => realFn(r) !== null).length;
+  const totalBilled = rows.reduce((s, r) => s + billedFn(r), 0);
+  const totalReal = rows.filter(r => realFn(r) !== null).reduce((s, r) => s + (realFn(r)||0), 0);
+  const negCount = rows.filter(r => {
+    const rr = realFn(r); const bb = billedFn(r);
+    return rr !== null && bb > 0 && (bb - rr) < -0.05;
+  }).length;
+  const posCount = rows.filter(r => {
+    const rr = realFn(r); const bb = billedFn(r);
+    return rr !== null && bb > 0 && (bb - rr) > 0.05;
+  }).length;
+  document.getElementById(containerId).innerHTML = [
+    {label:'Clients', val: rows.length, cls:'c-accent'},
+    {label:'Matchés', val: matched, cls:'c-green'},
+    {label:'Total Artis', val: Math.round(totalBilled), cls:'c-blue'},
+    {label:'Total Réel', val: Math.round(totalReal), cls:'c-blue'},
+    {label:'Écarts −', val: negCount, cls: negCount>0?'c-red':'c-green'},
+    {label:'Écarts +', val: posCount, cls: posCount>0?'c-amber':'c-green'},
+  ].map(c => `<div class="metric"><div class="metric-label">${c.label}</div><div class="metric-value ${c.cls}" style="font-size:20px">${c.val.toLocaleString('fr-FR')}</div></div>`).join('');
+}
+
+function deltaCell(delta, billed, decimals=0) {
+  if (billed === 0) return `<td class="td-delta"><span class="num-dim">—</span></td>`;
+  const fmt = v => Math.abs(v).toLocaleString('fr-FR', {minimumFractionDigits:decimals, maximumFractionDigits:decimals});
+  if (Math.abs(delta) < 0.05) return `<td class="td-delta"><span class="delta-zero">0</span></td>`;
+  if (delta < 0) return `<td class="td-delta"><span class="delta-neg">−${fmt(-delta)}</span></td>`;
+  return `<td class="td-delta"><span class="delta-pos">+${fmt(delta)}</span></td>`;
+}
+
+function noData(cols) {
+  return `<tr><td colspan="${cols}" class="no-data">Aucune donnée — relancer la mise à jour</td></tr>`;
+}
+
+// ══════════════════════════════════════
+// ARTIS TAB
+// ══════════════════════════════════════
+function renderArtisTab() {
+  const all = DATA.reconciliation_par_contrat || DATA.reconciliation || [];
+  const nb_clients = (DATA.reconciliation || []).length;
+  document.getElementById('artis-count').textContent = `${all.length} contrats (${nb_clients} clients)`;
+  document.getElementById('badge-artis').textContent = all.length;
+  showErr('artis-error', DATA.sources.artis);
+  const indexed = all.map((r,i) => ({r, i}));
+  const filtered = indexed.filter(({r}) => matchTabFilter(r,'artis'));
+  const sorted = applyTabSort(filtered.map(x => ({...x.r, _idx:x.i})), 'artis');
+  const fmt = v => v > 0 ? `<span class="num">${v}</span>` : `<span class="num-dim">—</span>`;
+  document.getElementById('tbody-artis').innerHTML = sorted.map(r => {
+    const a = r.artis || {};
+    return `<tr class="row-clickable" onclick="renderClientModal(${r._idx})">
+      <td><div class="client-name">${esc(r.nom)}</div></td>
+      <td class="client-code">${esc(r.code)}</td>
+      <td class="num-dim">${esc(r.org||'')}</td>
+      <td class="client-code">${esc(r.contrat_code||'')}</td>
+      <td class="num-dim">${esc(r.contrat_statut||'')}</td>
+      <td>${fmt(a.datto||0)}</td>
+      <td>${fmt(a.m365||0)}</td>
+      <td>${fmt(a.sophos||0)}</td>
+      <td>${fmt(a.veeam_tb||0)}</td>
+      <td>${fmt(a.veeam365||0)}</td>
+      <td>${fmt(a.vade||0)}</td>
+      <td>${fmt(a.soc||0)}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="12" class="no-data">Aucun résultat</td></tr>';
+}
+
+// ══════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════
+function showErr(id, src) {
+  const el = document.getElementById(id);
+  if (el) {
+    if (src && src.error) { el.textContent = '⚠ ' + src.error; el.style.display = 'block'; }
+    else el.style.display = 'none';
+  }
+}
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ══════════════════════════════════════
+// EXPORT EXCEL
+// ══════════════════════════════════════
+function dateStr() {
+  const d = new Date();
+  return d.toISOString().slice(0,10).replace(/-/g,'');
+}
+
+async function writeExcel(filename, sheetName, headers, rows, opts) {
+  opts = opts || {};
+  const groupBoundaries = opts.groupBoundaries || []; // index 1-based des colonnes après lesquelles ajouter une bordure droite épaisse
+
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'Dashboard Console Facturation SSC DFM';
+  wb.created = new Date();
+
+  const safeName = sheetName.replace(/[\\\/\?\*\[\]:]/g, ' ').slice(0, 31);
+  const ws = wb.addWorksheet(safeName, {
+    views: [{ state: 'frozen', ySplit: 1 }],
+  });
+
+  // ExcelJS n'aime pas null/undefined dans les cellules de table
+  const cleanRows = rows.map(r => r.map(v => v === null || v === undefined ? '' : v));
+
+  // Tableau Office bleu (Medium 2 = bleu fidèle Excel) avec stripes + filtres
+  ws.addTable({
+    name: 'Tableau' + Math.floor(Math.random()*10000),
+    ref:  'A1',
+    headerRow: true,
+    totalsRow: false,
+    style: {
+      theme: 'TableStyleMedium2',
+      showRowStripes: true,
+      showFirstColumn: false,
+      showLastColumn: false,
+      showColumnStripes: false,
+    },
+    columns: headers.map(h => ({ name: String(h), filterButton: true })),
+    rows: cleanRows,
+  });
+
+  // Largeur colonnes auto
+  headers.forEach((h, i) => {
+    let max = String(h || '').length;
+    for (const r of cleanRows) {
+      const v = r[i] === '' ? '' : String(r[i]);
+      if (v.length > max) max = v.length;
+    }
+    ws.getColumn(i + 1).width = Math.min(55, Math.max(11, max + 3));
+  });
+  ws.getRow(1).height = 24;
+
+  // Bordures de groupe : épaisse à droite de chaque colonne-frontière, fine sinon
+  const totalRows = cleanRows.length + 1; // header + data
+  const thick = { style: 'medium', color: { argb: 'FF1F4E78' } };  // bleu foncé
+  const thin  = { style: 'thin',   color: { argb: 'FFBFBFBF' } };
+
+  for (let r = 1; r <= totalRows; r++) {
+    for (let c = 1; c <= headers.length; c++) {
+      const cell = ws.getCell(r, c);
+      const isBoundary = groupBoundaries.includes(c);
+      // On préserve les bordures top/bottom du tableau (gérées par le thème)
+      cell.border = Object.assign({}, cell.border, {
+        right: isBoundary ? thick : thin,
+        left:  c === 1 ? thin : (groupBoundaries.includes(c - 1) ? thick : undefined),
+      });
+    }
+  }
+
+  // Téléchargement
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 200);
+}
+
+const EXPORTS = {
+  recon: () => {
+    const headers = ['Client','Code','Org','Contrats',
+      'DATTO réel','DATTO Artis','DATTO Δ',
+      'M365 réel','M365 Artis','M365 Δ',
+      'Sophos réel','Sophos Artis','Sophos Δ',
+      'VEEAM TB réel','VEEAM TB Artis','VEEAM TB Δ',
+      'SOC réel','SOC Artis','SOC Δ',
+      'VADE réel','VADE Artis','VADE Δ'];
+    const rows = (filtered || DATA.reconciliation || []).map(r => {
+      const a = r.artis || {};
+      const dr = r.datto?r.datto.total:null,        db = a.datto||0;
+      const mr = r.m365?r.m365.licenses:null,       mb = a.m365||0;
+      const sr = r.sophos?r.sophos.endpoints:null,  sb = a.sophos||0;
+      const vr = r.veeam?+r.veeam.usedTB.toFixed(3):null, vb = a.veeam_tb||0;
+      const ocr= r.sentinelone?r.sentinelone.activeLicenses:null, ocb = a.soc||0;
+      const va = r.vade?(r.vade.user_count||r.vade.licenses_active):null, vab = a.vade||0;
+      return [r.nom, r.code, r.org||'', r.nb_contrats,
+        dr, db, dr!==null && db?+(db-dr).toFixed(2):'',
+        mr, mb, mr!==null && mb?+(mb-mr).toFixed(2):'',
+        sr, sb, sr!==null && sb?+(sb-sr).toFixed(2):'',
+        vr, vb, vr!==null && vb?+(vb-vr).toFixed(2):'',
+        ocr, ocb, ocr!==null && ocb?+(ocb-ocr).toFixed(2):'',
+        va, vab, va!==null && vab?+(vab-va).toFixed(2):''];
+    });
+    return ['MSP_VueGlobale_'+dateStr()+'.xlsx', 'Vue globale', headers, rows];
+  },
+  datto: () => {
+    const headers = ['Client','Code','Org','TOTAL DATTO','TOTAL ARTIS','DELTA','Servers','Desktops','Laptops'];
+    const rows = (DATA.reconciliation||[])
+      .filter(r => r.datto || (r.artis && r.artis.datto > 0))
+      .map(r => {
+        const real = r.datto?r.datto.total:0, billed = (r.artis||{}).datto||0;
+        return [r.nom, r.code, r.org||'', real, billed, billed-real,
+          r.datto?r.datto.servers:'', r.datto?r.datto.desktops||0:'', r.datto?r.datto.laptops||0:''];
+      });
+    return ['MSP_DATTO_'+dateStr()+'.xlsx', 'DATTO', headers, rows];
+  },
+  m365: () => {
+    const headers = ['Client','Code','Org','TOTAL M365','TOTAL ARTIS','DELTA','Subscriptions'];
+    const rows = (DATA.reconciliation||[])
+      .filter(r => r.m365 || (r.artis && r.artis.m365 > 0))
+      .map(r => {
+        const real = r.m365?r.m365.licenses:0, billed = (r.artis||{}).m365||0;
+        return [r.nom, r.code, r.org||'', real, billed, billed-real, r.m365?r.m365.subscriptions:0];
+      });
+    return ['MSP_M365_'+dateStr()+'.xlsx', 'M365', headers, rows];
+  },
+  sophos: () => {
+    const headers = ['Client','Code','Org','TOTAL SOPHOS','TOTAL ARTIS','DELTA'];
+    const rows = (DATA.reconciliation||[])
+      .filter(r => r.sophos || (r.artis && r.artis.sophos > 0))
+      .map(r => {
+        const real = r.sophos?r.sophos.endpoints:0, billed = (r.artis||{}).sophos||0;
+        return [r.nom, r.code, r.org||'', real, billed, billed-real];
+      });
+    return ['MSP_Sophos_'+dateStr()+'.xlsx', 'Sophos', headers, rows];
+  },
+  veeam: () => {
+    const headers = ['Client','Code','Org','TOTAL VEEAM (TB)','TOTAL ARTIS (TB)','DELTA'];
+    const rows = (DATA.reconciliation||[])
+      .filter(r => r.veeam || (r.artis && r.artis.veeam_tb > 0))
+      .map(r => {
+        const real = r.veeam?+r.veeam.usedTB.toFixed(3):0, billed = (r.artis||{}).veeam_tb||0;
+        return [r.nom, r.code, r.org||'', real, billed, +(billed-real).toFixed(3)];
+      });
+    return ['MSP_VEEAM_'+dateStr()+'.xlsx', 'VEEAM', headers, rows];
+  },
+  veeam365: () => {
+    const headers = ['Client','Code','Org','TOTAL VEEAM365','TOTAL ARTIS','DELTA'];
+    const rows = (DATA.reconciliation||[])
+      .filter(r => r.veeam365 || (r.artis && r.artis.veeam365 > 0))
+      .map(r => {
+        const real = r.veeam365?1:0, billed = (r.artis||{}).veeam365||0;
+        return [r.nom, r.code, r.org||'', real, billed, billed-real];
+      });
+    return ['MSP_VEEAM365_'+dateStr()+'.xlsx', 'VEEAM365', headers, rows];
+  },
+  vade: () => {
+    const headers = ['Client','Code','Org','TOTAL VADE','TOTAL ARTIS','DELTA','Domaine'];
+    const rows = (DATA.reconciliation||[])
+      .filter(r => r.vade || (r.artis && r.artis.vade > 0))
+      .map(r => {
+        const real = r.vade?(r.vade.user_count||r.vade.licenses_active):0, billed = (r.artis||{}).vade||0;
+        return [r.nom, r.code, r.org||'', real, billed, billed-real, r.vade?r.vade.domain||'':''];
+      });
+    return ['MSP_VADE_'+dateStr()+'.xlsx', 'VADE', headers, rows];
+  },
+  soc: () => {
+    const headers = ['Client','Code','Org','TOTAL SOC','TOTAL ARTIS','DELTA','Sites S1'];
+    const rows = (DATA.reconciliation||[])
+      .filter(r => r.sentinelone || (r.artis && r.artis.soc > 0))
+      .map(r => {
+        const real = r.sentinelone?r.sentinelone.activeLicenses:0, billed = (r.artis||{}).soc||0;
+        return [r.nom, r.code, r.org||'', real, billed, billed-real, r.sentinelone?r.sentinelone.sites:0];
+      });
+    return ['MSP_SOC_'+dateStr()+'.xlsx', 'SOC', headers, rows];
+  },
+  artis: () => {
+    const headers = ['Client','Code','Org','N° Contrat','Statut','Infogérance','M365','Sophos','VEEAM TB','VEEAM365','VADE','SOC'];
+    const src = DATA.reconciliation_par_contrat || DATA.reconciliation || [];
+    const rows = src.map(r => {
+      const a = r.artis||{};
+      return [r.nom, r.code, r.org||'', r.contrat_code||'', r.contrat_statut||'',
+        a.datto||0, a.m365||0, a.sophos||0, a.veeam_tb||0, a.veeam365||0, a.vade||0, a.soc||0];
+    });
+    return ['MSP_Artis_'+dateStr()+'.xlsx', 'Artis', headers, rows];
+  },
+};
+
+// Frontières entre groupes de colonnes (1-based) : bordure épaisse à droite
+const GROUP_BOUNDARIES = {
+  recon:    [4, 7, 10, 13, 16, 19],   // Client info | DATTO | M365 | Sophos | VEEAM | SOC | VADE
+  datto:    [3, 6],                    // Client info | Réel/Artis/Δ | Détail S/D/L
+  m365:     [3, 6],                    // Client info | Réel/Artis/Δ | Subs
+  sophos:   [3],                       // Client info | Réel/Artis/Δ
+  veeam:    [3],
+  veeam365: [3],
+  vade:     [3, 6],                    // Client info | Réel/Artis/Δ | Domaine
+  soc:      [3, 6],                    // Client info | Réel/Artis/Δ | Sites
+  artis:    [4],                       // Client info | services
+};
+
+async function exportTab(key) {
+  const cfg = EXPORTS[key];
+  if (!cfg || !DATA) return;
+  if (typeof ExcelJS === 'undefined') { alert('Bibliothèque ExcelJS non chargée'); return; }
+  const [filename, sheet, headers, rows] = cfg();
+  if (!rows.length) { alert('Aucune donnée à exporter'); return; }
+  try {
+    await writeExcel(filename, sheet, headers, rows, {
+      groupBoundaries: GROUP_BOUNDARIES[key] || [],
+    });
+  } catch (e) {
+    console.error(e);
+    alert('Erreur export : ' + e.message);
+  }
+}
+
+// ══════════════════════════════════════
+// MODAL DETAIL CLIENT/CONTRAT
+// ══════════════════════════════════════
+function svcBadge(s){
+  if(!s) return '<span class="svc-badge svc-none">—</span>';
+  return `<span class="svc-badge svc-${s}">${s}</span>`;
+}
+
+function fmtNum(v, dec=2){
+  if(v===null||v===undefined||v==='') return '—';
+  const n = +v; if(isNaN(n)) return esc(v);
+  return n.toLocaleString('fr-FR',{minimumFractionDigits:dec,maximumFractionDigits:dec});
+}
+function fmtDate(ts){
+  if(!ts) return '—';
+  const d = new Date(typeof ts==='number' ? ts*1000 : ts);
+  if(isNaN(d)) return esc(ts);
+  return d.toLocaleDateString('fr-FR');
+}
+
+function renderServiceFocus(focus, code, r){
+  const raw = (DATA.raw_sources)||{};
+  const titleMap = {datto:'DATTO',m365:'M365 (TDSynnex)',sophos:'Sophos',veeam:'VEEAM',veeam365:'VEEAM 365',vade:'VADE',soc:'SentinelOne'};
+  const title = `Détail ${titleMap[focus]||focus}`;
+  let body = '';
+
+  if(focus === 'm365'){
+    const subs = (raw.m365||[]).filter(s => s.artis_code === code);
+    if(!subs.length) body = '<div class="no-data">Aucune subscription M365 pour ce client</div>';
+    else {
+      const termMonths = t => {
+        const m = /P(\d+)([YM])/i.exec(t||''); if(!m) return 12;
+        return parseInt(m[1],10) * (m[2].toUpperCase()==='Y' ? 12 : 1);
+      };
+      const monthly = s => (+s.seller_cost||0) / termMonths(s.billing_term);
+      const totalLic = subs.reduce((s,x)=>s+(+x.licenses||0),0);
+      const totalReseller = subs.reduce((s,x)=>s+monthly(x),0);
+      const totalCustomer = subs.reduce((s,x)=>s+((+x.customer_cost||0)*(+x.licenses||0)),0);
+      body = `<div class="table-wrap"><table>
+        <thead><tr><th>Subscription</th><th>Licences</th><th>Statut</th><th title="Cost TDSynnex / nb mois du terme">Coût reseller / mois</th><th title="customerCost TDSynnex × licences">Revente client / mois</th><th>Cycle</th><th>Terme</th><th>Début</th><th>Fin</th></tr></thead>
+        <tbody>${subs.map(s=>`<tr>
+          <td>${esc(s.subscription||'')}</td>
+          <td class="num">${s.licenses||0}</td>
+          <td>${esc(s.status||'')}</td>
+          <td class="num">${fmtNum(monthly(s),2)} €</td>
+          <td class="num num-dim">${fmtNum((+s.customer_cost||0)*(+s.licenses||0),2)} €</td>
+          <td class="num-dim">${esc(s.billing_cycle||'')}</td>
+          <td class="num-dim">${esc(s.billing_term||'')}</td>
+          <td class="num-dim">${esc(s.start_date||'')}</td>
+          <td class="num-dim">${esc(s.end_date||'')}</td>
+        </tr>`).join('')}</tbody></table></div>
+        <div class="source-sub" style="margin-top:.4rem">${subs.length} subscriptions · ${totalLic} licences · <b>coût reseller mensuel ${fmtNum(totalReseller,2)} €</b> · revente client ${fmtNum(totalCustomer,2)} €</div>`;
+    }
+  }
+  else if(focus === 'sophos'){
+    const t = (raw.sophos||[]).find(s => s.artis_code === code);
+    if(!t) body = '<div class="no-data">Aucun tenant Sophos pour ce client</div>';
+    else {
+      const items = t.billing_items||[];
+      const head = `<div class="modal-grid" style="margin-bottom:1rem">
+        <div class="modal-card"><div class="modal-card-label">Tenant</div><div class="modal-card-value">${esc(t.name||'')}</div></div>
+        <div class="modal-card"><div class="modal-card-label">Statut</div><div class="modal-card-value">${esc(t.status||'')}</div></div>
+        <div class="modal-card"><div class="modal-card-label">Endpoints</div><div class="modal-card-value">${t.endpoints||0}</div></div>
+        <div class="modal-card"><div class="modal-card-label">Région</div><div class="modal-card-value">${esc(t.dataRegion||'—')}</div></div>
+        <div class="modal-card"><div class="modal-card-label">Total mensuel</div><div class="modal-card-value">${fmtNum(t.monthly_billing,2)} €</div></div>
+      </div>`;
+      const lines = items.length
+        ? `<div class="table-wrap"><table>
+            <thead><tr><th>Produit</th><th>SKU</th><th>Qté</th><th>Prix unitaire</th><th>Total</th></tr></thead>
+            <tbody>${items.map(it=>`<tr>
+              <td>${esc(it.product||'')}</td>
+              <td class="client-code">${esc(it.sku||'')}</td>
+              <td class="num">${fmtNum(it.qty,0)}</td>
+              <td class="num">${fmtNum(it.msrp,2)} €</td>
+              <td class="num">${fmtNum(it.total,2)} €</td>
+            </tr>`).join('')}</tbody></table></div>
+            <div class="source-sub" style="margin-top:.4rem">${items.length} ligne${items.length>1?'s':''} de facturation</div>`
+        : '<div class="no-data">Aucune ligne de facturation Sophos</div>';
+      body = head + lines;
+    }
+  }
+  else if(focus === 'datto'){
+    const sites = (raw.datto||[]).filter(s => s.artis_code === code);
+    if(!sites.length) body = '<div class="no-data">Aucun site DATTO pour ce client</div>';
+    else {
+      const tot = sites.reduce((acc,s)=>({s:acc.s+(+s.servers||0),d:acc.d+(+s.desktops||0),l:acc.l+(+s.laptops||0),t:acc.t+(+s.total||0)}),{s:0,d:0,l:0,t:0});
+      const summary = `<div class="table-wrap" style="margin-bottom:1rem"><table>
+        <thead><tr><th>Site</th><th>Servers</th><th>Desktops</th><th>Laptops</th><th>Total</th></tr></thead>
+        <tbody>${sites.map(s=>`<tr>
+          <td>${esc(s.name||'')}</td>
+          <td class="num">${s.servers||0}</td>
+          <td class="num">${s.desktops||0}</td>
+          <td class="num">${s.laptops||0}</td>
+          <td class="num">${s.total||0}</td>
+        </tr>`).join('')}
+        <tr style="border-top:2px solid var(--border);font-weight:600">
+          <td>Total</td><td class="num">${tot.s}</td><td class="num">${tot.d}</td><td class="num">${tot.l}</td><td class="num">${tot.t}</td>
+        </tr></tbody></table></div>`;
+
+      const catBadge = c => {
+        const map = {Server:'#22c55e', Desktop:'#38bdf8', Laptop:'#a78bfa'};
+        const col = map[c] || '#64748b';
+        return `<span style="background:${col}22;color:${col};padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600">${c||'—'}</span>`;
+      };
+      const fmtSeen = ts => {
+        if(!ts) return '—';
+        const d = new Date(ts*1000); if(isNaN(d)) return '—';
+        const days = Math.floor((Date.now() - d.getTime()) / 86400000);
+        const dateStr = d.toLocaleDateString('fr-FR');
+        const ago = days === 0 ? "auj." : days === 1 ? "hier" : `${days}j`;
+        return `<span title="${dateStr}">${ago}</span>`;
+      };
+
+      const detailsBlocks = sites.map(s => {
+        const devs = (s.devices||[]).slice().sort((a,b) => {
+          const order = {Server:0, Desktop:1, Laptop:2};
+          if(order[a.category] !== order[b.category]) return order[a.category] - order[b.category];
+          return (a.hostname||'').localeCompare(b.hostname||'');
+        });
+        const head = `${esc(s.name)} <span class="num-dim" style="font-weight:400">— ${s.total||0} machines (${s.servers||0}S/${s.desktops||0}D/${s.laptops||0}L)</span>`;
+        if(!devs.length) return `<details style="margin-bottom:.6rem"><summary style="cursor:pointer;padding:.5rem;background:var(--surface2);border-radius:6px;font-weight:600">${head}</summary><div class="no-data">Pas de détail machine</div></details>`;
+        return `<details style="margin-bottom:.6rem"><summary style="cursor:pointer;padding:.5rem;background:var(--surface2);border-radius:6px;font-weight:600">${head}</summary>
+          <div class="table-wrap" style="margin-top:.5rem"><table>
+            <thead><tr><th>Hostname</th><th>Type</th><th>OS</th><th>Utilisateur</th><th>IP</th><th>Domaine</th><th>Vu</th></tr></thead>
+            <tbody>${devs.map(dv => `<tr>
+              <td><div class="client-name">${esc(dv.hostname||'—')}</div></td>
+              <td>${catBadge(dv.category)}</td>
+              <td class="num-dim" style="font-size:11px">${esc(dv.os||'—')}</td>
+              <td class="num-dim">${esc(dv.user||'—')}</td>
+              <td class="client-code">${esc(dv.ip||'—')}</td>
+              <td class="num-dim">${esc(dv.domain||'—')}</td>
+              <td class="num-dim">${fmtSeen(dv.lastSeen)}</td>
+            </tr>`).join('')}</tbody>
+          </table></div>
+        </details>`;
+      }).join('');
+
+      body = summary
+        + `<div class="modal-card-label" style="margin:.8rem 0 .4rem;font-weight:600;color:var(--text)">Liste des machines (cliquer pour déplier)</div>`
+        + detailsBlocks
+        + `<div class="source-sub" style="margin-top:.4rem">${sites.length} site${sites.length>1?'s':''}</div>`;
+    }
+  }
+  else if(focus === 'veeam'){
+    const cs = (raw.veeam||[]).filter(c => c.artis_code === code);
+    const usage = raw.veeam_usage||{};
+    if(!cs.length) body = '<div class="no-data">Aucune company VEEAM pour ce client</div>';
+    else {
+      const totalTB = cs.reduce((s,c)=>s+(+(usage[c.uid]||0)),0);
+      body = `<div class="table-wrap"><table>
+        <thead><tr><th>Company VEEAM</th><th>UID</th><th>TB utilisés</th></tr></thead>
+        <tbody>${cs.map(c=>`<tr>
+          <td>${esc(c.name||'')}</td>
+          <td class="client-code" style="font-size:11px">${esc(c.uid||'')}</td>
+          <td class="num">${fmtNum(usage[c.uid]||0,3)}</td>
+        </tr>`).join('')}
+        <tr style="border-top:2px solid var(--border);font-weight:600">
+          <td colspan="2">Total</td><td class="num">${fmtNum(totalTB,3)} TB</td>
+        </tr></tbody></table></div>
+        <div class="source-sub" style="margin-top:.4rem">${cs.length} company${cs.length>1?'ies':''}</div>`;
+    }
+  }
+  else if(focus === 'veeam365'){
+    const orgs = (raw.veeam365||[]).filter(c => c.artis_code === code);
+    if(!orgs.length) body = '<div class="no-data">Aucune organisation VEEAM 365 pour ce client</div>';
+    else {
+      body = `<div class="table-wrap"><table>
+        <thead><tr><th>Organisation</th><th>Type</th><th>UID</th></tr></thead>
+        <tbody>${orgs.map(o=>`<tr>
+          <td>${esc(o.name||'')}</td>
+          <td>${esc(o.type||'')}</td>
+          <td class="client-code" style="font-size:11px">${esc(o.uid||'')}</td>
+        </tr>`).join('')}</tbody></table></div>
+        <div class="source-sub" style="margin-top:.4rem">${orgs.length} organisation${orgs.length>1?'s':''}</div>`;
+    }
+  }
+  else if(focus === 'vade'){
+    const cs = (raw.vade||[]).filter(c => c.artis_code === code);
+    if(!cs.length) body = '<div class="no-data">Aucun client VADE pour ce client</div>';
+    else {
+      body = `<div class="table-wrap"><table>
+        <thead><tr><th>Marque</th><th>Domaine</th><th>Mail admin</th><th>Users</th><th>Lic. actives</th><th>Lic. totales</th><th>Fin</th><th>cpRef</th></tr></thead>
+        <tbody>${cs.map(c=>`<tr>
+          <td>${esc(c.brand||'')}</td>
+          <td>${esc(c.domain||'')}</td>
+          <td class="num-dim">${esc(c.mail||'')}</td>
+          <td class="num">${c.user_count||0}</td>
+          <td class="num">${c.licenses_active||0}</td>
+          <td class="num">${c.licenses_total||0}</td>
+          <td class="num-dim">${fmtDate(c.end_date_ts)}</td>
+          <td class="num-dim">${esc(c.cpRef||'')}</td>
+        </tr>`).join('')}</tbody></table></div>
+        <div class="source-sub" style="margin-top:.4rem">${cs.length} entrée${cs.length>1?'s':''} VADE</div>`;
+    }
+  }
+  else if(focus === 'soc'){
+    const sites = (raw.sentinelone||[]).filter(s => s.artis_code === code);
+    if(!sites.length) body = '<div class="no-data">Aucun site SentinelOne pour ce client</div>';
+    else {
+      const tot = sites.reduce((s,x)=>s+(+x.activeLicenses||0),0);
+      body = `<div class="table-wrap"><table>
+        <thead><tr><th>Site</th><th>Compte</th><th>État</th><th>Lic. actives</th></tr></thead>
+        <tbody>${sites.map(s=>`<tr>
+          <td>${esc(s.name||'')}</td>
+          <td class="num-dim">${esc(s.accountName||'')}</td>
+          <td>${esc(s.state||'')}</td>
+          <td class="num">${s.activeLicenses||0}</td>
+        </tr>`).join('')}
+        <tr style="border-top:2px solid var(--border);font-weight:600">
+          <td colspan="3">Total</td><td class="num">${tot}</td>
+        </tr></tbody></table></div>
+        <div class="source-sub" style="margin-top:.4rem">${sites.length} site${sites.length>1?'s':''}</div>`;
+    }
+  }
+  else return '';
+
+  return `<div class="modal-section">
+    <div class="modal-section-title">${title}</div>
+    ${body}
+  </div>`;
+}
+
+// ─── Helpers vendor (renouvellement, états dégradés) ──────────────────────
+function _raw(k){ return ((DATA.raw_sources||{})[k])||[]; }
+
+function m365NextEnd(code){
+  const subs = _raw('m365').filter(s => s.artis_code === code && s.status === 'active' && s.end_date);
+  if(!subs.length) return null;
+  return subs.map(s => s.end_date).sort()[0];
+}
+function m365States(code){
+  const subs = _raw('m365').filter(s => s.artis_code === code);
+  return { total: subs.length, paused: subs.filter(s => s.status === 'Paused').length };
+}
+function vadeNextEndTs(code){
+  const cs = _raw('vade').filter(s => s.artis_code === code && s.end_date_ts);
+  if(!cs.length) return null;
+  return Math.min(...cs.map(c => +c.end_date_ts));
+}
+function s1States(code){
+  const sites = _raw('sentinelone').filter(s => s.artis_code === code);
+  return { total: sites.length, expired: sites.filter(s => s.state === 'expired').length };
+}
+
+// ─── Méta vendors ─────────────────────────────────────────────────────────
+const VENDORS = [
+  {
+    key:'datto', name:'DATTO', icon:'🖥', focus:'datto', unit:'endpoints',
+    kpi: r => r.datto ? r.datto.total : null,
+    sub: r => r.datto ? `${r.datto.servers||0}S · ${r.datto.desktops||0}D · ${r.datto.laptops||0}L` : null,
+    billed: a => +a.datto || 0,
+    deltaTol: 0,
+  },
+  {
+    key:'m365', name:'M365', icon:'Ⓜ', focus:'m365', unit:'licences',
+    kpi: r => r.m365 ? r.m365.licenses : null,
+    sub: r => r.m365 ? `${r.m365.subscriptions||0} sub${(r.m365.subscriptions||0)>1?'s':''}` : null,
+    billed: a => +a.m365 || 0,
+    deltaTol: 0,
+    extraStatus: (r, code) => {
+      if(!r.m365) return null;
+      const st = m365States(code);
+      if(st.total > 0 && st.paused === st.total) return 'critical';
+      if(st.paused > 0) return 'warning';
+      const end = m365NextEnd(code);
+      if(end){
+        const days = Math.floor((new Date(end) - Date.now()) / 86400000);
+        if(days < 30) return 'critical';
+        if(days < 90) return 'warning';
+      }
+      return null;
+    },
+    renewal: (r, code) => m365NextEnd(code),
+  },
+  {
+    key:'sophos', name:'Sophos', icon:'🛡', focus:'sophos', unit:'endpoints',
+    kpi: r => r.sophos ? r.sophos.endpoints : null,
+    sub: r => {
+      if(!r.sophos) return null;
+      const t = _raw('sophos').find(s => s.artis_code === r.code);
+      const mb = t && t.monthly_billing;
+      return mb ? `${fmtNum(mb,2)} €/mois` : null;
+    },
+    billed: a => +a.sophos || 0,
+    deltaTol: 0,
+    extraStatus: r => (r.sophos && r.sophos.status && r.sophos.status !== 'active') ? 'critical' : null,
+  },
+  {
+    key:'veeam', name:'VEEAM Backup', icon:'☁', focus:'veeam', unit:'TB utilisés',
+    kpi: r => r.veeam ? r.veeam.usedTB : null,
+    sub: () => null,
+    billed: a => +a.veeam_tb || 0,
+    deltaTol: 0.1,
+    decimals: 2,
+  },
+  {
+    key:'veeam365', name:'VEEAM 365', icon:'☁', focus:'veeam365', unit:'M365 backup',
+    kpi: r => r.veeam365 ? 1 : null,
+    sub: r => r.veeam365 ? (r.veeam365.type || '') : null,
+    billed: a => +a.veeam365 || 0,
+    deltaTol: 0,
+    isBinary: true,
+  },
+  {
+    key:'vade', name:'VADE', icon:'✉', focus:'vade', unit:'users',
+    kpi: r => r.vade ? (r.vade.user_count || r.vade.licenses_active) : null,
+    sub: r => {
+      if(!r.vade) return null;
+      const u = +r.vade.user_count || 0, l = +r.vade.licenses_active || 0;
+      return (u !== l) ? `${u} users · ${l} lic.` : null;
+    },
+    billed: a => +a.vade || 0,
+    deltaTol: 0,
+    extraStatus: (r, code) => {
+      if(!r.vade) return null;
+      const ts = vadeNextEndTs(code);
+      if(!ts) return null;
+      const days = Math.floor((ts - Date.now()) / 86400000);
+      if(days < 0 || days < 30) return 'critical';
+      if(days < 90) return 'warning';
+      return null;
+    },
+    renewal: (r, code) => vadeNextEndTs(code),
+  },
+  {
+    key:'sentinelone', name:'SentinelOne', icon:'🛰', focus:'soc', unit:'lic. actives',
+    kpi: r => r.sentinelone ? r.sentinelone.activeLicenses : null,
+    sub: r => r.sentinelone ? `${r.sentinelone.sites||0} site${(r.sentinelone.sites||0)>1?'s':''}` : null,
+    billed: a => +a.soc || 0,
+    deltaTol: 0,
+    extraStatus: (r, code) => {
+      if(!r.sentinelone) return null;
+      const st = s1States(code);
+      if(st.total > 0 && st.expired === st.total) return 'critical';
+      if(st.expired > 0) return 'warning';
+      return null;
+    },
+  },
+];
+
+function vendorStatus(v, r, code){
+  const a = r.artis || {};
+  const billed = v.billed(a);
+  const present = !!r[v.key];
+  if(!present) return billed > 0 ? 'critical' : 'inactive';
+
+  const extra = v.extraStatus ? v.extraStatus(r, code) : null;
+  if(extra === 'critical') return 'critical';
+
+  let hasDelta = false;
+  if(billed > 0 && !v.isBinary){
+    const real = +v.kpi(r) || 0;
+    if(Math.abs(real - billed) > (v.deltaTol || 0)) hasDelta = true;
+  }
+  if(extra === 'warning' || hasDelta) return 'warning';
+  return 'ok';
+}
+
+const STATUS_LABEL = {
+  ok:        {label:'actif',     bg:'rgba(34,197,94,.15)',  color:'#86efac'},
+  warning:   {label:'alerte',    bg:'rgba(245,158,11,.15)', color:'#fcd34d'},
+  critical:  {label:'critique',  bg:'rgba(239,68,68,.15)',  color:'#fca5a5'},
+  inactive:  {label:'non vendu', bg:'rgba(120,120,120,.15)',color:'var(--muted)'},
+};
+
+function renderVendorCard(v, r){
+  const code = r.code;
+  const a = r.artis || {};
+  const billed = v.billed(a);
+  const present = !!r[v.key];
+  const status = vendorStatus(v, r, code);
+  const sLabel = STATUS_LABEL[status];
+  const decimals = v.decimals || 0;
+
+  // Carte vendor non présent
+  if(!present){
+    const anomaly = billed > 0;
+    const cls = `vendor-card vendor-${status}${anomaly ? ' vendor-anomaly' : ''}`;
+    return `<div class="${cls}">
+      <div class="vc-head">
+        <div class="vc-name"><span class="vc-icon">${v.icon}</span>${v.name}</div>
+        <div class="vc-pill" style="background:${sLabel.bg};color:${sLabel.color}">● ${sLabel.label}</div>
+      </div>
+      <div class="vc-kpi vc-kpi-dim">—</div>
+      <div class="vc-unit">${anomaly ? '⚠ Aucune source détectée' : v.unit}</div>
+      <div class="vc-meta">
+        <span class="vc-meta-label">${anomaly ? 'Facturé Artis' : '—'}</span>
+        <span class="vc-meta-val">${anomaly ? `<span class="c-red">${fmtNum(billed,decimals)}</span>` : '—'}</span>
+      </div>
+      <div class="vc-meta">
+        <span class="vc-meta-label">Renouvel.</span>
+        <span class="vc-meta-val"><span class="num-dim">—</span></span>
+      </div>
+    </div>`;
+  }
+
+  // Carte vendor présent
+  const kpiVal = v.kpi(r);
+  const kpiDisplay = v.isBinary ? '✓' : fmtNum(kpiVal, decimals);
+  const sub = v.sub(r);
+
+  // Delta facturation
+  let deltaStr = '—', deltaCls = '';
+  if(billed > 0 && !v.isBinary){
+    const real = +kpiVal || 0;
+    const delta = real - billed;
+    if(Math.abs(delta) <= (v.deltaTol || 0)){ deltaStr = '✓'; deltaCls = 'c-green'; }
+    else if(delta > 0){ deltaStr = `▲ +${fmtNum(delta, decimals)}`; deltaCls = 'c-amber'; }
+    else { deltaStr = `▼ ${fmtNum(delta, decimals)}`; deltaCls = 'c-red'; }
+  } else if(v.isBinary && billed > 0){
+    deltaStr = '✓'; deltaCls = 'c-green';
+  }
+  const billedDisplay = billed > 0 ? fmtNum(billed, decimals) : '—';
+
+  // Renouvellement
+  let renewalHtml = '<span class="num-dim">—</span>';
+  if(v.renewal){
+    const raw = v.renewal(r, code);
+    if(raw){
+      const d = new Date(typeof raw === 'number' ? raw : raw);
+      if(!isNaN(d)){
+        const days = Math.floor((d - Date.now()) / 86400000);
+        const dStr = d.toLocaleDateString('fr-FR');
+        let cls = '';
+        if(days < 0) cls = 'c-red';
+        else if(days < 30) cls = 'c-red';
+        else if(days < 90) cls = 'c-amber';
+        const tag = days < 0 ? `⏰ expiré (${dStr})` : (days < 90 ? `⏰ ${dStr}` : dStr);
+        renewalHtml = `<span class="${cls}">${tag}</span>`;
+      }
+    }
+  }
+
+  return `<div class="vendor-card vendor-${status} vendor-clickable" onclick="goVendorDetail('${v.focus}')">
+    <div class="vc-head">
+      <div class="vc-name"><span class="vc-icon">${v.icon}</span>${v.name}</div>
+      <div class="vc-pill" style="background:${sLabel.bg};color:${sLabel.color}">● ${sLabel.label}</div>
+    </div>
+    <div class="vc-kpi">${kpiDisplay}</div>
+    <div class="vc-unit">${v.unit}${sub ? ` <span class="vc-sub">· ${esc(sub)}</span>` : ''}</div>
+    <div class="vc-meta">
+      <span class="vc-meta-label">Facturé Artis</span>
+      <span class="vc-meta-val">${billedDisplay} <span class="${deltaCls}">${deltaStr}</span></span>
+    </div>
+    <div class="vc-meta">
+      <span class="vc-meta-label">Renouvel.</span>
+      <span class="vc-meta-val">${renewalHtml}</span>
+    </div>
+  </div>`;
+}
+
+function renderVendorGrid(r){
+  const cards = VENDORS.map(v => renderVendorCard(v, r)).join('');
+  return `<div class="modal-section">
+    <div class="modal-section-title">Vue d'ensemble — services par vendor</div>
+    <div class="vendor-grid">${cards}</div>
+  </div>`;
+}
+
+// ─── Bloc RFC (toujours en bas, conservé) ─────────────────────────────────
+function renderRFCSection(){
+  if(!MODAL_STATE) return '';
+  const { entries, isClientWide } = MODAL_STATE;
+  const renderLinesTable = (lines) => {
+    if(!lines.length) return '<div class="no-data">Aucune ligne RFC</div>';
+    const sumQty = lines.reduce((s,l)=>s+(Number(l.qty)||0),0);
+    const sumTotal = lines.reduce((s,l)=>s+(Number(l.total)||0),0);
+    return `<div class="table-wrap"><table>
+        <thead><tr><th>MSC</th><th>RFC</th><th>Code RFC</th><th>Qté</th><th title="Prix facturé / unité (Artis couts.coutFacture)">Prix unitaire</th><th title="Qté × prix unitaire">Total</th><th>Service</th></tr></thead>
+        <tbody>${lines.map(l=>`<tr>
+          <td>${esc(l.msc||'')}</td>
+          <td>${esc(l.rfc||'')}</td>
+          <td class="client-code">${esc(l.rfc_code||'')}</td>
+          <td class="num">${l.qty||0}</td>
+          <td class="num num-dim">${l.prix_unitaire ? fmtNum(l.prix_unitaire,2)+' €' : '—'}</td>
+          <td class="num">${l.total ? fmtNum(l.total,2)+' €' : '—'}</td>
+          <td>${svcBadge(l.service)}</td>
+        </tr>`).join('')}</tbody>
+       </table></div>
+       <div class="source-sub" style="margin-top:.4rem">${lines.length} lignes · total qté ${sumQty} · <b>${fmtNum(sumTotal,2)} € / mois</b></div>`;
+  };
+  let body, title;
+  if(isClientWide){
+    body = entries.map(e => {
+      const lines = e.rfc_lines||[];
+      const head = `Contrat ${e.contrat_code||'(aucun)'} · ${esc(e.contrat_statut||'—')} · ${lines.length} ligne${lines.length>1?'s':''}`;
+      return `<div style="margin-bottom:1.2rem">
+        <div class="modal-card-label" style="margin-bottom:.4rem;font-weight:600;color:var(--text)">${head}</div>
+        ${renderLinesTable(lines)}
+      </div>`;
+    }).join('');
+    title = `Détail lignes RFC (tous contrats du client)`;
+  } else {
+    const r = entries[0];
+    body = renderLinesTable(r.rfc_lines||[]);
+    title = `Détail lignes RFC du contrat ${r.contrat_code||'(N/A)'}`;
+  }
+  return `<div class="modal-section">
+    <div class="modal-section-title">${title}</div>
+    ${body}
+  </div>`;
+}
+
+// ─── Navigation overview ↔ detail ─────────────────────────────────────────
+let MODAL_STATE = null;
+
+function goVendorDetail(focus){
+  if(!MODAL_STATE) return;
+  MODAL_STATE.view = 'detail';
+  MODAL_STATE.focus = focus;
+  rerenderModalBody();
+  document.getElementById('modal-body').scrollTop = 0;
+}
+function goVendorGrid(){
+  if(!MODAL_STATE) return;
+  MODAL_STATE.view = 'overview';
+  MODAL_STATE.focus = null;
+  rerenderModalBody();
+  document.getElementById('modal-body').scrollTop = 0;
+}
+function vendorLabel(focus){
+  const v = VENDORS.find(x => x.focus === focus);
+  return v ? v.name : focus;
+}
+
+function renderPersonChip(label, p, extra){
+  if(!p || (!p.nom && !p.prenom)) return `<div class="modal-card"><div class="modal-card-label">${label}</div><div class="modal-card-value" style="opacity:.5">—</div></div>`;
+  const fullname = `${p.prenom||''} ${p.nom||''}`.trim();
+  const mail = (p.email||'').trim();
+  const mailHtml = mail ? `<a href="mailto:${esc(mail)}" style="color:var(--accent);text-decoration:none;font-size:.75rem">${esc(mail)}</a>` : '';
+  const extraHtml = extra ? `<div style="margin-top:.15rem;font-size:.7rem;color:var(--muted)">${extra}</div>` : '';
+  return `<div class="modal-card">
+    <div class="modal-card-label">${label}</div>
+    <div class="modal-card-value">${esc(fullname)}</div>
+    ${mailHtml ? `<div style="margin-top:.15rem">${mailHtml}</div>` : ''}
+    ${extraHtml}
+  </div>`;
+}
+
+function renderClientHeader(r){
+  const cp = r.chef_projet;
+  const ven = r.vendeur;
+  if(!cp && !ven) return '';
+  // Extra info pour chef de projet : source (UO / affaire) + heures cumulées si UO
+  let cpExtra = '';
+  if(cp){
+    if(cp.source === 'uo'){
+      cpExtra = `via UO chef de projet · ${fmtNum(cp.total_hours||0,1)}h sur ${cp.nb_interventions||0} interv. · dernière ${cp.last_date||''}`;
+    } else if(cp.source === 'affaire'){
+      cpExtra = `via gestionnaire d'affaire (fallback)`;
+    }
+  }
+  return `<div class="modal-grid" style="margin-bottom:1rem">
+    ${renderPersonChip('Chef de projet', cp, cpExtra)}
+    ${renderPersonChip('Commercial', ven)}
+  </div>`;
+}
+
+// ── Cas particuliers (notes datées par client) ───────────────────────────────
+function renderCasParticuliers(code){
+  const all = (DATA.cas_particuliers)||{};
+  const notes = all[code] || [];
+  const listHtml = notes.length
+    ? `<div style="display:flex;flex-direction:column;gap:.5rem;margin-top:.6rem">
+        ${notes.map((n,i)=>`<div style="background:rgba(245,158,11,.07);border-left:3px solid #f59e0b;padding:.5rem .75rem;border-radius:4px;position:relative">
+          <div style="display:flex;justify-content:space-between;gap:.5rem;font-size:.75rem;color:var(--muted);margin-bottom:.2rem">
+            <span><b>${esc(n.auteur||'?')}</b> · ${esc(n.date||'')}</span>
+            <button onclick="supprimerCasParticulier('${esc(code)}',${i})"
+              title="Supprimer cette note"
+              style="background:transparent;border:0;color:var(--muted);cursor:pointer;font-size:1.05rem;line-height:1;padding:0 .15rem"
+              onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--muted)'">×</button>
+          </div>
+          <div style="white-space:pre-wrap;color:var(--text)">${esc(n.texte||'')}</div>
+        </div>`).join('')}
+       </div>`
+    : '<div class="no-data" style="margin-top:.4rem">Aucune note pour ce client.</div>';
+
+  return `<div class="modal-section" id="cas-particuliers-section">
+    <div class="modal-section-title">🔶 Cas particuliers ${notes.length ? `<span style="color:var(--muted);font-weight:400;font-size:.85rem">(${notes.length})</span>` : ''}</div>
+    ${listHtml}
+    <div style="margin-top:.8rem;display:flex;gap:.5rem;align-items:flex-start">
+      <textarea id="cas-particulier-input" rows="2" placeholder="Ajouter une note (datée, signée auto)…"
+        style="flex:1;background:var(--bg-deep);border:1px solid var(--border);color:var(--text);padding:.5rem;border-radius:4px;font-family:inherit;resize:vertical;min-height:2.4rem"></textarea>
+      <button onclick="ajouterCasParticulier('${esc(code)}')"
+        style="background:var(--accent);color:#fff;border:0;padding:.5rem .9rem;border-radius:4px;cursor:pointer;font-weight:600;white-space:nowrap">+ Ajouter</button>
+    </div>
+  </div>`;
+}
+
+async function supprimerCasParticulier(code, idx){
+  const notes = ((DATA.cas_particuliers||{})[code]||[]);
+  const note = notes[idx];
+  if(!note) return;
+  const preview = (note.texte||'').slice(0, 100) + ((note.texte||'').length > 100 ? '…' : '');
+  if(!confirm(`Supprimer cette note ?\n\n${note.date} · ${note.auteur}\n"${preview}"`)) return;
+  try {
+    const r = await fetch(`/api/cas-particulier/${encodeURIComponent(code)}/${idx}`, {method:'DELETE'});
+    const j = await r.json();
+    if(!r.ok){ alert('Erreur : '+(j.error||r.status)); return; }
+    // Sync local store
+    notes.splice(idx, 1);
+    if(notes.length === 0) delete DATA.cas_particuliers[code];
+    rerenderModalBody();
+    try { afficher(); } catch(e){}
+  } catch(e){
+    alert('Erreur réseau : '+e.message);
+  }
+}
+
+async function ajouterCasParticulier(code){
+  const ta = document.getElementById('cas-particulier-input');
+  const texte = (ta.value||'').trim();
+  if(!texte){ ta.focus(); return; }
+  try {
+    const r = await fetch(`/api/cas-particulier/${encodeURIComponent(code)}`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({texte})
+    });
+    const j = await r.json();
+    if(!r.ok){ alert('Erreur : '+(j.error||r.status)); return; }
+    // Mise à jour locale du store DATA pour le badge et la modal
+    (DATA.cas_particuliers = DATA.cas_particuliers || {});
+    (DATA.cas_particuliers[code] = DATA.cas_particuliers[code] || []).unshift(j.note);
+    rerenderModalBody();
+    // Rafraîchir la vue principale pour faire apparaître le badge 🔶
+    try { afficher(); } catch(e){}
+  } catch(e){
+    alert('Erreur réseau : '+e.message);
+  }
+}
+
+function rerenderModalBody(){
+  const r = MODAL_STATE.entries[0];
+  const header = renderClientHeader(r);
+  const cas = renderCasParticuliers(r.code);
+  let html;
+  if(MODAL_STATE.view === 'detail'){
+    const focus = MODAL_STATE.focus;
+    const breadcrumb = `<div class="modal-breadcrumb">
+      <button class="bc-back" onclick="goVendorGrid()" title="Retour à la vue d'ensemble">⟵</button>
+      <a class="bc-link" onclick="goVendorGrid()">Vue d'ensemble</a>
+      <span class="bc-sep">›</span>
+      <span class="bc-current">${esc(vendorLabel(focus))}</span>
+    </div>`;
+    const focusHtml = renderServiceFocus(focus, r.code, r) || '<div class="no-data">Aucune donnée détaillée pour ce vendor.</div>';
+    html = breadcrumb + header + focusHtml + cas + renderRFCSection();
+  } else {
+    html = header + renderVendorGrid(r) + cas + renderRFCSection();
+  }
+  document.getElementById('modal-body').innerHTML = html;
+}
+
+function renderClientModal(opts){
+  const all = DATA.reconciliation_par_contrat || [];
+  let entries, isClientWide, focus = null;
+  if(typeof opts === 'number'){ entries = [all[opts]]; isClientWide = false; }
+  else if(opts && opts.code !== undefined){
+    entries = all.filter(e => e.code === opts.code);
+    if(!entries.length){
+      const r = (DATA.reconciliation||[]).find(e => e.code === opts.code);
+      if(r){ entries = [{...r, contrat_code:'', contrat_statut:'', rfc_lines:[]}]; }
+    }
+    isClientWide = true;
+    focus = opts.focus || null;
+  } else { entries = [all[opts.idx]]; isClientWide = false; }
+  if(!entries || !entries[0]) return;
+
+  const r = entries[0];
+
+  document.getElementById('modal-title').textContent = `${r.nom} (${r.code})`;
+  if(isClientWide){
+    document.getElementById('modal-sub').textContent = `${r.org||''} · ${entries.length} contrat${entries.length>1?'s':''} CSI`;
+  } else {
+    const statut = r.contrat_statut ? ` · ${r.contrat_statut}` : '';
+    const ctr = r.contrat_code ? ` · contrat ${r.contrat_code}${statut}` : '';
+    document.getElementById('modal-sub').textContent = `${r.org||''}${ctr}`;
+  }
+
+  MODAL_STATE = { entries, isClientWide, view: focus ? 'detail' : 'overview', focus };
+  rerenderModalBody();
+  document.getElementById('modal-overlay').classList.add('show');
+}
+
+function closeClientModal(){ document.getElementById('modal-overlay').classList.remove('show'); }
+
+document.addEventListener('keydown', e => { if(e.key==='Escape') closeClientModal(); });
+
+window.addEventListener('DOMContentLoaded', async () => {
+  await detecterUser();
+  charger();
+});
+</script>
+
+<div class="modal-overlay" id="modal-overlay" onclick="if(event.target.id==='modal-overlay')closeClientModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="modal-title">—</div>
+        <div class="modal-sub" id="modal-sub">—</div>
+      </div>
+      <button class="modal-close" onclick="closeClientModal()">×</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+</body>
+</html>

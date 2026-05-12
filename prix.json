@@ -1,0 +1,34 @@
+{
+  "_comment": "Prix de refacturation utilisés par le dashboard Refacturation. Édite à la main quand les coûts changent.",
+
+  "datto_prix_par_appareil": 0.91,
+
+  "sentinelone_prix_par_licence": 5.0,
+
+  "m365_prix_par_sku": {
+    "_comment": "Prix mensuel par SKU TDSynnex (à compléter)",
+    "DEFAULT": 4.5
+  },
+
+  "sophos_prix_par_sku": {
+    "_comment": "Prix mensuel par produit Sophos (à compléter)",
+    "DEFAULT": 2.5
+  },
+
+  "prosave_storage_total_mensuel": 17029.73,
+  "prosave_storage_capacite_tb": 400,
+  "_prosave_storage_comment": "DFM paie 17029.73€/mois pour 400 TB → produit en croix par client : TB × (17029.73/400)",
+
+  "prosave_prix_par_point": 0.54,
+  "_prosave_points_comment": "Chaque point Pulse facturé 0.54€/mois. Source : /api/v3/pulse/licenses field 'points'",
+
+  "prosave_dfm_infra_uid": "4ec60958-c94a-4aec-83a1-2f9ac70f8e11",
+  "_prosave_exclusion_comment": "Company UID de l'infra interne DFM, à exclure complètement du calcul de refac",
+
+  "prosave365_total_mensuel": 2661.0,
+  "_prosave365_comment": "Coût PROSAVE M365 ventilé au prorata des % TB utilisés",
+
+  "vade_dfm_mensuel": 1057.53,
+  "vade_dfm_rhone_alpes_mensuel": 3354.64,
+  "_vade_comment": "Forfaits VADE par SSC - reste ventilé par utilisateurs"
+}

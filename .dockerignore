@@ -1,0 +1,62 @@
+# Secrets & env locaux
+.env
+.env.*
+authelia/.env
+tdsynnex_token.txt
+tdsynnex_token.txt.bak.*
+
+# Données runtime (vivent dans le volume DATA_DIR, pas dans l'image)
+msp_data.json
+refac_data.json
+artis_data.json
+*_history.json
+cas_particuliers.json
+snapshots/
+*.log
+stderr.txt
+stdout.txt
+
+# Backups & temp
+*.bak.*
+*.tmp
+_*_tmp.json
+
+# Excel & macros / CSV (lourds, non utilisés en runtime Container App)
+*.xlsm
+*.xlsx
+*.xls
+vba_export.txt
+*.csv
+
+# Python / virtualenv
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Authelia (supprimé — Easy Auth Container Apps gère l'auth)
+authelia/
+
+# Git & IDE
+.git/
+.gitignore
+.idea/
+.vscode/
+.DS_Store
+.claude/
+
+# Docs (pas besoin dans l'image)
+HANDOVER.md
+DOCKER_README.md
+TRANSFERT_DSI.md
+README.md
+README_ARCHIVE.md
+DEPLOYMENT_AZURE.md
+LANCER_UPDATER.bat
+agents/
+codex/
+
+# Docker override dev local (jamais dans l'image)
+docker-compose.override.yml

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Outils DFM MCO</title>
+<style>
+:root{
+  --bg:#0f1117; --surface:#1a1d27; --surface2:#22263a;
+  --border:#2a2f3e; --border2:#363b4e;
+  --text:#e8eaed; --muted:#888a96; --accent:#4f7cff;
+  --green:#22c55e; --orange:#f59e0b;
+  --font:'Inter','Segoe UI',system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;}
+header{padding:2rem 2.5rem;border-bottom:1px solid var(--border);}
+.brand{font-size:18px;font-weight:600;display:flex;align-items:center;gap:.6rem;}
+.brand-sub{font-size:11px;color:var(--muted);margin-top:.3rem;}
+main{flex:1;display:flex;align-items:center;justify-content:center;padding:2rem;}
+.choice{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:1.5rem;width:min(900px,100%);}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:2rem;text-decoration:none;color:var(--text);transition:all .2s;display:flex;flex-direction:column;gap:.8rem;cursor:pointer;}
+.card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 12px 32px rgba(79,124,255,.12);}
+.card-icon{width:52px;height:52px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;}
+.card-icon-msp{background:rgba(79,124,255,.15);}
+.card-icon-refac{background:rgba(34,197,94,.15);}
+.card-icon-dit{background:rgba(168,85,247,.15);}
+.card-icon-sophos{background:rgba(239,68,68,.15);}
+.admin-only{display:none;}
+body.is-admin .admin-only{display:flex;}
+.user-badge{font-size:11px;color:var(--muted);padding:4px 10px;background:var(--surface2);border-radius:6px;margin-left:auto;}
+.user-badge.admin{background:rgba(245,158,11,.15);color:#f59e0b;font-weight:600;}
+.brand-row{display:flex;align-items:center;gap:1rem;}
+.btn-logout{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;background:var(--surface2);color:var(--text);border:1px solid var(--border2);border-radius:8px;font-size:14px;text-decoration:none;transition:all .2s;}
+.btn-logout:hover{border-color:var(--red,#ef4444);color:var(--red,#ef4444);}
+.card-title{font-size:18px;font-weight:600;}
+.card-desc{font-size:13px;color:var(--muted);line-height:1.5;}
+.card-tags{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.4rem;}
+.tag{font-size:10px;padding:3px 8px;border-radius:5px;background:var(--surface2);color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
+footer{text-align:center;padding:1.5rem;color:var(--muted);font-size:10px;border-top:1px solid var(--border);}
+</style>
+</head>
+<body>
+  <header>
+    <div class="brand-row">
+      <div>
+        <div class="brand">📊 Outils DFM MCO</div>
+        <div class="brand-sub">Choisir le tableau de bord à consulter</div>
+      </div>
+      <span id="user-badge" class="user-badge">—</span>
+      <a class="btn-logout" href="/authelia/logout?rd=https%3A%2F%2F10.127.15.239%2F" title="Se déconnecter">⏻</a>
+    </div>
+  </header>
+  <main>
+    <div class="choice">
+      <a class="card" href="/dashboard.html">
+        <div class="card-icon card-icon-msp">🏢</div>
+        <div class="card-title">Dashboard Console Facturation SSC</div>
+        <div class="card-desc">Réconciliation des services SSC (DATTO, M365, Sophos, VEEAM, VADE, SentinelOne) avec la facturation Artis client par client.</div>
+        <div class="card-tags"><span class="tag">752 clients</span><span class="tag">854 contrats</span><span class="tag">Réconciliation</span></div>
+      </a>
+      <a class="card" href="/refac.html">
+        <div class="card-icon card-icon-refac">💰</div>
+        <div class="card-title">Refacturation Organisations</div>
+        <div class="card-desc">Vue d'ensemble des montants à refacturer par DFM aux organisations internes (DFM Grand Est, PACA, Rhône-Alpes, ABYSSE...) pour les services mutualisés (DATTO, M365, Sophos, VEEAM, VADE, SentinelOne).</div>
+        <div class="card-tags"><span class="tag">Organisations internes</span><span class="tag">7 services</span><span class="tag">Mensuel</span></div>
+      </a>
+      <a class="card admin-only" href="/artis.html">
+        <div class="card-icon card-icon-dit">🛠️</div>
+        <div class="card-title">Artis — DIT &amp; Interventions</div>
+        <div class="card-desc">Demandes d'intervention technique des 90 derniers jours, croisées avec les clients informatiques Artis. KPIs, top clients, top intervenants, détails complets par DIT (interventions, durées, notes satisfaction). Outils admin : passage NonFact, clôture DIT.</div>
+        <div class="card-tags"><span class="tag">Admin</span><span class="tag">90 jours</span><span class="tag">Artis</span></div>
+      </a>
+      <a class="card admin-only" href="/sophos.html">
+        <div class="card-icon card-icon-sophos">🛡️</div>
+        <div class="card-title">Sophos — Outils admin</div>
+        <div class="card-desc">Pilotage Sophos Central via API Partner : désactivation tamper protection (avec capture mot de passe + historique), futurs outils Sophos (policies, endpoints…).</div>
+        <div class="card-tags"><span class="tag">Admin</span><span class="tag">Sophos Central</span></div>
+      </a>
+    </div>
+  </main>
+  <footer>Outils DFM MCO · données issues des API live</footer>
+<script>
+(async function detecterUser(){
+  try{
+    const r = await fetch('/api/whoami');
+    if(r.ok){
+      const u = await r.json();
+      document.body.classList.toggle('is-admin', !!u.is_admin);
+      const b = document.getElementById('user-badge');
+      if(b){
+        b.textContent = (u.user || '?') + (u.is_admin ? ' · admin' : '');
+        b.classList.toggle('admin', !!u.is_admin);
+      }
+    }
+  }catch(e){}
+})();
+</script>
+</body>
+</html>

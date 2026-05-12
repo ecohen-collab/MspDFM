@@ -1,0 +1,40 @@
+# docker-compose.yml — production-like (Azure Container Apps simulé)
+#
+# En dev local : `docker compose up -d` lance le service avec un volume nommé
+# pour /data. Pour faire du live-edit (mount du code source), c'est dans
+# docker-compose.override.yml (auto-chargé en local, ignoré en CI/prod).
+#
+# En prod Azure : ce fichier n'est PAS utilisé. La DSI déploie via
+# `az acr build` + `az containerapp update` à partir du Dockerfile uniquement.
+
+services:
+  dashboard:
+    build: .
+    container_name: msp-dashboard
+    restart: unless-stopped
+
+    # Port exposé sur l'hôte pour test local. En Container Apps l'ingress fait le proxy.
+    ports:
+      - "8080:8080"
+
+    # Volume pour la persistance runtime (équivalent local du share Azure Files monté sur /data)
+    volumes:
+      - msp_data:/data
+
+    environment:
+      - PORT=8080
+      - HEURE_MAJ=${HEURE_MAJ:-20}
+      - DATA_DIR=/data
+      # Secrets vendeurs : en local lus depuis .env ; en Azure injectés par Container Apps
+      # via Key Vault references (cf. DEPLOYMENT_AZURE.md §5).
+    env_file:
+      - .env
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  msp_data:

@@ -1,0 +1,1186 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sophos · DFM</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0f1117; --surface:#1a1d27; --surface2:#22263a;
+  --border:rgba(255,255,255,0.07); --border2:rgba(255,255,255,0.14);
+  --text:#e8eaf2; --muted:#7b7f96;
+  --accent:#4f7cff; --green:#22c55e; --amber:#f59e0b; --orange:#f59e0b; --red:#ef4444; --blue:#38bdf8; --purple:#a855f7;
+  --font:'Sora',sans-serif; --mono:'DM Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;}
+
+.header{display:flex;align-items:center;justify-content:space-between;padding:1rem 2rem;border-bottom:1px solid var(--border);background:var(--surface);position:sticky;top:0;z-index:20;}
+.logo{display:flex;align-items:center;gap:10px;}
+.logo-dot{width:9px;height:9px;border-radius:50%;background:var(--red);box-shadow:0 0 10px var(--red);}
+.logo-text{font-size:15px;font-weight:600;letter-spacing:.04em;}
+.logo-sub{font-size:11px;color:var(--muted);font-weight:300;}
+.header-right{display:flex;align-items:center;gap:12px;}
+.btn{display:flex;align-items:center;gap:6px;background:var(--surface2);color:var(--text);border:1px solid var(--border2);border-radius:8px;padding:6px 14px;font-size:12px;font-family:var(--font);font-weight:500;cursor:pointer;transition:all .2s;text-decoration:none;}
+.btn:hover{border-color:var(--accent);color:var(--accent);}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent);}
+.btn-primary:hover{opacity:.85;color:#fff;}
+
+.user-badge{font-size:11px;color:var(--muted);padding:4px 10px;background:var(--surface2);border-radius:6px;}
+.user-badge.admin{background:rgba(245,158,11,.15);color:var(--amber);font-weight:600;}
+
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--border);background:var(--surface);padding:0 2rem;overflow-x:auto;}
+.tab{padding:.75rem 1.1rem;font-size:12px;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap;}
+.tab:hover{color:var(--text);}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+.tab-badge{display:inline-block;background:rgba(79,124,255,.2);color:var(--accent);border-radius:10px;padding:1px 7px;font-size:10px;font-family:var(--mono);margin-left:5px;}
+
+.main{padding:1.5rem 2rem;max-width:1700px;margin:0 auto;}
+.tab-content{display:none;}.tab-content.active{display:block;}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.2rem;}
+.btn-export{background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.4);color:var(--green);border-radius:8px;padding:6px 12px;font-size:11px;font-family:var(--font);cursor:pointer;}
+.btn-export:hover{background:rgba(34,197,94,.22);}
+
+.table-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--border);}
+table{width:100%;border-collapse:collapse;font-size:12px;}
+thead th{background:var(--surface2);color:var(--muted);font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.07em;padding:10px 14px;text-align:left;white-space:nowrap;border-bottom:1px solid var(--border);user-select:none;}
+tbody tr{border-bottom:1px solid var(--border);transition:background .1s;}
+tbody tr:last-child{border-bottom:none;}
+tbody tr:hover{background:rgba(255,255,255,.02);}
+tbody td{padding:9px 14px;vertical-align:middle;}
+.num-dim{font-family:var(--mono);font-size:11px;color:var(--muted);}
+.no-data{text-align:center;padding:3rem;color:var(--muted);font-size:12px;}
+
+.no-acces{text-align:center;padding:6rem 2rem;color:var(--muted);}
+.no-acces-icon{font-size:48px;margin-bottom:1rem;}
+.no-acces-title{font-size:18px;color:var(--text);margin-bottom:.5rem;}
+.no-acces-sub{font-size:13px;color:var(--muted);}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="logo">
+    <div class="logo-dot"></div>
+    <div>
+      <div class="logo-text">Sophos · Outils admin</div>
+      <div class="logo-sub">Pilotage Sophos Central via API Partner</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <span id="user-badge" class="user-badge">—</span>
+    <a class="btn" href="/index.html">← Retour</a>
+    <a class="btn" href="/authelia/logout?rd=https%3A%2F%2F10.127.15.239%2F" title="Se déconnecter">⏻</a>
+  </div>
+</header>
+
+<div id="page-acces" class="no-acces" style="display:none">
+  <div class="no-acces-icon">🔒</div>
+  <div class="no-acces-title">Accès réservé</div>
+  <div class="no-acces-sub">Cette page est uniquement accessible aux administrateurs.</div>
+</div>
+
+<div id="page-content" style="display:none">
+
+<nav class="tabs">
+  <div class="tab active" onclick="showTab('tamper',this)">Tamper Protection <span class="tab-badge" style="background:rgba(239,68,68,.15);color:var(--red)">🔓</span></div>
+  <div class="tab" onclick="showTab('delete',this)">Supprimer endpoints <span class="tab-badge" style="background:rgba(239,68,68,.15);color:var(--red)">🗑</span></div>
+  <div class="tab" onclick="showTab('customer',this)">Recherche customer <span class="tab-badge" style="background:rgba(79,124,255,.15);color:var(--accent)">🔍</span></div>
+</nav>
+
+<div class="main">
+
+<!-- ════ ONGLET TAMPER PROTECTION ════ -->
+<div class="tab-content active" id="tab-tamper">
+  <div class="card">
+    <div style="display:flex;align-items:center;gap:.7rem;margin-bottom:1rem">
+      <div style="font-size:18px;font-weight:600">🔓 Désactivation tamper protection</div>
+      <span style="background:rgba(239,68,68,.15);color:var(--red);padding:3px 10px;border-radius:6px;font-size:11px;text-transform:uppercase;letter-spacing:.5px">Admin · Sophos Central</span>
+    </div>
+    <div style="color:var(--muted);font-size:13px;margin-bottom:1.5rem;line-height:1.5">
+      Désactive la protection anti-altération <b>au niveau tenant</b> (= tous les endpoints du client).
+      <br>L'API renvoie le mot de passe global du tenant ; il est sauvegardé dans l'historique persistant côté serveur.
+      <br>⚠ Pas de réactivation automatique. Pour réactiver : champ <i>tenant</i> + bouton 🔒 Réactiver.
+    </div>
+
+    <div style="margin-bottom:1rem">
+      <label style="font-size:13px;font-weight:600;color:var(--muted);display:block;margin-bottom:.4rem">Recherche client</label>
+      <div style="display:flex;gap:.5rem;align-items:center;margin-bottom:.6rem">
+        <input type="text" id="st-search" list="st-tenants-suggestions"
+               placeholder="Tape un nom de client ou un code… puis Entrée"
+               style="flex:1;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:.6rem .8rem;border-radius:6px;font-size:13px"
+               onkeydown="if(event.key==='Enter'){event.preventDefault();stAddFromSearch();}">
+        <datalist id="st-tenants-suggestions"></datalist>
+        <button class="btn-export" onclick="stAddFromSearch()" style="background:var(--accent);color:white">+ Ajouter</button>
+        <span id="st-search-info" style="font-size:11px;color:var(--muted)"></span>
+      </div>
+      <label style="font-size:13px;font-weight:600;color:var(--muted);display:block;margin-bottom:.4rem">Liste à traiter (codes Artis ou ID Sophos — éditable directement)</label>
+      <textarea id="st-list" placeholder="13187&#10;1562&#10;14741"
+                style="width:100%;min-height:90px;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:.6rem .8rem;border-radius:6px;font-size:13px;font-family:monospace"></textarea>
+      <div style="display:flex;gap:.5rem;margin-top:.4rem">
+        <button class="btn-export" onclick="$('st-list').value=''" style="background:var(--surface2);border:1px solid var(--border2);color:var(--muted);padding:.3rem .8rem;font-size:11px">🗑 Vider</button>
+        <span id="st-list-count" style="font-size:11px;color:var(--muted);align-self:center"></span>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:.6rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap">
+      <button class="btn-export" onclick="stLookup()" style="background:var(--surface2);border:1px solid var(--border2);color:var(--text)">🔎 Lookup (état actuel)</button>
+      <button class="btn-export" onclick="stBatchRun(true,'disable')" style="background:var(--accent);color:white">🔍 Vérifier désactivation (dry-run)</button>
+      <button class="btn-export" onclick="stBatchRun(false,'disable')" style="background:var(--red);color:white">🔓 Désactiver (POST réel)</button>
+      <button class="btn-export" onclick="stBatchRun(false,'enable')" style="background:var(--green);color:white">🔒 Réactiver</button>
+      <button class="btn-export" id="st-batch-stop" onclick="stBatchStop()" disabled style="background:var(--muted);color:white;opacity:.5">⏹ Stop</button>
+      <span id="st-status" style="font-size:13px;color:var(--muted)"></span>
+    </div>
+
+    <div id="st-lookup-wrap" style="display:none;margin-bottom:1rem;position:relative">
+      <button onclick="stClearLookup()" title="Fermer"
+              style="position:absolute;top:.4rem;right:.4rem;z-index:2;background:var(--surface2);border:1px solid var(--border2);color:var(--muted);width:26px;height:26px;border-radius:6px;cursor:pointer;font-size:13px;line-height:1">✕</button>
+      <div id="st-lookup"></div>
+    </div>
+
+    <div id="st-batch-progress-wrap" style="margin-top:.8rem;display:none">
+      <div style="background:var(--surface2);border:1px solid var(--border2);border-radius:6px;height:12px;overflow:hidden">
+        <div id="st-batch-bar" style="height:100%;background:var(--red);width:0%;transition:width .3s"></div>
+      </div>
+      <div id="st-batch-pct" style="font-size:11px;color:var(--muted);margin-top:.3rem"></div>
+    </div>
+
+    <div id="st-results-wrap" style="margin-top:1rem;display:none;position:relative">
+      <button onclick="stClearResults()" title="Fermer"
+              style="position:absolute;top:0;right:0;background:var(--surface2);border:1px solid var(--border2);color:var(--muted);width:26px;height:26px;border-radius:6px;cursor:pointer;font-size:13px;line-height:1">✕</button>
+      <div style="font-size:13px;font-weight:600;margin-bottom:.4rem">Résultats</div>
+      <div class="table-wrap"><table>
+        <thead><tr>
+          <th>#</th><th>Tenant</th><th>Action</th><th>Avant</th><th>Après</th><th>Password</th><th>Status</th><th>Détail</th>
+        </tr></thead>
+        <tbody id="st-results-tbody"></tbody>
+      </table></div>
+    </div>
+
+    <div style="margin-top:2.5rem">
+      <div style="display:flex;align-items:center;gap:.7rem;margin-bottom:.7rem">
+        <div style="font-size:14px;font-weight:600">📜 Historique persistant Sophos Tamper</div>
+        <button class="btn-export" onclick="stLoadHistoryPersist()" style="padding:.3rem .7rem;font-size:12px">↻ Recharger</button>
+        <span id="st-hist-count" style="color:var(--muted);font-size:12px"></span>
+      </div>
+      <div style="margin-bottom:.5rem">
+        <input type="text" id="st-hist-filter" placeholder="Filtre (tenant, ID, action…)"
+               oninput="stRenderHistoryPersist()"
+               style="background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:.4rem .8rem;border-radius:6px;font-size:12px;width:300px">
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr>
+          <th>Date</th>
+          <th>User</th>
+          <th>Tenant</th>
+          <th>Hostname</th>
+          <th>OS / Type</th>
+          <th>Action</th>
+          <th>Mot de passe</th>
+        </tr></thead>
+        <tbody id="st-hist-tbody"><tr><td colspan="7" class="no-data">Chargement…</td></tr></tbody>
+      </table></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ ONGLET SUPPRIMER ENDPOINTS ════ -->
+<div class="tab-content" id="tab-delete">
+  <div class="card">
+    <div style="display:flex;align-items:center;gap:.7rem;margin-bottom:1rem">
+      <div style="font-size:18px;font-weight:600">🗑 Supprimer des endpoints</div>
+      <span style="background:rgba(239,68,68,.15);color:var(--red);padding:3px 10px;border-radius:6px;font-size:11px;text-transform:uppercase;letter-spacing:.5px">Admin · Destructif</span>
+    </div>
+    <div style="color:var(--muted);font-size:13px;margin-bottom:1.5rem;line-height:1.5">
+      Supprime des endpoints individuels de Sophos Central via <code>DELETE /endpoint/v1/endpoints/{id}</code>.
+      <br>⚠ <b>Irréversible</b>. Lookup tenant → coche les machines à supprimer → confirme avec le code tenant.
+      <br>L'historique persistant capture chaque machine supprimée (hostname/OS/last-seen) à l'instant T.
+    </div>
+
+    <div style="display:flex;gap:.5rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap">
+      <input type="text" id="dl-tenant" list="st-tenants-suggestions"
+             placeholder="Code tenant (ex: 9576) ou nom client"
+             style="flex:1;min-width:300px;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:.6rem .8rem;border-radius:6px;font-size:13px"
+             onkeydown="if(event.key==='Enter'){event.preventDefault();dlLookup();}">
+      <button class="btn-export" onclick="dlLookup()" style="background:var(--accent);color:white">🔎 Lookup endpoints</button>
+      <span id="dl-status" style="font-size:13px;color:var(--muted)"></span>
+    </div>
+
+    <!-- Toolbar de sélection (visible après lookup) -->
+    <div id="dl-toolbar" style="display:none;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:.7rem;margin-bottom:1rem;display:none">
+      <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;font-size:12px">
+        <button class="btn-export" onclick="dlSelectAll(true)" style="padding:.3rem .7rem;font-size:11px">☑ Tout sélectionner</button>
+        <button class="btn-export" onclick="dlSelectAll(false)" style="padding:.3rem .7rem;font-size:11px;background:var(--surface);border:1px solid var(--border2);color:var(--muted)">☐ Tout désélectionner</button>
+        <span style="color:var(--muted);margin:0 .3rem">·</span>
+        <span style="color:var(--muted)">Sélectionner stale</span>
+        <select id="dl-stale-days" class="sel" style="padding:4px 8px;font-size:11px;background:var(--surface2);border:1px solid var(--border2);color:var(--text);border-radius:6px;cursor:pointer">
+          <option value="30">> 30 jours</option>
+          <option value="60">> 60 jours</option>
+          <option value="90" selected>> 90 jours</option>
+          <option value="180">> 180 jours</option>
+          <option value="365">> 365 jours</option>
+        </select>
+        <button class="btn-export" onclick="dlSelectStale()" style="padding:.3rem .7rem;font-size:11px;background:var(--orange);color:white">⏱ Sélectionner stale</button>
+        <span style="color:var(--muted);margin:0 .3rem">·</span>
+        <input type="text" id="dl-filter" placeholder="Filtre hostname / OS"
+               oninput="dlRender()"
+               style="background:var(--surface);border:1px solid var(--border2);color:var(--text);padding:.4rem .8rem;border-radius:6px;font-size:11px;width:220px">
+        <span id="dl-counter" style="color:var(--muted);margin-left:auto">—</span>
+      </div>
+    </div>
+
+    <!-- Table endpoints -->
+    <div id="dl-list-wrap" style="display:none;margin-bottom:1rem;position:relative">
+      <button onclick="dlClearLookup()" title="Fermer"
+              style="position:absolute;top:.4rem;right:.4rem;z-index:2;background:var(--surface2);border:1px solid var(--border2);color:var(--muted);width:26px;height:26px;border-radius:6px;cursor:pointer;font-size:13px;line-height:1">✕</button>
+      <div class="table-wrap"><table>
+        <thead><tr>
+          <th style="width:32px"></th>
+          <th>Hostname</th>
+          <th>OS</th>
+          <th>Type</th>
+          <th>TP</th>
+          <th>Vu le</th>
+          <th>Âge</th>
+        </tr></thead>
+        <tbody id="dl-tbody"></tbody>
+      </table></div>
+    </div>
+
+    <!-- Action delete -->
+    <div id="dl-action" style="display:none;margin-bottom:1rem;background:rgba(239,68,68,.07);border:1px solid rgba(239,68,68,.3);border-radius:8px;padding:.8rem">
+      <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;font-size:13px">
+        <b>⚠ <span id="dl-action-count">0</span> endpoint(s) sélectionné(s) à supprimer</b>
+        <span style="color:var(--muted);margin:0 .3rem">·</span>
+        <button class="btn-export" onclick="dlBatchRun(true)" style="background:var(--accent);color:white">🔍 Vérifier (dry-run)</button>
+      </div>
+      <div style="display:flex;gap:.5rem;align-items:center;margin-top:.5rem;flex-wrap:wrap">
+        <span style="font-size:12px;color:var(--muted)">Pour confirmer, retape :</span>
+        <code id="dl-confirm-target" style="background:var(--surface);padding:.2rem .5rem;border-radius:4px;color:var(--accent);font-weight:600">—</code>
+        <input type="text" id="dl-confirm-code" placeholder="retape le code"
+               style="background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:.5rem .8rem;border-radius:6px;font-size:12px;flex:1;min-width:200px;font-family:monospace"
+               oninput="dlOnConfirmInput()">
+        <button class="btn-export" id="dl-btn-exec" onclick="dlBatchRun(false)" disabled
+                style="background:var(--red);color:white;opacity:.5">🗑 SUPPRIMER (POST réel)</button>
+      </div>
+    </div>
+
+    <!-- Résultats -->
+    <div id="dl-results-wrap" style="margin-top:1rem;display:none;position:relative">
+      <button onclick="dlClearResults()" title="Fermer"
+              style="position:absolute;top:0;right:0;background:var(--surface2);border:1px solid var(--border2);color:var(--muted);width:26px;height:26px;border-radius:6px;cursor:pointer;font-size:13px;line-height:1">✕</button>
+      <div style="font-size:13px;font-weight:600;margin-bottom:.4rem">Résultats</div>
+      <div id="dl-progress-wrap" style="margin-bottom:.6rem;display:none">
+        <div style="background:var(--surface2);border:1px solid var(--border2);border-radius:6px;height:10px;overflow:hidden">
+          <div id="dl-progress-bar" style="height:100%;background:var(--red);width:0%;transition:width .3s"></div>
+        </div>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>#</th><th>Hostname</th><th>OS</th><th>Type</th><th>Status</th><th>Détail</th></tr></thead>
+        <tbody id="dl-results-tbody"></tbody>
+      </table></div>
+    </div>
+
+    <!-- Historique persistant -->
+    <div style="margin-top:2.5rem">
+      <div style="display:flex;align-items:center;gap:.7rem;margin-bottom:.7rem">
+        <div style="font-size:14px;font-weight:600">📜 Historique persistant des suppressions</div>
+        <button class="btn-export" onclick="dlLoadHistoryPersist()" style="padding:.3rem .7rem;font-size:12px">↻ Recharger</button>
+        <span id="dl-hist-count" style="color:var(--muted);font-size:12px"></span>
+      </div>
+      <div style="margin-bottom:.5rem">
+        <input type="text" id="dl-hist-filter" placeholder="Filtre (tenant, hostname, OS, user…)"
+               oninput="dlRenderHistoryPersist()"
+               style="background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:.4rem .8rem;border-radius:6px;font-size:12px;width:300px">
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr>
+          <th>Date</th>
+          <th>User</th>
+          <th>Tenant</th>
+          <th>Hostname</th>
+          <th>OS / Type</th>
+          <th>Vu le</th>
+          <th>Endpoint ID</th>
+        </tr></thead>
+        <tbody id="dl-hist-tbody"><tr><td colspan="7" class="no-data">Chargement…</td></tr></tbody>
+      </table></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ ONGLET RECHERCHE CUSTOMER ════ -->
+<div class="tab-content" id="tab-customer">
+  <div class="card">
+    <div style="display:flex;align-items:center;gap:.7rem;margin-bottom:1rem">
+      <div style="font-size:18px;font-weight:600">🔍 Recherche customer</div>
+      <span style="background:rgba(79,124,255,.15);color:var(--accent);padding:3px 10px;border-radius:6px;font-size:11px;text-transform:uppercase;letter-spacing:.5px">Lecture seule</span>
+    </div>
+    <div style="color:var(--muted);font-size:13px;margin-bottom:1.5rem;line-height:1.5">
+      Saisis un <b>tenant ID Sophos</b> (UUID), un <b>code Artis</b> ou un <b>nom client</b>.
+      Renvoie le tenant Sophos + cross-référence avec le client Artis et tous les services associés (DATTO, Veeam, M365, Vade, S1).
+    </div>
+
+    <div style="background:rgba(79,124,255,.08);border:1px solid rgba(79,124,255,.3);border-left:3px solid var(--accent);border-radius:8px;padding:.7rem 1rem;margin-bottom:1rem;font-size:12px;color:var(--text);line-height:1.5">
+      💡 <b>Pour trouver le tenant ID d'un client</b>, exécuter le Job <code style="background:var(--surface2);padding:1px 6px;border-radius:3px;color:var(--accent)">Sophos customer fetch</code> via DATTO.
+    </div>
+
+    <div style="display:flex;gap:.5rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap">
+      <input type="text" id="cu-query" list="st-tenants-suggestions"
+             placeholder="Tenant ID / Endpoint ID (UUID) / Code Artis / Nom client"
+             style="flex:1;min-width:300px;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:.6rem .8rem;border-radius:6px;font-size:13px"
+             onkeydown="if(event.key==='Enter'){event.preventDefault();cuLookup();}">
+      <button class="btn-export" onclick="cuLookup()" style="background:var(--accent);color:white">🔍 Rechercher</button>
+      <span id="cu-status" style="font-size:13px;color:var(--muted)"></span>
+    </div>
+
+    <div id="cu-result" style="display:none"></div>
+  </div>
+</div>
+
+</div><!-- /main -->
+</div><!-- /page-content -->
+
+<script>
+function $(id){return document.getElementById(id);}
+function escapeHtml(s){return String(s||'').replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+
+async function _safeJson(r){
+  const txt = await r.text();
+  if(!txt) return {ok:false, error:`Réponse serveur vide (HTTP ${r.status}). Le backend a peut-être planté pendant l'opération — vérifie l'historique persistant ou les logs.`};
+  try { return JSON.parse(txt); }
+  catch(e){ return {ok:false, error:`Réponse non-JSON (HTTP ${r.status}) : ${txt.substring(0,200)}`}; }
+}
+
+function showTab(name, el){
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+  if(name === 'tamper') stLoadHistoryPersist();
+  if(name === 'delete') dlLoadHistoryPersist();
+}
+
+// ════════ RECHERCHE CUSTOMER ════════
+function cuStatus(txt, color='var(--muted)'){
+  const el = $('cu-status'); if(!el) return;
+  el.style.color = color; el.textContent = txt;
+}
+
+async function cuLookup(){
+  const raw = ($('cu-query').value || '').trim();
+  if(!raw){ cuStatus('Saisie requise', 'var(--red)'); return; }
+  // si autocomplete : "CODE — NOM …", extraire le code
+  let q = raw;
+  const m = raw.match(/^(\S+)\s*—/);
+  if(m) q = m[1];
+  // Si UUID, prévenir que ça peut être plus long (recherche endpoint en fallback)
+  const isUuid = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(q);
+  cuStatus(isUuid ? '⏳ Recherche tenant + fallback endpoint (~30s si endpoint)…' : '⏳ Recherche...');
+  $('cu-result').style.display = 'none';
+  try {
+    const r = await fetch(`/api/sophos/customer/${encodeURIComponent(q)}`);
+    const j = await _safeJson(r);
+    if(!j.ok){
+      cuStatus('✗ ' + (j.error||'erreur'), 'var(--red)');
+      $('cu-result').style.display = 'block';
+      $('cu-result').innerHTML = `<div style="background:var(--surface2);border:1px solid var(--border2);border-left:3px solid var(--red);border-radius:8px;padding:1rem;color:var(--red)">${escapeHtml(j.error||'erreur')}</div>`;
+      return;
+    }
+    cuRender(j);
+    cuStatus(j.found_via_endpoint ? `✓ Trouvé via endpoint ID` : `✓ Tenant trouvé`, 'var(--green)');
+  } catch(e){
+    cuStatus('✗ ' + e.message, 'var(--red)');
+  }
+}
+
+function cuKV(label, value, mono){
+  if(value == null || value === '') value = '—';
+  return `<div style="background:var(--surface);border:1px solid var(--border2);border-radius:8px;padding:.6rem .8rem">
+    <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.2rem">${escapeHtml(label)}</div>
+    <div style="font-size:13px;font-weight:500${mono?';font-family:monospace':''}">${escapeHtml(String(value))}</div>
+  </div>`;
+}
+
+function cuRender(j){
+  const t = j.tenant || {};
+  const a = j.artis_client || null;
+  const total = j.endpoints_total != null ? j.endpoints_total : '?';
+  const billed = j.sophos_billed || 0;
+  const stale = (j.endpoints_total != null && billed != null) ? Math.max(0, j.endpoints_total - billed) : null;
+
+  const tenantSection = `
+    <div style="background:var(--surface2);border:1px solid var(--border2);border-left:3px solid var(--accent);border-radius:8px;padding:1rem;margin-bottom:1rem">
+      <div style="font-size:14px;font-weight:600;margin-bottom:.6rem;color:var(--accent)">Tenant Sophos Central</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.5rem">
+        ${cuKV('Display name (showAs)', t.showAs)}
+        ${cuKV('Name', t.name)}
+        ${cuKV('Tenant ID', t.id, true)}
+        ${cuKV('Status', t.status)}
+        ${cuKV('Data region', t.dataRegion)}
+        ${cuKV('API host', t.apiHost, true)}
+        ${cuKV('Endpoints (total live)', total)}
+        ${cuKV('Endpoints (facturés)', billed)}
+        ${stale != null && stale > 0 ? cuKV('Écart (potentiellement à nettoyer)', stale + ' machines') : ''}
+      </div>
+      <div style="margin-top:.8rem;display:flex;gap:.5rem;flex-wrap:wrap">
+        <button class="btn-export" onclick="cuJumpToTab('tamper','${escapeHtml(t.id)}')" style="font-size:11px">→ Tamper Protection</button>
+        <button class="btn-export" onclick="cuJumpToTab('delete','${escapeHtml(t.id)}')" style="font-size:11px">→ Supprimer endpoints</button>
+      </div>
+    </div>
+  `;
+
+  let artisSection = '';
+  if(a){
+    const billed = a.artis_billed || {};
+    const billedRows = [
+      ['Datto',     billed.datto],
+      ['Sophos',    billed.sophos],
+      ['M365',      billed.m365],
+      ['Veeam (TB)', billed.veeam_tb],
+      ['Veeam 365', billed.veeam365],
+      ['Vade',      billed.vade],
+      ['SOC',       billed.soc],
+    ].filter(([_, v]) => v != null && v !== 0);
+
+    const svcCard = (label, obj, color) => {
+      if(!obj) return cuKV(label, '— pas de donnée');
+      const lines = [];
+      if(obj.name) lines.push(`<b>${escapeHtml(obj.name)}</b>`);
+      if(obj.status) lines.push(`<span style="font-size:11px;color:var(--muted)">${escapeHtml(obj.status)}</span>`);
+      if(obj.endpoints != null) lines.push(`<span style="font-size:11px">${obj.endpoints} endpoints</span>`);
+      if(obj.total != null) lines.push(`<span style="font-size:11px">${obj.total} machines (${obj.servers||0}s/${obj.desktops||0}d/${obj.laptops||0}l)</span>`);
+      if(obj.tb != null) lines.push(`<span style="font-size:11px">${obj.tb} TB</span>`);
+      if(obj.subscriptions != null) lines.push(`<span style="font-size:11px">${obj.subscriptions} subs</span>`);
+      return `<div style="background:var(--surface);border:1px solid var(--border2);border-left:3px solid ${color};border-radius:8px;padding:.6rem .8rem">
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.2rem">${escapeHtml(label)}</div>
+        <div style="font-size:12px;line-height:1.5">${lines.join('<br>')}</div>
+      </div>`;
+    };
+
+    artisSection = `
+      <div style="background:var(--surface2);border:1px solid var(--border2);border-left:3px solid var(--green);border-radius:8px;padding:1rem;margin-bottom:1rem">
+        <div style="font-size:14px;font-weight:600;margin-bottom:.6rem;color:var(--green)">Cross-référence Artis</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.5rem;margin-bottom:.8rem">
+          ${cuKV('Code Artis', a.code, true)}
+          ${cuKV('Client', a.nom)}
+          ${cuKV('Organisation', a.org)}
+          ${cuKV('Nb contrats', a.nb_contrats)}
+        </div>
+        <div style="font-size:13px;font-weight:600;margin:.7rem 0 .4rem;color:var(--muted)">Services live (autres APIs)</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.5rem">
+          ${svcCard('Datto',       a.datto,       '#a855f7')}
+          ${svcCard('Veeam',       a.veeam,       '#22c55e')}
+          ${svcCard('Veeam 365',   a.veeam365,    '#22c55e')}
+          ${svcCard('Vade',        a.vade,        '#38bdf8')}
+          ${svcCard('M365',        a.m365,        '#f59e0b')}
+          ${svcCard('SentinelOne', a.sentinelone, '#ef4444')}
+        </div>
+        ${billedRows.length ? `
+          <div style="font-size:13px;font-weight:600;margin:.8rem 0 .4rem;color:var(--muted)">Facturation Artis (RFC)</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.4rem">
+            ${billedRows.map(([k,v]) => cuKV(k, v)).join('')}
+          </div>` : ''
+        }
+      </div>
+    `;
+  } else {
+    artisSection = `<div style="background:var(--surface2);border:1px solid var(--border2);border-left:3px solid var(--orange);border-radius:8px;padding:.8rem 1rem;color:var(--orange);font-size:13px;margin-bottom:1rem">⚠ Aucun client Artis cross-référencé pour ce tenant. Probablement un tenant Sophos sans code Artis dans son <code>showAs</code>.</div>`;
+  }
+
+  // Bloc endpoint trouvé (si recherche par endpoint ID)
+  let endpointSection = '';
+  if(j.found_via_endpoint && j.endpoint){
+    const ep = j.endpoint;
+    const os = ep.os || {};
+    const tp = ep.tamperProtectionEnabled === true ? '🔒 Activé' : ep.tamperProtectionEnabled === false ? '🔓 Désactivé' : '?';
+    const last = ep.lastSeenAt ? new Date(ep.lastSeenAt).toLocaleString('fr-FR') : '—';
+    const associated = ep.associatedPerson || {};
+    endpointSection = `
+      <div style="background:var(--surface2);border:1px solid var(--border2);border-left:3px solid var(--purple);border-radius:8px;padding:1rem;margin-bottom:1rem">
+        <div style="font-size:14px;font-weight:600;margin-bottom:.6rem;color:var(--purple)">🖥 Endpoint trouvé via cette recherche</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.5rem">
+          ${cuKV('Hostname', ep.hostname)}
+          ${cuKV('Endpoint ID', ep.id, true)}
+          ${cuKV('Type', ep.type)}
+          ${cuKV('OS', `${os.platform||''} ${os.name||''}`.trim())}
+          ${cuKV('OS build', os.build)}
+          ${cuKV('Tamper protection', tp)}
+          ${cuKV('Vu le', last)}
+          ${cuKV('IP v4', (ep.ipv4Addresses||[]).join(', '))}
+          ${cuKV('MAC', (ep.macAddresses||[]).join(', '))}
+          ${cuKV('Utilisateur', associated.viaLogin || associated.name)}
+          ${cuKV('Health (overall)', (ep.health||{}).overall)}
+        </div>
+      </div>
+    `;
+  }
+
+  $('cu-result').style.display = 'block';
+  $('cu-result').innerHTML = endpointSection + tenantSection + artisSection;
+}
+
+function cuJumpToTab(name, prefill){
+  // Switch tab and pre-fill input
+  const btn = document.querySelector(`.tab[onclick*="'${name}'"]`);
+  if(btn) btn.click();
+  setTimeout(() => {
+    if(name === 'tamper'){
+      $('st-list').value = prefill + '\n';
+      stUpdateListCount();
+    } else if(name === 'delete'){
+      $('dl-tenant').value = prefill;
+      dlLookup();
+    }
+  }, 50);
+}
+
+// ════════ TAMPER PROTECTION ════════
+let ST_BATCH_RUNNING = false;
+let ST_BATCH_STOP    = false;
+let ST_HIST_PERSIST  = [];
+let ST_TENANTS       = [];   // {code, client, name, endpoints, status}
+
+async function stLoadTenants(){
+  try {
+    const r = await fetch('/api/sophos/tenants');
+    if(!r.ok) return;
+    const j = await _safeJson(r);
+    ST_TENANTS = j.items || [];
+    const dl = $('st-tenants-suggestions');
+    dl.innerHTML = ST_TENANTS.map(t => {
+      const billed = t.endpoints || 0;
+      const total  = (t.endpoints_total != null) ? t.endpoints_total : null;
+      let counts;
+      if(total == null) counts = `${billed} facturés`;
+      else if(total === billed) counts = `${billed} endpoints`;
+      else counts = `${billed} facturés / ${total} présents${total > billed ? ' ⚠' : ''}`;
+      const lab = `${t.code} — ${t.client} · ${t.name||'?'} · ${counts}`;
+      return `<option value="${escapeHtml(lab)}"></option>`;
+    }).join('');
+    $('st-search-info').textContent = `${ST_TENANTS.length} tenants chargés`;
+  } catch(e){ /* silent */ }
+}
+
+function stAddFromSearch(){
+  const v = ($('st-search').value || '').trim();
+  if(!v) return;
+  // Si la chaine matche un suggestion ("CODE — NOM · …"), prendre le code
+  let code = null;
+  const m = v.match(/^(\S+)\s*—/);
+  if(m) code = m[1];
+  // Sinon vérifier si c'est un code/id direct connu
+  if(!code){
+    const found = ST_TENANTS.find(t =>
+      t.code === v || t.client.toLowerCase() === v.toLowerCase() ||
+      (t.name||'').toLowerCase() === v.toLowerCase()
+    );
+    if(found) code = found.code;
+  }
+  // Si toujours rien, ajouter v tel quel (l'utilisateur peut taper un ID Sophos directement)
+  if(!code) code = v;
+
+  // Append au textarea
+  const ta = $('st-list');
+  const existing = (ta.value || '').split(/\s+/).filter(Boolean);
+  if(existing.includes(code)){
+    $('st-search-info').textContent = `${code} déjà dans la liste`;
+    setTimeout(()=>{ stUpdateListCount(); }, 1500);
+  } else {
+    ta.value = (ta.value ? ta.value.trim() + '\n' : '') + code + '\n';
+    $('st-search').value = '';
+    stUpdateListCount();
+    $('st-search').focus();
+  }
+}
+
+function stUpdateListCount(){
+  const list = stParseList();
+  $('st-list-count').textContent = list.length ? `${list.length} entrée${list.length>1?'s':''} dans la liste` : '';
+  $('st-search-info').textContent = `${ST_TENANTS.length} tenants chargés`;
+}
+
+function stParseList(){
+  const raw = ($('st-list').value || '').trim();
+  if(!raw) return [];
+  const parts = raw.split(/[\s,;]+/).map(s => s.trim()).filter(Boolean);
+  const seen = new Set();
+  const out = [];
+  for(const p of parts){ if(seen.has(p)) continue; seen.add(p); out.push(p); }
+  return out;
+}
+
+function stStatus(txt, color='var(--muted)'){
+  const el = $('st-status'); if(!el) return;
+  el.style.color = color; el.textContent = txt;
+}
+
+function stMaskPwd(pwd){
+  if(!pwd) return '<span class="num-dim">—</span>';
+  const safe = escapeHtml(pwd);
+  return `<span style="font-family:monospace;font-size:11px">
+    <span class="st-pwd-mask">••••••••</span>
+    <span class="st-pwd-clear" style="display:none">${safe}</span>
+    <button onclick="stTogglePwd(this)" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:11px;margin-left:.3rem" title="Afficher/Masquer">👁</button>
+    <button onclick="stCopyPwd(this,'${safe.replace(/'/g,"&#39;")}')" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:11px" title="Copier">📋</button>
+  </span>`;
+}
+
+function stTogglePwd(btn){
+  const wrap = btn.parentElement;
+  const m = wrap.querySelector('.st-pwd-mask');
+  const c = wrap.querySelector('.st-pwd-clear');
+  if(c.style.display === 'none' || c.style.display === ''){
+    c.style.display = 'inline'; m.style.display = 'none';
+  } else {
+    c.style.display = 'none'; m.style.display = 'inline';
+  }
+}
+
+function stCopyPwd(btn, pwd){
+  const decoded = pwd.replace(/&#39;/g,"'").replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"');
+  navigator.clipboard.writeText(decoded).then(()=>{
+    const orig = btn.textContent; btn.textContent = '✓';
+    setTimeout(()=>{ btn.textContent = orig; }, 1200);
+  });
+}
+
+async function stLookup(){
+  const list = stParseList();
+  if(!list.length){ stStatus('Liste vide', 'var(--red)'); return; }
+  stStatus(`⏳ Lookup ${list.length} tenants (récupère endpoints + passwords)...`);
+  $('st-lookup-wrap').style.display = 'block';
+  $('st-lookup').innerHTML = '<div class="num-dim">Chargement...</div>';
+  const blocks = [];
+  for(const q of list){
+    try {
+      const r = await fetch(`/api/sophos/tamper/inspect/${encodeURIComponent(q)}`);
+      const j = await _safeJson(r);
+      blocks.push({q, j});
+    } catch(e){
+      blocks.push({q, j: {ok:false, error: e.message}});
+    }
+  }
+
+  $('st-lookup').innerHTML = blocks.map(({q,j}) => {
+    const t = j.tenant || {};
+    const s = j.summary || {};
+    if(!j.ok){
+      return `<div style="background:var(--surface2);border:1px solid var(--border2);border-left:3px solid var(--red);border-radius:8px;padding:.8rem;margin-bottom:.8rem">
+        <b>${escapeHtml(q)}</b> — <span style="color:var(--red)">${escapeHtml(j.error||'erreur')}</span>
+      </div>`;
+    }
+    const eps = j.endpoints || [];
+    const epsRows = eps.map(ep => {
+      const state = ep.tamperEnabled === true
+        ? '<span style="background:rgba(34,197,94,.15);color:var(--green);padding:1px 6px;border-radius:3px;font-size:10px">🔒 ON</span>'
+        : ep.tamperEnabled === false
+          ? '<span style="background:rgba(239,68,68,.15);color:var(--red);padding:1px 6px;border-radius:3px;font-size:10px">🔓 OFF</span>'
+          : '<span class="num-dim" style="font-size:10px">?</span>';
+      const last = ep.lastSeenAt ? new Date(ep.lastSeenAt).toLocaleDateString('fr-FR') : '—';
+      return `<tr>
+        <td><b>${escapeHtml(ep.hostname || '?')}</b></td>
+        <td><span class="num-dim" style="font-size:11px">${escapeHtml(ep.os || '')}</span></td>
+        <td><span class="num-dim" style="font-size:11px">${escapeHtml(ep.type || '')}</span></td>
+        <td>${state}</td>
+        <td>${stMaskPwd(ep.password)}</td>
+        <td><span class="num-dim" style="font-size:11px">${escapeHtml(last)}</span></td>
+      </tr>`;
+    }).join('');
+    return `
+    <div style="background:var(--surface2);border:1px solid var(--border2);border-left:3px solid var(--accent);border-radius:8px;padding:.8rem;margin-bottom:1rem">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem;flex-wrap:wrap;gap:.5rem">
+        <div>
+          <b style="font-size:14px">${escapeHtml(t.showAs || q)}</b>
+          <span class="num-dim" style="font-size:11px;margin-left:.5rem">${escapeHtml(q)} · ${escapeHtml(t.dataRegion||'')}</span>
+        </div>
+        <div style="font-size:12px">
+          <b>${s.total||0}</b> endpoints ·
+          <span style="color:var(--green)">${s.enabled||0} 🔒</span> ·
+          <span style="color:var(--red)">${s.disabled||0} 🔓</span>
+        </div>
+      </div>
+      ${eps.length ? `<div class="table-wrap"><table>
+        <thead><tr><th>Hostname</th><th>OS</th><th>Type</th><th>TP</th><th>Password</th><th>Vu le</th></tr></thead>
+        <tbody>${epsRows}</tbody>
+      </table></div>` : '<div class="num-dim" style="padding:.5rem 0">Aucun endpoint</div>'}
+    </div>`;
+  }).join('');
+  stStatus(`✓ Lookup terminé sur ${list.length} tenants`, 'var(--green)');
+}
+
+function stAddTenantHeader(idx, q, res, action, isDry){
+  const tb = $('st-results-tbody');
+  const t  = res.tenant || {};
+  const s  = res.summary || {};
+  const summaryHtml = isDry
+    ? `<span class="num-dim">${s.total||0} endpoints · ${s.to_change||0} à modifier · ${s.skipped||0} déjà OK</span>`
+    : `<b>${s.ok||0}</b> OK · <b style="color:var(--red)">${s.ko||0}</b> KO · ${s.skipped||0} déjà OK · ${s.total||0} total`;
+  const tr = document.createElement('tr');
+  tr.style.background = 'var(--surface2)';
+  tr.innerHTML = `
+    <td colspan="8" style="padding:.6rem 1rem;border-top:2px solid var(--accent)">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap">
+        <div><span class="num-dim" style="font-size:11px;margin-right:.6rem">#${idx}</span><b>${escapeHtml(t.showAs || q)}</b> <span class="num-dim" style="font-size:11px">— ${escapeHtml(q)} · ${action} · ${isDry?'dry-run':'EXEC'}</span></div>
+        <div style="font-size:12px">${summaryHtml}</div>
+      </div>
+      ${!res.ok && res.error ? `<div style="color:var(--red);font-size:11px;margin-top:.3rem">${escapeHtml(res.error)}</div>` : ''}
+    </td>`;
+  tb.appendChild(tr);
+}
+
+function stAddEndpointRow(r, action, isDry){
+  const tb = $('st-results-tbody');
+  const before = r.enabled_before == null ? '—' : (r.enabled_before ? '🔒' : '🔓');
+  const after  = r.enabled_after  == null ? '—' : (r.enabled_after  ? '🔒' : '🔓');
+  let status, pwd;
+  if(r.skipped){
+    status = '<span class="num-dim" style="font-size:11px">⏭ skip</span>';
+    pwd = '<span class="num-dim">—</span>';
+  } else if(!r.ok){
+    status = '<span style="background:rgba(239,68,68,.15);color:var(--red);padding:2px 8px;border-radius:4px;font-size:11px">✗ KO</span>';
+    pwd = '<span class="num-dim">—</span>';
+  } else {
+    status = isDry
+      ? '<span style="color:var(--accent);font-size:11px">✓ dry</span>'
+      : '<span style="background:rgba(34,197,94,.15);color:var(--green);padding:2px 8px;border-radius:4px;font-size:11px">✓ OK</span>';
+    pwd = action === 'disable' && !isDry ? stMaskPwd(r.password) : '<span class="num-dim">—</span>';
+  }
+  const detail = r.error ? escapeHtml(r.error.substring(0,160)) : (r.reason || '');
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td></td>
+    <td colspan="2" style="font-size:11px"><b>${escapeHtml(r.hostname || '?')}</b><br><span class="num-dim" style="font-size:10px">${escapeHtml(r.os || '')} · ${escapeHtml(r.type || '')}</span></td>
+    <td>${before}</td>
+    <td>${after}</td>
+    <td>${pwd}</td>
+    <td>${status}</td>
+    <td style="font-size:11px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${detail}">${detail}</td>
+  `;
+  tb.appendChild(tr);
+}
+
+function stAddDryEndpointRow(p){
+  const tb = $('st-results-tbody');
+  const before = p.tamperEnabled == null ? '—' : (p.tamperEnabled ? '🔒' : '🔓');
+  const will = p.will_change ? '<span style="color:var(--accent);font-size:11px">→ à modifier</span>' : '<span class="num-dim" style="font-size:11px">⏭ skip</span>';
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td></td>
+    <td colspan="2" style="font-size:11px"><b>${escapeHtml(p.hostname || '?')}</b><br><span class="num-dim" style="font-size:10px">${escapeHtml(p.type || '')}</span></td>
+    <td>${before}</td>
+    <td>—</td>
+    <td><span class="num-dim">—</span></td>
+    <td>${will}</td>
+    <td></td>
+  `;
+  tb.appendChild(tr);
+}
+
+async function stBatchRun(isDry, action){
+  if(ST_BATCH_RUNNING){ stStatus('Batch en cours', 'var(--orange)'); return; }
+  const list = stParseList();
+  if(!list.length){ stStatus('Liste vide', 'var(--red)'); return; }
+  if(!isDry){
+    const verb = action === 'disable' ? 'DÉSACTIVER' : 'RÉACTIVER';
+    if(!confirm(`⚠ Confirmer ${verb} la tamper protection sur ${list.length} tenant(s) ?\n\n${list.slice(0,10).join(', ')}${list.length>10?' …':''}\n\nAction écrira dans Sophos Central.`)){
+      return;
+    }
+  }
+  ST_BATCH_RUNNING = true; ST_BATCH_STOP = false;
+  $('st-batch-stop').disabled = false; $('st-batch-stop').style.opacity = '1';
+  $('st-batch-progress-wrap').style.display = 'block';
+  $('st-results-wrap').style.display = 'block';
+  $('st-results-tbody').innerHTML = '';
+  $('st-batch-bar').style.width = '0%';
+
+  let nbTenantsOk = 0, nbTenantsKo = 0, nbEndpointsOk = 0, nbEndpointsKo = 0;
+  for(let i = 0; i < list.length; i++){
+    if(ST_BATCH_STOP){
+      stStatus(`⏹ Arrêté à ${i}/${list.length} tenants — ${nbEndpointsOk} endpoints OK, ${nbEndpointsKo} KO`, 'var(--orange)');
+      break;
+    }
+    const q = list[i];
+    stStatus(`⏳ ${i+1}/${list.length} : ${q}…`, 'var(--accent)');
+    let res;
+    try {
+      const r = await fetch(`/api/sophos/tamper/${action}?dry=${isDry?1:0}`, {
+        method: 'POST',
+        headers: {'content-type': 'application/json'},
+        body: JSON.stringify({tenant: q}),
+      });
+      res = await _safeJson(r);
+    } catch(e){
+      res = {ok:false, error: e.message};
+    }
+    if(res.ok) nbTenantsOk++; else nbTenantsKo++;
+    stAddTenantHeader(i+1, q, res, action, isDry);
+    if(isDry && res.endpoints_preview){
+      for(const p of res.endpoints_preview) stAddDryEndpointRow(p);
+    } else if(res.results){
+      for(const r of res.results){
+        stAddEndpointRow(r, action, isDry);
+        if(!r.skipped){
+          if(r.ok) nbEndpointsOk++; else nbEndpointsKo++;
+        }
+      }
+    }
+    const pct = Math.round((i+1)*100/list.length);
+    $('st-batch-bar').style.width = pct + '%';
+    $('st-batch-pct').textContent = `${i+1}/${list.length} tenants · ${nbEndpointsOk} endpoints OK · ${nbEndpointsKo} KO`;
+  }
+
+  ST_BATCH_RUNNING = false;
+  $('st-batch-stop').disabled = true; $('st-batch-stop').style.opacity = '.5';
+  if(!ST_BATCH_STOP){
+    const verb = action === 'disable' ? 'Désactivation' : 'Réactivation';
+    const msg = isDry
+      ? `🔍 Dry-run ${verb} : ${nbTenantsOk} tenant(s) inspectés`
+      : `✓ ${verb} terminée : ${nbTenantsOk} tenants traités · ${nbEndpointsOk} endpoints OK · ${nbEndpointsKo} KO`;
+    stStatus(msg, nbEndpointsKo === 0 ? 'var(--green)' : 'var(--orange)');
+  }
+  if(!isDry) stLoadHistoryPersist();
+}
+
+function stBatchStop(){
+  if(!ST_BATCH_RUNNING) return;
+  ST_BATCH_STOP = true;
+  stStatus('⏹ Arrêt après le tenant en cours…', 'var(--orange)');
+}
+
+function stClearLookup(){
+  $('st-lookup-wrap').style.display = 'none';
+  $('st-lookup').innerHTML = '';
+}
+
+function stClearResults(){
+  $('st-results-wrap').style.display = 'none';
+  $('st-results-tbody').innerHTML = '';
+  $('st-batch-progress-wrap').style.display = 'none';
+  $('st-batch-bar').style.width = '0%';
+  $('st-batch-pct').textContent = '';
+}
+
+async function stLoadHistoryPersist(){
+  try {
+    const r = await fetch('/api/sophos/tamper/history');
+    if(!r.ok){ $('st-hist-tbody').innerHTML = `<tr><td colspan="7" class="no-data">Erreur ${r.status}</td></tr>`; return; }
+    const j = await _safeJson(r);
+    ST_HIST_PERSIST = j.items || [];
+    $('st-hist-count').textContent = ST_HIST_PERSIST.length + ' entrée' + (ST_HIST_PERSIST.length>1?'s':'');
+    stRenderHistoryPersist();
+  } catch(e){
+    $('st-hist-tbody').innerHTML = `<tr><td colspan="7" class="no-data">${escapeHtml(e.message)}</td></tr>`;
+  }
+}
+
+function stRenderHistoryPersist(){
+  const q = ($('st-hist-filter').value || '').toLowerCase().trim();
+  const rows = !q ? ST_HIST_PERSIST : ST_HIST_PERSIST.filter(h => {
+    const blob = `${h.tenant_name||''} ${h.tenant_id||''} ${h.user||''} ${h.action||''} ${h.hostname||''} ${h.os||''} ${h.type||''}`.toLowerCase();
+    return blob.includes(q);
+  });
+  if(!rows.length){
+    $('st-hist-tbody').innerHTML = '<tr><td colspan="7" class="no-data">Aucune entrée</td></tr>';
+    return;
+  }
+  $('st-hist-tbody').innerHTML = rows.map(h => {
+    const dt = h.ts ? new Date(h.ts) : null;
+    const dateStr = dt ? `${dt.toLocaleDateString('fr-FR')} ${dt.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}` : '—';
+    const actionBadge = h.action === 'disable'
+      ? '<span style="background:rgba(239,68,68,.15);color:var(--red);padding:2px 8px;border-radius:4px;font-size:11px">🔓 Disable</span>'
+      : '<span style="background:rgba(34,197,94,.15);color:var(--green);padding:2px 8px;border-radius:4px;font-size:11px">🔒 Enable</span>';
+    return `<tr>
+      <td style="white-space:nowrap;font-family:monospace;font-size:12px">${escapeHtml(dateStr)}</td>
+      <td>${escapeHtml(h.user||'—')}</td>
+      <td><b>${escapeHtml(h.tenant_name||'—')}</b></td>
+      <td><b>${escapeHtml(h.hostname||'—')}</b></td>
+      <td class="num-dim" style="font-size:11px">${escapeHtml(h.os||'')} ${h.type ? '· '+escapeHtml(h.type) : ''}</td>
+      <td>${actionBadge}</td>
+      <td>${stMaskPwd(h.password)}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ════════ SUPPRIMER ENDPOINTS ════════
+let DL_ENDPOINTS = [];   // liste live (avec _selected:bool)
+let DL_TENANT   = null;  // {id, showAs, dataRegion, ...}
+let DL_TENANT_QUERY  = '';   // ce qu'on envoie au backend (code Artis ou ID)
+let DL_CONFIRM_TARGET = ''; // ce que l'utilisateur doit retaper pour confirmer
+let DL_HIST     = [];
+
+function dlStatus(txt, color='var(--muted)'){
+  const el = $('dl-status'); if(!el) return;
+  el.style.color = color; el.textContent = txt;
+}
+
+function dlClearLookup(){
+  $('dl-list-wrap').style.display = 'none';
+  $('dl-toolbar').style.display = 'none';
+  $('dl-action').style.display = 'none';
+  $('dl-tbody').innerHTML = '';
+  DL_ENDPOINTS = [];
+  DL_TENANT = null; DL_TENANT_QUERY = ''; DL_CONFIRM_TARGET = '';
+  $('dl-confirm-code').value = '';
+  $('dl-confirm-target').textContent = '—';
+}
+
+function dlClearResults(){
+  $('dl-results-wrap').style.display = 'none';
+  $('dl-results-tbody').innerHTML = '';
+  $('dl-progress-wrap').style.display = 'none';
+  $('dl-progress-bar').style.width = '0%';
+}
+
+async function dlLookup(){
+  const q = ($('dl-tenant').value || '').trim();
+  if(!q){ dlStatus('Code tenant requis', 'var(--red)'); return; }
+  // Si saisie via autocomplete = "CODE — NOM …", extraire le code
+  let code = q;
+  const m = q.match(/^(\S+)\s*—/);
+  if(m) code = m[1];
+  dlStatus('⏳ Lookup...');
+  dlClearLookup();
+  DL_TENANT_QUERY = code;  // doit être après dlClearLookup() qui reset à ''
+  try {
+    const r = await fetch(`/api/sophos/endpoints/lookup/${encodeURIComponent(code)}`);
+    const j = await _safeJson(r);
+    if(!j.ok){ dlStatus('✗ ' + (j.error||'erreur'), 'var(--red)'); return; }
+    DL_TENANT = j.tenant;
+    DL_ENDPOINTS = (j.endpoints || []).map(e => ({...e, _selected: false}));
+    // Code de confirmation : on prend le code Artis depuis le tenant.showAs si présent,
+    // sinon le query original. Affiché dans <code id="dl-confirm-target">
+    const m = (j.tenant.showAs || '').match(/^(\d+)\b/);
+    DL_CONFIRM_TARGET = m ? m[1] : code;
+    $('dl-confirm-target').textContent = DL_CONFIRM_TARGET;
+    $('dl-list-wrap').style.display = 'block';
+    $('dl-toolbar').style.display = 'block';
+    $('dl-action').style.display = 'block';
+    dlRender();
+    dlStatus(`✓ ${DL_ENDPOINTS.length} endpoints — ${j.tenant.showAs}`, 'var(--green)');
+  } catch(e){
+    dlStatus('✗ ' + e.message, 'var(--red)');
+  }
+}
+
+function _daysSince(iso){
+  if(!iso) return null;
+  const d = new Date(iso);
+  if(isNaN(d)) return null;
+  return Math.floor((Date.now() - d.getTime()) / 86400000);
+}
+
+function dlRender(){
+  const filter = ($('dl-filter').value || '').toLowerCase().trim();
+  const tb = $('dl-tbody');
+  const rows = DL_ENDPOINTS.filter(e => {
+    if(!filter) return true;
+    const blob = `${e.hostname||''} ${e.os||''} ${e.type||''}`.toLowerCase();
+    return blob.includes(filter);
+  });
+  tb.innerHTML = rows.map((e, i) => {
+    const idx = DL_ENDPOINTS.indexOf(e);
+    const tp = e.tamperEnabled === true ? '🔒' : e.tamperEnabled === false ? '🔓' : '?';
+    const days = _daysSince(e.lastSeenAt);
+    const ageColor = days == null ? 'var(--muted)'
+      : days > 90 ? 'var(--red)'
+      : days > 30 ? 'var(--orange)'
+      : 'var(--muted)';
+    const ageTxt = days == null ? '—' : `${days}j`;
+    const last = e.lastSeenAt ? new Date(e.lastSeenAt).toLocaleDateString('fr-FR') : '—';
+    return `<tr style="${e._selected?'background:rgba(239,68,68,.07)':''}">
+      <td><input type="checkbox" data-idx="${idx}" ${e._selected?'checked':''} onchange="dlToggle(${idx},this.checked)"></td>
+      <td><b>${escapeHtml(e.hostname||'?')}</b></td>
+      <td><span class="num-dim" style="font-size:11px">${escapeHtml(e.os||'')}</span></td>
+      <td><span class="num-dim" style="font-size:11px">${escapeHtml(e.type||'')}</span></td>
+      <td>${tp}</td>
+      <td><span class="num-dim" style="font-size:11px">${escapeHtml(last)}</span></td>
+      <td style="color:${ageColor};font-size:11px">${ageTxt}</td>
+    </tr>`;
+  }).join('');
+  const nbSel = DL_ENDPOINTS.filter(e => e._selected).length;
+  $('dl-counter').textContent = `${rows.length} affichés / ${DL_ENDPOINTS.length} total · ${nbSel} sélectionnés`;
+  $('dl-action-count').textContent = nbSel;
+  // Bouton exec actif uniquement si selection > 0 ET confirm_code === tenant
+  dlOnConfirmInput();
+}
+
+function dlToggle(idx, checked){
+  DL_ENDPOINTS[idx]._selected = checked;
+  dlRender();
+}
+
+function dlSelectAll(checked){
+  // Applique uniquement aux endpoints actuellement filtrés
+  const filter = ($('dl-filter').value || '').toLowerCase().trim();
+  for(const e of DL_ENDPOINTS){
+    if(!filter || `${e.hostname||''} ${e.os||''} ${e.type||''}`.toLowerCase().includes(filter)){
+      e._selected = checked;
+    }
+  }
+  dlRender();
+}
+
+function dlSelectStale(){
+  const days = parseInt($('dl-stale-days').value, 10) || 90;
+  const cut = days;
+  for(const e of DL_ENDPOINTS){
+    const d = _daysSince(e.lastSeenAt);
+    if(d != null && d > cut) e._selected = true;
+  }
+  dlRender();
+}
+
+function dlOnConfirmInput(){
+  const code = ($('dl-confirm-code').value || '').trim();
+  const nbSel = DL_ENDPOINTS.filter(e => e._selected).length;
+  const ok = nbSel > 0 && code && (
+    code === DL_CONFIRM_TARGET ||
+    code === DL_TENANT_QUERY ||
+    (DL_TENANT && code === DL_TENANT.id)
+  );
+  $('dl-btn-exec').disabled = !ok;
+  $('dl-btn-exec').style.opacity = ok ? '1' : '.5';
+}
+
+async function dlBatchRun(isDry){
+  const selected = DL_ENDPOINTS.filter(e => e._selected);
+  if(!selected.length){ dlStatus('Aucun endpoint sélectionné', 'var(--orange)'); return; }
+  if(!isDry){
+    const c = ($('dl-confirm-code').value||'').trim();
+    const matchOk = c && (c === DL_CONFIRM_TARGET || c === DL_TENANT_QUERY || (DL_TENANT && c === DL_TENANT.id));
+    if(!matchOk){
+      dlStatus('Le code de confirmation ne correspond pas', 'var(--red)'); return;
+    }
+    if(!confirm(`⚠ SUPPRIMER ${selected.length} endpoint(s) ?\n\n${selected.slice(0,8).map(e=>e.hostname||e.id).join(', ')}${selected.length>8?' …':''}\n\nIRREVERSIBLE. Sophos Central va perdre ces machines.`)){
+      return;
+    }
+  }
+
+  $('dl-results-wrap').style.display = 'block';
+  $('dl-results-tbody').innerHTML = '';
+  $('dl-progress-wrap').style.display = isDry ? 'none' : 'block';
+  $('dl-progress-bar').style.width = '0%';
+  dlStatus(`⏳ ${isDry?'Dry-run':'Suppression'} ${selected.length}…`, 'var(--accent)');
+
+  const body = {
+    tenant: DL_TENANT_QUERY,
+    endpoint_ids: selected.map(e => e.id),
+  };
+  if(!isDry) body.confirm_code = ($('dl-confirm-code').value||'').trim();
+
+  try {
+    const r = await fetch(`/api/sophos/endpoints/delete?dry=${isDry?1:0}`, {
+      method: 'POST',
+      headers: {'content-type': 'application/json'},
+      body: JSON.stringify(body),
+    });
+    const j = await _safeJson(r);
+    if(j.dry_run && j.endpoints_preview){
+      $('dl-results-tbody').innerHTML = j.endpoints_preview.map((p,i)=>`
+        <tr>
+          <td class="num-dim" style="font-size:11px">${i+1}</td>
+          <td><b>${escapeHtml(p.hostname||'?')}</b></td>
+          <td><span class="num-dim" style="font-size:11px">${escapeHtml(p.os||'')}</span></td>
+          <td><span class="num-dim" style="font-size:11px">${escapeHtml(p.type||'')}</span></td>
+          <td><span style="color:var(--accent);font-size:11px">→ à supprimer</span></td>
+          <td></td>
+        </tr>`).join('');
+      dlStatus(`🔍 Dry-run OK : ${j.summary.to_delete} machines passeraient à DELETE`, 'var(--accent)');
+    } else if(j.results){
+      let nbOk=0, nbKo=0;
+      $('dl-results-tbody').innerHTML = j.results.map((r,i) => {
+        if(r.ok) nbOk++; else nbKo++;
+        const status = r.ok
+          ? `<span style="background:rgba(34,197,94,.15);color:var(--green);padding:2px 8px;border-radius:4px;font-size:11px">✓ ${r.status||'OK'}</span>`
+          : '<span style="background:rgba(239,68,68,.15);color:var(--red);padding:2px 8px;border-radius:4px;font-size:11px">✗ KO</span>';
+        const detail = r.error ? escapeHtml(r.error.substring(0,160)) : '';
+        return `<tr>
+          <td class="num-dim" style="font-size:11px">${i+1}</td>
+          <td><b>${escapeHtml(r.hostname||'?')}</b></td>
+          <td><span class="num-dim" style="font-size:11px">${escapeHtml(r.os||'')}</span></td>
+          <td><span class="num-dim" style="font-size:11px">${escapeHtml(r.type||'')}</span></td>
+          <td>${status}</td>
+          <td style="font-size:11px;color:var(--red);max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${detail}">${detail}</td>
+        </tr>`;
+      }).join('');
+      $('dl-progress-bar').style.width = '100%';
+      dlStatus(`✓ Terminé : ${nbOk} OK · ${nbKo} KO sur ${j.results.length}`, nbKo===0?'var(--green)':'var(--orange)');
+      dlLoadHistoryPersist();
+      // Retirer de la liste les endpoints supprimés avec succès (sinon on peut les re-cliquer)
+      const okIds = new Set(j.results.filter(r=>r.ok).map(r=>r.endpoint_id));
+      DL_ENDPOINTS = DL_ENDPOINTS.filter(e => !okIds.has(e.id));
+      dlRender();
+      $('dl-confirm-code').value = '';
+      dlOnConfirmInput();
+    } else {
+      dlStatus('✗ ' + (j.error || 'erreur inconnue'), 'var(--red)');
+    }
+  } catch(e){
+    dlStatus('✗ ' + e.message, 'var(--red)');
+  }
+}
+
+async function dlLoadHistoryPersist(){
+  try {
+    const r = await fetch('/api/sophos/delete/history');
+    if(!r.ok){ $('dl-hist-tbody').innerHTML = `<tr><td colspan="7" class="no-data">Erreur ${r.status}</td></tr>`; return; }
+    const j = await _safeJson(r);
+    DL_HIST = j.items || [];
+    $('dl-hist-count').textContent = DL_HIST.length + ' entrée' + (DL_HIST.length>1?'s':'');
+    dlRenderHistoryPersist();
+  } catch(e){
+    $('dl-hist-tbody').innerHTML = `<tr><td colspan="7" class="no-data">${escapeHtml(e.message)}</td></tr>`;
+  }
+}
+
+function dlRenderHistoryPersist(){
+  const q = ($('dl-hist-filter').value || '').toLowerCase().trim();
+  const rows = !q ? DL_HIST : DL_HIST.filter(h => {
+    const blob = `${h.tenant_name||''} ${h.user||''} ${h.hostname||''} ${h.os||''} ${h.type||''}`.toLowerCase();
+    return blob.includes(q);
+  });
+  if(!rows.length){
+    $('dl-hist-tbody').innerHTML = '<tr><td colspan="7" class="no-data">Aucune entrée</td></tr>';
+    return;
+  }
+  $('dl-hist-tbody').innerHTML = rows.map(h => {
+    const dt = h.ts ? new Date(h.ts) : null;
+    const dateStr = dt ? `${dt.toLocaleDateString('fr-FR')} ${dt.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}` : '—';
+    const last = h.lastSeenAt ? new Date(h.lastSeenAt).toLocaleDateString('fr-FR') : '—';
+    return `<tr>
+      <td style="white-space:nowrap;font-family:monospace;font-size:12px">${escapeHtml(dateStr)}</td>
+      <td>${escapeHtml(h.user||'—')}</td>
+      <td><b>${escapeHtml(h.tenant_name||'—')}</b></td>
+      <td><b>${escapeHtml(h.hostname||'—')}</b></td>
+      <td class="num-dim" style="font-size:11px">${escapeHtml(h.os||'')} ${h.type ? '· '+escapeHtml(h.type) : ''}</td>
+      <td><span class="num-dim" style="font-size:11px">${escapeHtml(last)}</span></td>
+      <td class="num-dim" style="font-size:10px;font-family:monospace">${escapeHtml((h.endpoint_id||'').substring(0,12))}…</td>
+    </tr>`;
+  }).join('');
+}
+
+(async function init(){
+  try {
+    const r = await fetch('/api/whoami');
+    if(r.ok){
+      const u = await r.json();
+      const b = $('user-badge');
+      b.textContent = (u.user || '?') + (u.is_admin ? ' · admin' : '');
+      if(u.is_admin) b.classList.add('admin');
+      if(!u.is_admin){
+        $('page-acces').style.display = 'block';
+        return;
+      }
+    }
+  } catch(e){}
+  $('page-content').style.display = 'block';
+  stLoadHistoryPersist();
+  stLoadTenants();
+  $('st-list').addEventListener('input', stUpdateListCount);
+})();
+</script>
+</body>
+</html>

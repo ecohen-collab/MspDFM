@@ -1,0 +1,2488 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Artis · DFM</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<style>
+:root{
+  --bg:#0f1117; --surface:#1a1d27; --surface2:#22263a;
+  --border:rgba(255,255,255,0.07); --border2:rgba(255,255,255,0.14);
+  --text:#e8eaf2; --muted:#7b7f96;
+  --accent:#4f7cff; --green:#22c55e; --amber:#f59e0b; --red:#ef4444; --blue:#38bdf8; --purple:#a855f7;
+  --font:'Sora',sans-serif; --mono:'DM Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;}
+
+.header{display:flex;align-items:center;justify-content:space-between;padding:1rem 2rem;border-bottom:1px solid var(--border);background:var(--surface);position:sticky;top:0;z-index:20;}
+.logo{display:flex;align-items:center;gap:10px;}
+.logo-dot{width:9px;height:9px;border-radius:50%;background:var(--purple);box-shadow:0 0 10px var(--purple);}
+.logo-text{font-size:15px;font-weight:600;letter-spacing:.04em;}
+.logo-sub{font-size:11px;color:var(--muted);font-weight:300;}
+.header-right{display:flex;align-items:center;gap:12px;}
+#last-update{font-size:11px;color:var(--muted);font-family:var(--mono);}
+.btn{display:flex;align-items:center;gap:6px;background:var(--surface2);color:var(--text);border:1px solid var(--border2);border-radius:8px;padding:6px 14px;font-size:12px;font-family:var(--font);font-weight:500;cursor:pointer;transition:all .2s;text-decoration:none;}
+.btn:hover{border-color:var(--accent);color:var(--accent);}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent);}
+.btn-primary:hover{opacity:.85;color:#fff;}
+
+.user-badge{font-size:11px;color:var(--muted);padding:4px 10px;background:var(--surface2);border-radius:6px;}
+.user-badge.admin{background:rgba(245,158,11,.15);color:var(--amber);font-weight:600;}
+
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--border);background:var(--surface);padding:0 2rem;overflow-x:auto;}
+.tab{padding:.75rem 1.1rem;font-size:12px;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap;}
+.tab:hover{color:var(--text);}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+.tab-badge{display:inline-block;background:rgba(79,124,255,.2);color:var(--accent);border-radius:10px;padding:1px 7px;font-size:10px;font-family:var(--mono);margin-left:5px;}
+
+.main{padding:1.5rem 2rem;max-width:1700px;margin:0 auto;}
+.tab-content{display:none;}.tab-content.active{display:block;}
+
+.global-filter{display:flex;align-items:center;gap:.7rem;margin-bottom:1rem;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:.7rem 1rem;}
+.global-filter label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;}
+
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:1.5rem;}
+.metric{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1rem 1.2rem;cursor:pointer;transition:all .15s;}
+.metric:hover{border-color:var(--accent);transform:translateY(-1px);}
+.metric.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent);}
+.metric-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:7px;}
+.metric-value{font-size:26px;font-weight:600;font-family:var(--mono);line-height:1;}
+.metric-sub{font-size:10px;color:var(--muted);margin-top:4px;}
+.c-green{color:var(--green);}.c-red{color:var(--red);}.c-amber{color:var(--amber);}.c-blue{color:var(--blue);}.c-purple{color:var(--purple);}
+
+.alert-box{background:rgba(245,158,11,.07);border:1px solid rgba(245,158,11,.25);border-radius:10px;padding:.9rem 1.2rem;margin-bottom:1.5rem;font-size:12px;color:#fcd34d;}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.2rem;}
+
+.table-toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:10px;}
+.table-filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+.search{background:var(--surface2);border:1px solid var(--border2);color:var(--text);border-radius:8px;padding:7px 12px;font-size:12px;font-family:var(--font);width:220px;outline:none;}
+.search:focus{border-color:var(--accent);}
+.sel{background:var(--surface2);border:1px solid var(--border2);color:var(--text);border-radius:8px;padding:7px 10px;font-size:12px;font-family:var(--font);outline:none;cursor:pointer;}
+.fbtn{background:var(--surface2);border:1px solid var(--border2);color:var(--muted);border-radius:6px;padding:5px 12px;font-size:11px;cursor:pointer;transition:all .15s;}
+.fbtn:hover,.fbtn.active{border-color:var(--accent);color:var(--accent);background:rgba(79,124,255,.1);}
+.btn-export{background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.4);color:var(--green);border-radius:8px;padding:6px 12px;font-size:11px;font-family:var(--font);cursor:pointer;}
+.btn-export:hover{background:rgba(34,197,94,.22);}
+.btn-clear{background:transparent;border:1px solid var(--border2);color:var(--muted);border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;}
+.btn-clear:hover{border-color:var(--red);color:var(--red);}
+
+.active-filter-pill{display:inline-flex;align-items:center;gap:6px;background:rgba(79,124,255,.15);color:var(--accent);border:1px solid var(--accent);border-radius:14px;padding:3px 10px;font-size:11px;font-family:var(--mono);}
+.active-filter-pill button{background:transparent;border:none;color:var(--accent);cursor:pointer;font-size:13px;line-height:1;}
+
+.table-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--border);}
+table{width:100%;border-collapse:collapse;font-size:12px;}
+thead th{background:var(--surface2);color:var(--muted);font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.07em;padding:10px 14px;text-align:left;white-space:nowrap;border-bottom:1px solid var(--border);cursor:pointer;user-select:none;}
+thead th:hover{color:var(--text);}
+tbody tr{border-bottom:1px solid var(--border);transition:background .1s;}
+tbody tr:last-child{border-bottom:none;}
+tbody tr:hover{background:rgba(255,255,255,.02);}
+tbody tr.row-clickable{cursor:pointer;}
+tbody td{padding:9px 14px;vertical-align:middle;}
+.client-code{font-family:var(--mono);font-size:10px;color:var(--muted);}
+.client-name{font-weight:500;font-size:12px;}
+.num{font-family:var(--mono);font-size:12px;}
+.num-dim{font-family:var(--mono);font-size:11px;color:var(--muted);}
+
+.no-data{text-align:center;padding:3rem;color:var(--muted);font-size:12px;}
+
+.dit-num{font-family:var(--mono);font-size:11px;color:var(--accent);}
+.etat-badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;}
+.etat-cloturee,.etat-traveltermine,.etat-travailtermine,.etat-terminee{background:rgba(34,197,94,.15);color:#86efac;}
+.etat-encours{background:rgba(79,124,255,.15);color:#93c5fd;}
+.etat-travailnontermine,.etat-travailnonTermine{background:rgba(245,158,11,.15);color:#fcd34d;}
+.etat-annulee{background:rgba(120,120,120,.15);color:var(--muted);}
+.etat-other{background:rgba(168,85,247,.15);color:#d8b4fe;}
+
+.duree-cell{font-family:var(--mono);font-size:11px;}
+
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:flex-start;justify-content:center;z-index:1000;padding:3rem 1rem;overflow-y:auto;}
+.modal-overlay.show{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:14px;width:min(1200px,100%);max-height:90vh;overflow:hidden;display:flex;flex-direction:column;}
+.modal-header{padding:1rem 1.2rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:1rem;}
+.modal-title{font-size:14px;font-weight:600;flex:1;}
+.modal-sub{font-size:11px;color:var(--muted);}
+.modal-close{background:transparent;border:1px solid var(--border2);color:var(--text);border-radius:8px;width:30px;height:30px;font-size:14px;cursor:pointer;}
+.modal-close:hover{border-color:var(--accent);}
+.modal-body{padding:1rem 1.2rem;overflow-y:auto;flex:1;}
+.modal-section{margin-bottom:1.5rem;}
+.modal-section-title{font-size:12px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.6rem;}
+.modal-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.6rem;}
+.modal-card{background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:.7rem .9rem;}
+.modal-card-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.3rem;}
+.modal-card-value{font-size:13px;font-weight:600;}
+.dit-card{background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:.9rem 1rem;margin-bottom:.7rem;}
+.dit-card-head{display:flex;justify-content:space-between;align-items:center;gap:.8rem;flex-wrap:wrap;margin-bottom:.5rem;}
+.dit-card-meta{display:flex;gap:1rem;font-size:11px;color:var(--muted);flex-wrap:wrap;}
+.dit-card-meta b{color:var(--text);font-weight:500;}
+.dit-comment{font-size:11px;color:var(--muted);line-height:1.5;margin-top:.5rem;background:var(--surface);border-radius:6px;padding:.5rem .7rem;border-left:2px solid var(--border2);white-space:pre-wrap;}
+.inter-list{margin-top:.6rem;font-size:11px;}
+.inter-list summary{cursor:pointer;color:var(--accent);font-weight:500;padding:.3rem 0;}
+.inter-row{padding:.5rem .7rem;background:var(--surface);border-radius:6px;margin-top:.4rem;font-size:11px;line-height:1.5;}
+.inter-row b{color:var(--text);}
+.btn-cloture{background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.4);color:var(--green);border-radius:6px;padding:3px 10px;font-size:10px;font-family:var(--font);font-weight:500;cursor:pointer;white-space:nowrap;}
+.btn-cloture:hover{background:rgba(34,197,94,.22);}
+
+/* Modal de clôture */
+.cloture-form{display:flex;flex-direction:column;gap:.8rem;}
+.cloture-form label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:.3rem;}
+.cloture-form input,.cloture-form textarea,.cloture-form select{background:var(--surface2);border:1px solid var(--border2);color:var(--text);border-radius:8px;padding:8px 12px;font-size:12px;font-family:var(--font);width:100%;outline:none;}
+.cloture-form input:focus,.cloture-form textarea:focus,.cloture-form select:focus{border-color:var(--accent);}
+.cloture-form textarea{font-family:var(--font);resize:vertical;min-height:60px;}
+.cloture-row{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;}
+.cloture-mode{display:flex;gap:.5rem;align-items:center;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:.6rem .8rem;}
+.cloture-mode.real{background:rgba(239,68,68,.08);border-color:rgba(239,68,68,.4);}
+.cloture-preview{background:var(--surface);border:1px solid var(--border2);border-radius:8px;padding:.7rem;font-family:var(--mono);font-size:10px;color:var(--muted);max-height:240px;overflow:auto;white-space:pre-wrap;}
+.cloture-result{padding:.8rem;border-radius:8px;font-size:12px;font-family:var(--mono);}
+.cloture-result.ok{background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.4);color:#86efac;}
+.cloture-result.err{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.4);color:#fca5a5;}
+.cloture-actions{display:flex;gap:.6rem;justify-content:flex-end;margin-top:.5rem;}
+.presta-grid{display:flex;flex-direction:column;gap:.4rem;}
+.presta-row{display:grid;grid-template-columns:1fr 110px 140px;gap:.5rem;align-items:center;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:.5rem .7rem;}
+.presta-name{font-size:12px;font-weight:500;color:var(--text);}
+.presta-row input,.presta-row select{padding:5px 8px;font-size:12px;}
+
+.no-acces{text-align:center;padding:6rem 2rem;color:var(--muted);}
+.no-acces-icon{font-size:48px;margin-bottom:1rem;}
+.no-acces-title{font-size:18px;color:var(--text);margin-bottom:.5rem;}
+.no-acces-sub{font-size:13px;color:var(--muted);}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="logo">
+    <div class="logo-dot"></div>
+    <div>
+      <div class="logo-text">Artis — DIT &amp; Interventions</div>
+      <div class="logo-sub">90 derniers jours · clients informatiques</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <span id="user-badge" class="user-badge">—</span>
+    <span id="last-update">—</span>
+    <a class="btn" href="/index.html">← Retour</a>
+    <button class="btn" id="btn-refetch" onclick="refetchDIT()" title="Refetch DIT depuis Artis (sans relancer la MAJ complète)">⟳ Refetch DIT</button>
+    <button class="btn btn-primary" onclick="charger()">↻ Actualiser</button>
+    <a class="btn" href="/authelia/logout?rd=https%3A%2F%2F10.127.15.239%2F" title="Se déconnecter">⏻</a>
+  </div>
+</header>
+
+<div id="page-acces" class="no-acces" style="display:none">
+  <div class="no-acces-icon">🔒</div>
+  <div class="no-acces-title">Accès réservé</div>
+  <div class="no-acces-sub">Cette page est uniquement accessible aux administrateurs.</div>
+</div>
+
+<div id="page-content" style="display:none">
+
+<nav class="tabs">
+  <div class="tab active" onclick="showTab('overview',this)">Vue d'ensemble <span class="tab-badge" id="badge-total">—</span></div>
+  <div class="tab" onclick="showTab('clients',this)">Par client <span class="tab-badge" id="badge-clients">—</span></div>
+  <div class="tab" onclick="showTab('techs',this)">Par technicien <span class="tab-badge" id="badge-techs">—</span></div>
+  <div class="tab" onclick="showTab('list',this)">Liste DIT <span class="tab-badge" id="badge-list">—</span></div>
+  <div class="tab" onclick="showTab('nonfact',this)">Passer en NonFact <span class="tab-badge" style="background:rgba(245,158,11,.15);color:#f59e0b">⚙</span></div>
+  <div class="tab" onclick="showTab('cloturer',this)">Clôturer DIT <span class="tab-badge" style="background:rgba(34,197,94,.15);color:var(--green)">✓</span></div>
+</nav>
+
+<div class="main">
+
+<!-- Filtre global -->
+<div class="global-filter">
+  <label>Filtre global</label>
+  <select class="sel" id="g-org" onchange="applyGlobal()"><option value="">Toutes les orgs</option></select>
+  <select class="sel" id="g-tech" onchange="applyGlobal()"><option value="">Tous les techniciens</option></select>
+  <input type="date" class="sel" id="g-date-from" onchange="onDateChange()" title="Date début">
+  <input type="date" class="sel" id="g-date-to"   onchange="onDateChange()" title="Date fin">
+  <button class="fbtn" onclick="setPeriodPreset(1)">Auj.</button>
+  <button class="fbtn" onclick="setPeriodPreset(7)">7j</button>
+  <button class="fbtn" onclick="setPeriodPreset(30)">30j</button>
+  <button class="fbtn" onclick="setPeriodPreset(90)">90j</button>
+  <span id="g-fetch-status" style="font-size:11px;color:var(--muted);font-family:var(--mono)"></span>
+  <span id="g-active-filters" style="display:flex;gap:6px;flex-wrap:wrap"></span>
+  <button class="btn-clear" onclick="resetGlobal()" style="margin-left:auto">Réinitialiser</button>
+</div>
+
+<!-- ════════ VUE D'ENSEMBLE ════════ -->
+<div class="tab-content active" id="tab-overview">
+  <div class="metrics" id="metrics"></div>
+  <div class="alert-box" id="alert-box" style="display:none"></div>
+
+  <div class="card" style="margin-bottom:1rem">
+    <div style="font-size:13px;font-weight:600;margin-bottom:.7rem">Répartition par état (cliquer pour filtrer)</div>
+    <div id="repart-etats" style="display:flex;flex-wrap:wrap;gap:.6rem;font-size:12px"></div>
+  </div>
+
+  <div class="card" style="margin-bottom:1rem">
+    <div style="font-size:13px;font-weight:600;margin-bottom:.7rem">Top 15 clients par nombre de DIT</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Client</th><th>DIT</th><th>En cours</th><th>Clôturés</th><th>Heures</th></tr></thead>
+        <tbody id="tbody-top"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.7rem">
+      <div style="font-size:13px;font-weight:600">Top intervenants (cliquer pour voir leurs interventions) — classés par <i>Total</i> (DIT + TNP)</div>
+      <label style="display:inline-flex;align-items:center;gap:.4rem;color:var(--muted);font-size:.8rem;cursor:pointer">
+        <input type="checkbox" id="overview-it-only" checked onchange="renderOverview()" style="cursor:pointer">
+        IT uniquement
+      </label>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>#</th><th>Intervenant</th>
+          <th title="Nombre d'interventions DIT">DIT (nb)</th><th>DIT (h)</th>
+          <th title="Nombre d'entrées TNP catégorie Hotline">TNP Hotline (nb)</th><th title="Heures TNP catégorie Hotline">TNP Hotline (h)</th>
+          <th title="DIT (nb) + TNP Hotline (nb)">Total (nb)</th><th>Total (h)</th>
+          <th title="Part de TNP Hotline dans le total des heures">% Hotline</th>
+          <th>DIT distincts</th>
+        </tr></thead>
+        <tbody id="tbody-intervenants"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ PAR CLIENT ════════ -->
+<div class="tab-content" id="tab-clients">
+  <div class="card">
+    <div class="table-toolbar">
+      <div class="table-filters">
+        <input class="search" id="search-clients" type="text" placeholder="Client, code..." oninput="renderClients()">
+      </div>
+      <button class="btn-export" onclick="exportClients()">⤓ Export Excel</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th onclick="sortClients('nom')">Client</th>
+            <th onclick="sortClients('org')">Org</th>
+            <th onclick="sortClients('nb')">DIT</th>
+            <th onclick="sortClients('encours')">En cours</th>
+            <th onclick="sortClients('clos')">Clôturés</th>
+            <th onclick="sortClients('heures')">Heures</th>
+            <th onclick="sortClients('inter')">Interv.</th>
+            <th onclick="sortClients('note')">Note moy.</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-clients"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ PAR TECHNICIEN ════════ -->
+<div class="tab-content" id="tab-techs">
+  <div class="card">
+    <div class="table-toolbar">
+      <div class="table-filters">
+        <input class="search" id="search-techs" type="text" placeholder="Nom technicien..." oninput="renderTechs()">
+        <label style="display:inline-flex;align-items:center;gap:.4rem;color:var(--muted);font-size:.85rem;cursor:pointer">
+          <input type="checkbox" id="filter-it-only" checked onchange="renderTechs(); refreshTechBadge()" style="cursor:pointer">
+          IT uniquement (Hotline + MCO)
+        </label>
+        <span id="excluded-count" style="font-size:.8rem;color:var(--muted)"></span>
+      </div>
+      <button class="btn-export" onclick="exportTechs()">⤓ Export Excel</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th onclick="sortTechs('rank')">#</th>
+            <th onclick="sortTechs('nom')">Intervenant</th>
+            <th onclick="sortTechs('nb')" title="Nombre d'interventions DIT">DIT (nb)</th>
+            <th onclick="sortTechs('heures')" title="Heures cumulées des interventions DIT">DIT (h)</th>
+            <th onclick="sortTechs('tnp_hotline_nb')" title="Nombre d'entrées TNP catégorie Hotline (HT, HOT-SUP-TERRAIN, HOT-SUP-REGIONS)">TNP Hotline (nb)</th>
+            <th onclick="sortTechs('tnp_hotline_h')" title="Heures TNP catégorie Hotline">TNP Hotline (h)</th>
+            <th onclick="sortTechs('total_nb')" title="DIT (nb) + TNP Hotline (nb)">Total (nb)</th>
+            <th onclick="sortTechs('total_h')" title="Heures DIT + Heures TNP Hotline">Total (h)</th>
+            <th onclick="sortTechs('pct_tnp')" title="Part de TNP Hotline dans le total des heures">% Hotline</th>
+            <th onclick="sortTechs('dits')">DIT distincts</th>
+            <th onclick="sortTechs('clients')">Clients</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-techs"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ LISTE DIT ════════ -->
+<div class="tab-content" id="tab-list">
+  <div class="card">
+    <div class="table-toolbar">
+      <div class="table-filters">
+        <input class="search" id="search-list" type="text" placeholder="DIT, client, commentaire..." oninput="renderList()">
+        <select class="sel" id="sel-etat" onchange="renderList()">
+          <option value="">Tous les états</option>
+          <option value="EnCours">En cours</option>
+          <option value="Cloturee">Clôturés</option>
+          <option value="TravailNonTermine">Travail non terminé</option>
+          <option value="TravailTermine">Travail terminé</option>
+          <option value="Annulee">Annulés</option>
+        </select>
+        <select class="sel" id="sel-type" onchange="renderList()"><option value="">Tous types</option></select>
+        <select class="sel" id="sel-nature" onchange="renderList()"><option value="">Toutes natures</option></select>
+      </div>
+      <button class="btn-export" onclick="exportList()">⤓ Export Excel</button>
+    </div>
+    <div id="list-active-filters" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:.8rem"></div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th onclick="sortList('numero')">N°</th>
+            <th onclick="sortList('date')">Date</th>
+            <th onclick="sortList('client')">Client</th>
+            <th onclick="sortList('etat')">État</th>
+            <th onclick="sortList('type')">Type</th>
+            <th onclick="sortList('nature')">Nature</th>
+            <th onclick="sortList('demandeur')">Demandeur</th>
+            <th onclick="sortList('inter')">Inter.</th>
+            <th onclick="sortList('duree')">Durée</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-list"></tbody>
+      </table>
+    </div>
+    <div class="no-data" id="list-info" style="display:none"></div>
+  </div>
+</div>
+
+<!-- ════ ONGLET PASSAGE NONFACTURABLE ════ -->
+<div class="tab-content" id="tab-nonfact">
+  <div class="card">
+    <div style="display:flex;align-items:center;gap:.7rem;margin-bottom:1rem">
+      <div style="font-size:18px;font-weight:600">⚙ Passer une DIT en NonFacturable</div>
+      <span style="background:rgba(245,158,11,.15);color:#f59e0b;padding:3px 10px;border-radius:6px;font-size:11px;text-transform:uppercase;letter-spacing:.5px">Admin · Écriture Artis</span>
+    </div>
+    <div style="color:var(--muted);font-size:13px;margin-bottom:1.5rem;line-height:1.5">
+      Bascule une DIT clôturée Facturable → NonFacturable.
+      Séquence Artis : <code style="color:var(--accent)">reouvrir</code> → pause 5s → <code style="color:var(--accent)">set intervenant</code> → <code style="color:var(--accent)">saisirCrit</code> avec typeFacturation=NonFacturable.
+      <br>⚠ Toujours un <b>dry-run</b> d'abord. Confirmation explicite par numéro avant exécution réelle (incident DIT 5/5/2026).
+    </div>
+
+    <div style="display:flex;gap:.6rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap">
+      <input type="text" id="nf-numero" list="nf-suggestions" placeholder="Numéro DIT (autocomplete)"
+             style="background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:.6rem 1rem;border-radius:6px;font-size:14px;width:380px"
+             oninput="nfOnInputChange()" onchange="nfInspect()" onkeydown="if(event.key==='Enter') nfInspect()">
+      <datalist id="nf-suggestions"></datalist>
+      <button class="btn-export" onclick="nfInspect()" style="background:var(--surface2);border:1px solid var(--border2);color:var(--text)">🔎 Inspecter</button>
+      <button class="btn-export" onclick="nfDryRun()" style="background:var(--accent);color:white">🔍 Vérifier (dry-run)</button>
+      <button class="btn-export" id="nf-btn-execute" onclick="nfExecute()" disabled
+              style="background:var(--orange);color:white;opacity:.5">⚡ Exécuter (POST réel)</button>
+      <span id="nf-status" style="font-size:13px;color:var(--muted)"></span>
+    </div>
+
+    <!-- Aperçu DIT (live Artis) -->
+    <div id="nf-preview" style="display:none;background:var(--surface2);border:1px solid var(--border2);border-left:3px solid var(--accent);border-radius:8px;padding:1rem;margin-bottom:1rem"></div>
+
+    <!-- Timeline / résultat -->
+    <div id="nf-result" style="display:none;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:1rem;margin-top:1rem">
+      <div id="nf-summary" style="margin-bottom:.8rem"></div>
+      <div id="nf-steps"></div>
+      <details id="nf-payload-wrap" style="margin-top:.8rem"><summary style="cursor:pointer;color:var(--muted);font-size:12px">Voir le payload complet</summary>
+        <pre id="nf-payload" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.8rem;font-size:11px;overflow:auto;max-height:300px;margin-top:.5rem"></pre>
+      </details>
+    </div>
+
+    <!-- Historique session (succès/échecs depuis ouverture de la page) -->
+    <div id="nf-history-wrap" style="margin-top:2rem;display:none">
+      <div style="font-size:13px;font-weight:600;margin-bottom:.5rem;color:var(--muted)">Historique de la session</div>
+      <div id="nf-history" style="display:flex;flex-direction:column;gap:.4rem"></div>
+    </div>
+
+    <!-- Historique persistant (toutes les exécutions réussies, stocké côté serveur) -->
+    <div style="margin-top:2.5rem">
+      <div style="display:flex;align-items:center;gap:.7rem;margin-bottom:.7rem">
+        <div style="font-size:14px;font-weight:600">📜 Historique persistant des passages NonFacturable</div>
+        <button class="btn-export" onclick="nfLoadHistoryPersist()" style="padding:.3rem .7rem;font-size:12px">↻ Recharger</button>
+        <span id="nf-hist-count" style="color:var(--muted);font-size:12px"></span>
+      </div>
+      <div id="nf-hist-search-wrap" style="margin-bottom:.5rem">
+        <input type="text" id="nf-hist-filter" placeholder="Filtre (DIT, client, commentaire...)"
+               oninput="nfRenderHistoryPersist()"
+               style="background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:.4rem .8rem;border-radius:6px;font-size:12px;width:300px">
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr>
+          <th>Date</th>
+          <th>DIT</th>
+          <th>Nouvelle IT</th>
+          <th>Client</th>
+          <th>Type final</th>
+          <th>Commentaire</th>
+        </tr></thead>
+        <tbody id="nf-hist-tbody"><tr><td colspan="6" class="no-data">Chargement…</td></tr></tbody>
+      </table></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ ONGLET CLÔTURER DIT ════ -->
+<div class="tab-content" id="tab-cloturer">
+  <div class="card">
+    <div style="display:flex;align-items:center;gap:.7rem;margin-bottom:1rem">
+      <div style="font-size:18px;font-weight:600">✓ Clôturer une DIT Artis</div>
+      <span style="background:rgba(34,197,94,.15);color:var(--green);padding:3px 10px;border-radius:6px;font-size:11px;text-transform:uppercase;letter-spacing:.5px">Admin · Écriture Artis</span>
+    </div>
+    <div style="color:var(--muted);font-size:13px;margin-bottom:1.5rem;line-height:1.5">
+      Passe une DIT en <code style="color:var(--accent)">Cloturee</code>.
+      <br>• Si <b>TravailTermine</b> → <code style="color:var(--accent)">PATCH /dit/{n}/cloturer</code> direct.
+      <br>• Si <b>TravailNonTermine</b> → finalisation automatique des IT non terminées (saisirCrit minimaliste 0.01h) puis clôture, <b>uniquement si la case "Forcer finalisation" est cochée</b>.
+      <br>⚠ Toujours un <b>dry-run</b> d'abord. Confirmation explicite par numéro avant exécution réelle.
+    </div>
+
+    <div style="display:flex;gap:.6rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap">
+      <input type="text" id="cl-numero" list="cl-suggestions" placeholder="Numéro DIT (autocomplete)"
+             style="background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:.6rem 1rem;border-radius:6px;font-size:14px;width:380px"
+             oninput="clOnInputChange()" onchange="clInspect()" onkeydown="if(event.key==='Enter') clInspect()">
+      <datalist id="cl-suggestions"></datalist>
+      <button class="btn-export" onclick="clInspect()" style="background:var(--surface2);border:1px solid var(--border2);color:var(--text)">🔎 Inspecter</button>
+      <button class="btn-export" onclick="clDryRun()" style="background:var(--accent);color:white">🔍 Vérifier (dry-run)</button>
+      <button class="btn-export" id="cl-btn-execute" onclick="clExecute()" disabled
+              style="background:var(--green);color:white;opacity:.5">⚡ Exécuter (PATCH réel)</button>
+      <span id="cl-status" style="font-size:13px;color:var(--muted)"></span>
+    </div>
+
+    <div style="display:flex;gap:1rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap">
+      <label style="display:flex;align-items:center;gap:.4rem;font-size:13px;color:var(--muted);cursor:pointer">
+        <input type="checkbox" id="cl-force-finalize" onchange="clOnInputChange()">
+        Forcer la finalisation des IT non terminées (requis si TravailNonTermine)
+      </label>
+      <input type="text" id="cl-commentaire" placeholder="Commentaire de clôture (optionnel — défaut auto)"
+             style="background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:.5rem .8rem;border-radius:6px;font-size:13px;flex:1;min-width:300px"
+             oninput="clOnInputChange()">
+    </div>
+
+    <!-- Aperçu DIT (live Artis) -->
+    <div id="cl-preview" style="display:none;background:var(--surface2);border:1px solid var(--border2);border-left:3px solid var(--accent);border-radius:8px;padding:1rem;margin-bottom:1rem"></div>
+
+    <!-- Timeline / résultat -->
+    <div id="cl-result" style="display:none;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:1rem;margin-top:1rem">
+      <div id="cl-summary" style="margin-bottom:.8rem"></div>
+      <div id="cl-steps"></div>
+      <details id="cl-payload-wrap" style="margin-top:.8rem"><summary style="cursor:pointer;color:var(--muted);font-size:12px">Voir le payload complet</summary>
+        <pre id="cl-payload" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.8rem;font-size:11px;overflow:auto;max-height:300px;margin-top:.5rem"></pre>
+      </details>
+    </div>
+
+    <!-- Historique session -->
+    <div id="cl-history-wrap" style="margin-top:2rem;display:none">
+      <div style="font-size:13px;font-weight:600;margin-bottom:.5rem;color:var(--muted)">Historique de la session</div>
+      <div id="cl-history" style="display:flex;flex-direction:column;gap:.4rem"></div>
+    </div>
+
+    <!-- ─── BATCH ─── -->
+    <div style="margin-top:2.5rem;border-top:1px solid var(--border);padding-top:1.5rem">
+      <div style="display:flex;align-items:center;gap:.7rem;margin-bottom:.7rem">
+        <div style="font-size:15px;font-weight:600">📦 Batch — clôturer plusieurs DIT</div>
+        <span style="background:rgba(245,158,11,.15);color:#f59e0b;padding:2px 8px;border-radius:4px;font-size:10px;text-transform:uppercase">Séquentiel</span>
+      </div>
+      <div style="color:var(--muted);font-size:12px;margin-bottom:.6rem;line-height:1.5">
+        Colle les numéros DIT (un par ligne, séparateurs : retour ligne / virgule / espace tolérés). Le batch traite chaque DIT séquentiellement avec les options ci-dessus (force_finalize + commentaire).
+        <br>Dry-run d'abord pour valider, puis Exécuter. Tu peux interrompre à tout moment, l'historique persistant garde la trace de chaque DIT déjà traitée.
+      </div>
+      <textarea id="cl-batch-list" placeholder="100138863&#10;100146227&#10;100148123"
+                style="width:100%;min-height:90px;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:.6rem .8rem;border-radius:6px;font-size:13px;font-family:monospace"></textarea>
+      <div style="display:flex;gap:.5rem;align-items:center;margin-top:.6rem;flex-wrap:wrap">
+        <button class="btn-export" onclick="clBatchRun(true)" style="background:var(--accent);color:white">🔍 Vérifier batch (dry-run)</button>
+        <button class="btn-export" onclick="clBatchRun(false)" style="background:var(--green);color:white">⚡ Exécuter batch</button>
+        <button class="btn-export" id="cl-batch-stop" onclick="clBatchStop()" disabled style="background:var(--red);color:white;opacity:.5">⏹ Stop</button>
+        <span id="cl-batch-status" style="font-size:13px;color:var(--muted)"></span>
+      </div>
+      <div id="cl-batch-progress-wrap" style="margin-top:.8rem;display:none">
+        <div style="background:var(--surface2);border:1px solid var(--border2);border-radius:6px;height:12px;overflow:hidden">
+          <div id="cl-batch-bar" style="height:100%;background:var(--accent);width:0%;transition:width .3s"></div>
+        </div>
+        <div id="cl-batch-pct" style="font-size:11px;color:var(--muted);margin-top:.3rem"></div>
+      </div>
+      <div id="cl-batch-results-wrap" style="margin-top:1rem;display:none">
+        <div style="font-size:13px;font-weight:600;margin-bottom:.4rem">Résultats du batch</div>
+        <div class="table-wrap"><table>
+          <thead><tr>
+            <th>#</th><th>DIT</th><th>État initial</th><th>État final</th><th>Durée</th><th>Status</th><th>Détail</th>
+          </tr></thead>
+          <tbody id="cl-batch-tbody"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- Historique persistant -->
+    <div style="margin-top:2.5rem">
+      <div style="display:flex;align-items:center;gap:.7rem;margin-bottom:.7rem">
+        <div style="font-size:14px;font-weight:600">📜 Historique persistant des clôtures</div>
+        <button class="btn-export" onclick="clLoadHistoryPersist()" style="padding:.3rem .7rem;font-size:12px">↻ Recharger</button>
+        <span id="cl-hist-count" style="color:var(--muted);font-size:12px"></span>
+      </div>
+      <div id="cl-hist-search-wrap" style="margin-bottom:.5rem">
+        <input type="text" id="cl-hist-filter" placeholder="Filtre (DIT, client, commentaire...)"
+               oninput="clRenderHistoryPersist()"
+               style="background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:.4rem .8rem;border-radius:6px;font-size:12px;width:300px">
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr>
+          <th>Date</th>
+          <th>DIT</th>
+          <th>Client</th>
+          <th>État initial</th>
+          <th>État final</th>
+          <th>Force final.</th>
+          <th>Commentaire</th>
+        </tr></thead>
+        <tbody id="cl-hist-tbody"><tr><td colspan="7" class="no-data">Chargement…</td></tr></tbody>
+      </table></div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /main -->
+</div><!-- /page-content -->
+
+<!-- ═══════ MODAL ═══════ -->
+<div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)fermerModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="modal-title">—</div>
+        <div class="modal-sub" id="modal-sub">—</div>
+      </div>
+      <button class="modal-close" onclick="fermerModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body">—</div>
+  </div>
+</div>
+
+<script>
+let DATA = null;
+let DITS_ALL = [];   // dataset complet
+let DITS = [];       // après filtre global
+let NPS_ALL = [];    // temps non productifs (TNP) — dataset complet
+let NPS = [];        // après filtre global (date/tech)
+let CLIENTS = [];
+let TECHS = [];
+let RECON = [];
+let CURRENT_USER = { user: null, role: null, is_admin: false };
+
+let GLOBAL = { org: '', tech: '', dateFrom: null, dateTo: null };
+// Plage de DITS_ALL actuellement chargée (par défaut, msp_data.json = 90j)
+let DATASET_RANGE = { from: null, to: null };
+let LIST_FILTER = { etat: '', type: '', nature: '', search: '' };
+
+let sortClientsState = { col: 'nb', dir: -1 };
+let sortTechsState   = { col: 'nb', dir: -1 };
+let sortListState    = { col: 'date', dir: -1 };
+
+function $(id){return document.getElementById(id);}
+function escapeHtml(s){return String(s||'').replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function fmtNum(n){return (n||0).toLocaleString('fr-FR');}
+
+// Durées Artis : déjà en HEURES (ex: 5.083 = 5h05min)
+function fmtHours(h){
+  if(h==null || isNaN(h)) return '—';
+  const sign = h < 0 ? '-' : '';
+  h = Math.abs(h);
+  const hh = Math.floor(h);
+  const mm = Math.round((h - hh) * 60);
+  if(hh === 0 && mm === 0) return '0h';
+  if(hh === 0) return `${sign}${mm}min`;
+  if(mm === 0) return `${sign}${hh}h`;
+  return `${sign}${hh}h${mm.toString().padStart(2,'0')}`;
+}
+function fmtDate(s){
+  if(!s)return '—';
+  const d = new Date(s);
+  if(isNaN(d))return s;
+  return d.toLocaleDateString('fr-FR', {day:'2-digit',month:'2-digit',year:'2-digit'});
+}
+function fmtDateTime(s){
+  if(!s)return '—';
+  const d = new Date(s);
+  if(isNaN(d))return s;
+  return d.toLocaleString('fr-FR', {day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
+}
+function etatClass(e){
+  const k = (e||'').toLowerCase().replace(/[^a-z]/g,'');
+  return 'etat-' + (k || 'other');
+}
+function isEnCours(d){
+  const e = (d.etat||'').toLowerCase();
+  return e === 'encours' || e === 'travailnontermine';
+}
+function isClos(d){
+  const e = (d.etat||'').toLowerCase();
+  return e === 'cloturee' || e === 'travailtermine';
+}
+
+async function detecterUser(){
+  try{
+    const r = await fetch('/api/whoami');
+    if(r.ok) CURRENT_USER = await r.json();
+  }catch(e){}
+  document.body.classList.toggle('is-admin', !!CURRENT_USER.is_admin);
+  const b = $('user-badge');
+  if(b){
+    b.textContent = (CURRENT_USER.user || '?') + (CURRENT_USER.is_admin ? ' · admin' : '');
+    b.classList.toggle('admin', !!CURRENT_USER.is_admin);
+  }
+}
+
+async function refetchDIT(){
+  const btn = $('btn-refetch');
+  const old = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⟳ Fetch en cours...';
+  try{
+    const r = await fetch('/api/dit/refresh', {method:'POST'});
+    const j = await r.json();
+    if(r.ok && j.ok){
+      btn.textContent = `✓ ${j.count} DIT`;
+      await charger();
+      setTimeout(() => { btn.textContent = old; btn.disabled = false; }, 1500);
+    } else {
+      btn.textContent = '✗ Échec';
+      alert('Erreur refetch: ' + (j.error || 'inconnue'));
+      setTimeout(() => { btn.textContent = old; btn.disabled = false; }, 2000);
+    }
+  }catch(e){
+    btn.textContent = '✗ Erreur';
+    alert('Erreur réseau: ' + e.message);
+    setTimeout(() => { btn.textContent = old; btn.disabled = false; }, 2000);
+  }
+}
+
+async function charger(){
+  await detecterUser();
+
+  if(!CURRENT_USER.is_admin){
+    $('page-acces').style.display = 'block';
+    $('page-content').style.display = 'none';
+    return;
+  }
+  $('page-acces').style.display = 'none';
+  $('page-content').style.display = 'block';
+
+  try{
+    const r = await fetch('msp_data.json?t=' + Date.now());
+    DATA = await r.json();
+  }catch(e){ console.error(e); return; }
+
+  DITS_ALL = (DATA.raw_sources && DATA.raw_sources.dit) || [];
+  NPS_ALL  = (DATA.raw_sources && DATA.raw_sources.non_productif) || [];
+  RECON = DATA.reconciliation || [];
+  // par défaut, le dataset chargé couvre les 90 derniers jours
+  const today = new Date();
+  const minus90 = new Date(today.getTime() - 90*24*3600*1000);
+  DATASET_RANGE.to = today.toISOString().slice(0,10);
+  DATASET_RANGE.from = minus90.toISOString().slice(0,10);
+
+  $('last-update').textContent = DATA.updated_at_display || DATA.updated_at || '—';
+
+  const sd = (DATA.sources && DATA.sources.dit) || {};
+  if(sd.status === 'error'){
+    $('alert-box').style.display = 'block';
+    $('alert-box').innerHTML = '<strong>⚠ Erreur API DIT :</strong> ' + escapeHtml(sd.error || '');
+  }else{
+    $('alert-box').style.display = 'none';
+  }
+
+  populerSelectsGlobal();
+  populerSelectsList();
+  // Initialise les dates par défaut : 90 derniers jours
+  if(!$('g-date-from').value) $('g-date-from').value = DATASET_RANGE.from;
+  if(!$('g-date-to').value)   $('g-date-to').value   = DATASET_RANGE.to;
+  applyGlobal();
+}
+
+// ════════ GESTION DES DATES ════════
+function setPeriodPreset(days){
+  const today = new Date();
+  const start = new Date(today.getTime() - (days-1) * 24*3600*1000);
+  $('g-date-to').value   = today.toISOString().slice(0,10);
+  $('g-date-from').value = start.toISOString().slice(0,10);
+  onDateChange();
+}
+
+async function onDateChange(){
+  const df = $('g-date-from').value;
+  const dt = $('g-date-to').value;
+  if(!df || !dt) return;
+  if(df > dt){ alert('La date début doit être avant la date fin.'); return; }
+
+  // Si la plage est dans le dataset déjà chargé → filtrage côté client (rapide)
+  if(df >= DATASET_RANGE.from && dt <= DATASET_RANGE.to){
+    $('g-fetch-status').textContent = '';
+    applyGlobal();
+    return;
+  }
+
+  // Sinon refetch backend (plage > 90j ou différente)
+  $('g-fetch-status').textContent = '⟳ fetch…';
+  try{
+    const r = await fetch(`/api/dit/fetch?from=${df}&to=${dt}`);
+    const j = await r.json();
+    if(!r.ok || !j.ok){
+      $('g-fetch-status').textContent = '✗ ' + (j.error || 'erreur');
+      return;
+    }
+    DITS_ALL = j.dit || [];
+    NPS_ALL  = j.non_productif || [];
+    DATASET_RANGE.from = df;
+    DATASET_RANGE.to   = dt;
+    $('g-fetch-status').textContent = `✓ ${j.count} DIT · ${j.np_count||0} TNP`;
+    populerSelectsGlobal();
+    populerSelectsList();
+    applyGlobal();
+  }catch(e){
+    $('g-fetch-status').textContent = '✗ ' + e.message;
+  }
+}
+
+// ════════ FILTRE GLOBAL ════════
+function populerSelectsGlobal(){
+  // Orgs depuis reconciliation
+  const orgs = [...new Set(DITS_ALL.map(d => {
+    const r = RECON.find(x => x.code === d.client_code);
+    return r ? r.org : null;
+  }).filter(Boolean))].sort();
+  $('g-org').innerHTML = '<option value="">Toutes les orgs</option>' +
+    orgs.map(o => `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join('');
+
+  // Techs : depuis interventions DIT + intervenants TNP
+  const techSet = new Set();
+  for(const d of DITS_ALL){
+    for(const it of d.interventions||[]){
+      if(it.intervenant) techSet.add(it.intervenant);
+    }
+  }
+  for(const np of NPS_ALL){
+    if(np.intervenant) techSet.add(np.intervenant);
+  }
+  const techs = [...techSet].sort((a,b)=>a.localeCompare(b,'fr'));
+  $('g-tech').innerHTML = '<option value="">Tous les techniciens</option>' +
+    techs.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+}
+
+function populerSelectsList(){
+  const types = [...new Set(DITS_ALL.map(d => d.type_dit).filter(Boolean))].sort();
+  $('sel-type').innerHTML = '<option value="">Tous types</option>' +
+    types.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+  const natures = [...new Set(DITS_ALL.map(d => d.nature).filter(Boolean))].sort();
+  $('sel-nature').innerHTML = '<option value="">Toutes natures</option>' +
+    natures.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
+}
+
+function applyGlobal(){
+  GLOBAL.org      = $('g-org').value;
+  GLOBAL.tech     = $('g-tech').value;
+  GLOBAL.dateFrom = $('g-date-from').value;
+  GLOBAL.dateTo   = $('g-date-to').value;
+
+  // Bornes : début de jour pour from, fin de jour pour to
+  const fromDt = GLOBAL.dateFrom ? new Date(GLOBAL.dateFrom + 'T00:00:00') : null;
+  const toDt   = GLOBAL.dateTo   ? new Date(GLOBAL.dateTo   + 'T23:59:59') : null;
+
+  const orgByCode = {};
+  RECON.forEach(c => { orgByCode[c.code] = c.org; });
+
+  DITS = DITS_ALL.filter(d => {
+    if(GLOBAL.org && (orgByCode[d.client_code] || '') !== GLOBAL.org) return false;
+    if(GLOBAL.tech){
+      const has = (d.interventions||[]).some(it => it.intervenant === GLOBAL.tech);
+      if(!has) return false;
+    }
+    if(d.date){
+      const dd = new Date(d.date);
+      if(!isNaN(dd)){
+        if(fromDt && dd < fromDt) return false;
+        if(toDt   && dd > toDt)   return false;
+      }
+    }
+    return true;
+  });
+
+  // Si filtre tech actif : on garde uniquement les interventions de ce tech dans les DIT
+  if(GLOBAL.tech){
+    DITS = DITS.map(d => ({
+      ...d,
+      interventions: (d.interventions||[]).filter(it => it.intervenant === GLOBAL.tech),
+      nb_interventions_filtered: (d.interventions||[]).filter(it => it.intervenant === GLOBAL.tech).length,
+    }));
+  }
+
+  // Filtre TNP (date + tech, l'org ne s'applique pas car TNP n'a pas de client)
+  NPS = NPS_ALL.filter(np => {
+    if(GLOBAL.tech && np.intervenant !== GLOBAL.tech) return false;
+    if(np.date_debut){
+      const dd = new Date(np.date_debut);
+      if(!isNaN(dd)){
+        if(fromDt && dd < fromDt) return false;
+        if(toDt   && dd > toDt)   return false;
+      }
+    }
+    return true;
+  });
+
+  buildClients();
+  buildTechs();
+  renderActiveGlobalFilters();
+
+  renderOverview();
+  renderClients();
+  renderTechs();
+  renderList();
+
+  $('badge-total').textContent = DITS.length;
+  $('badge-clients').textContent = CLIENTS.length;
+  refreshTechBadge();
+  $('badge-list').textContent = DITS.length;
+}
+
+function resetGlobal(){
+  $('g-org').value = '';
+  $('g-tech').value = '';
+  setPeriodPreset(90);  // reset à 90j et applique
+  LIST_FILTER = { etat: '', type: '', nature: '', search: '' };
+  $('sel-etat').value = '';
+  $('sel-type').value = '';
+  $('sel-nature').value = '';
+  $('search-list').value = '';
+}
+
+function renderActiveGlobalFilters(){
+  const pills = [];
+  if(GLOBAL.org)  pills.push(`<span class="active-filter-pill">Org: ${escapeHtml(GLOBAL.org)} <button onclick="$('g-org').value='';applyGlobal()">✕</button></span>`);
+  if(GLOBAL.tech) pills.push(`<span class="active-filter-pill">Tech: ${escapeHtml(GLOBAL.tech)} <button onclick="$('g-tech').value='';applyGlobal()">✕</button></span>`);
+  if(GLOBAL.dateFrom && GLOBAL.dateTo){
+    const fmtFR = s => s ? s.split('-').reverse().join('/') : '';
+    pills.push(`<span class="active-filter-pill">${fmtFR(GLOBAL.dateFrom)} → ${fmtFR(GLOBAL.dateTo)}</span>`);
+  }
+  $('g-active-filters').innerHTML = pills.join('');
+}
+
+// ════════ AGRÉGATIONS ════════
+function buildClients(){
+  const orgByCode = {};
+  RECON.forEach(c => { orgByCode[c.code] = { org: c.org, nom: c.nom }; });
+  const map = {};
+  for(const d of DITS){
+    const code = d.client_code || '?';
+    if(!map[code]){
+      map[code] = {
+        code,
+        nom: d.client_nom || (orgByCode[code] && orgByCode[code].nom) || code,
+        org: (orgByCode[code] && orgByCode[code].org) || '—',
+        dits: [],
+      };
+    }
+    map[code].dits.push(d);
+  }
+  CLIENTS = Object.values(map).map(c => {
+    let encours=0, clos=0, hours=0, inters=0, notesSum=0, notesN=0;
+    for(const d of c.dits){
+      if(isEnCours(d)) encours++;
+      if(isClos(d)) clos++;
+      hours += d.tps_resolution || 0;
+      inters += GLOBAL.tech ? (d.nb_interventions_filtered||0) : (d.nb_interventions||0);
+      if(d.note_satisfaction != null && !isNaN(d.note_satisfaction)){
+        notesSum += Number(d.note_satisfaction); notesN++;
+      }
+    }
+    return {
+      ...c, nb: c.dits.length, encours, clos, heures: hours, inters,
+      note: notesN ? notesSum/notesN : null, notesN,
+    };
+  });
+}
+
+// Catégories TNP considérées comme "Hotline" (support direct client)
+const HOTLINE_CATS = new Set(['HT','HOT-SUP-TERRAIN','HOT-SUP-REGIONS']);
+// Domaines DIT considérés "IT" (hotline + MCO)
+const IT_DOMAINES = new Set(['Informatique', 'Informatique - Visite Préventive sur site']);
+
+// Techs masqués (Créteil-only) — persistance localStorage par navigateur
+const EXCLUDED_TECHS_KEY = 'interventions_excluded_techs';
+function loadExcludedTechs(){
+  try { return new Set(JSON.parse(localStorage.getItem(EXCLUDED_TECHS_KEY) || '[]')); }
+  catch(e) { return new Set(); }
+}
+function saveExcludedTechs(set){
+  try { localStorage.setItem(EXCLUDED_TECHS_KEY, JSON.stringify([...set])); }
+  catch(e) {}
+}
+let EXCLUDED_TECHS = loadExcludedTechs();
+function toggleExcludeTech(nom, ev){
+  if(ev){ ev.stopPropagation(); ev.preventDefault(); }
+  if(EXCLUDED_TECHS.has(nom)) EXCLUDED_TECHS.delete(nom);
+  else EXCLUDED_TECHS.add(nom);
+  saveExcludedTechs(EXCLUDED_TECHS);
+  renderTechs();
+  renderOverview();
+  refreshTechBadge();
+}
+function resetExcludedTechs(){
+  EXCLUDED_TECHS = new Set();
+  saveExcludedTechs(EXCLUDED_TECHS);
+  renderTechs();
+  renderOverview();
+  refreshTechBadge();
+}
+function afficherListeMasques(){
+  const list = [...EXCLUDED_TECHS].sort((a,b) => a.localeCompare(b,'fr'));
+  if(!list.length){ alert('Aucun tech masqué.'); return; }
+  $('modal-title').textContent = `Techniciens masqués (${list.length})`;
+  $('modal-sub').textContent = 'Cliquer sur un nom pour le réafficher';
+  $('modal-body').innerHTML = `
+    <div class="modal-section">
+      <div style="display:flex;flex-direction:column;gap:.4rem">
+        ${list.map(n => `
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:.5rem .8rem;background:var(--surface2);border:1px solid var(--border2);border-radius:6px">
+            <span>${escapeHtml(n)}</span>
+            <button onclick="toggleExcludeTech('${escapeHtml(n).replace(/'/g,"\\\\'")}', null); afficherListeMasques()" style="background:transparent;border:1px solid var(--accent);color:var(--accent);padding:.3rem .6rem;border-radius:4px;cursor:pointer;font-size:.8em">Réafficher</button>
+          </div>
+        `).join('')}
+      </div>
+      <div style="margin-top:1rem;text-align:right">
+        <button onclick="resetExcludedTechs(); fermerModal()" style="background:var(--accent);color:white;border:none;padding:.5rem 1rem;border-radius:6px;cursor:pointer">Tout réafficher</button>
+      </div>
+    </div>`;
+  $('modal-overlay').classList.add('show');
+}
+
+function buildTechs(){
+  const map = {};
+  for(const d of DITS){
+    for(const it of d.interventions||[]){
+      const n = it.intervenant;
+      if(!n) continue;
+      if(!map[n]) map[n] = { nom: n, nb: 0, heures: 0, dits: new Set(), clients: new Set(),
+        tnp_total_h: 0, tnp_total_nb: 0, tnp_hotline_h: 0, tnp_hotline_nb: 0,
+        tnp_by_cat: {}, dom_count: {} };
+      map[n].nb++;
+      map[n].heures += it.duree || 0;
+      map[n].dits.add(d.numero);
+      if(d.client_code) map[n].clients.add(d.client_code);
+      const dom = it.domaine || '?';
+      map[n].dom_count[dom] = (map[n].dom_count[dom] || 0) + 1;
+    }
+  }
+  // Ajouter les TNP : on prend AUSSI en compte les techs qui n'ont pas de DIT mais ont du TNP
+  for(const np of NPS){
+    const n = np.intervenant;
+    if(!n) continue;
+    if(!map[n]) map[n] = { nom: n, nb: 0, heures: 0, dits: new Set(), clients: new Set(),
+      tnp_total_h: 0, tnp_total_nb: 0, tnp_hotline_h: 0, tnp_hotline_nb: 0,
+      tnp_by_cat: {}, dom_count: {} };
+    const h = np.duree_h || 0;
+    map[n].tnp_total_h += h;
+    map[n].tnp_total_nb++;
+    const code = np.categorie_code || '?';
+    if(HOTLINE_CATS.has(code)){
+      map[n].tnp_hotline_h += h;
+      map[n].tnp_hotline_nb++;
+    }
+    if(!map[n].tnp_by_cat[code]) map[n].tnp_by_cat[code] = { libelle: np.categorie_libelle||code, h: 0, nb: 0 };
+    map[n].tnp_by_cat[code].h  += h;
+    map[n].tnp_by_cat[code].nb += 1;
+  }
+  TECHS = Object.values(map).map(t => {
+    // Domaine dominant (plus grand nb d'interventions DIT)
+    let topDom = null, topDomCount = 0;
+    for(const [dom, n] of Object.entries(t.dom_count)){
+      if(n > topDomCount){ topDom = dom; topDomCount = n; }
+    }
+    // is_it : domaine dominant IT, ou aucun DIT mais TNP Hotline > 0
+    const is_it = (topDom && IT_DOMAINES.has(topDom)) || (t.nb === 0 && t.tnp_hotline_nb > 0);
+    // Total = DIT + TNP Hotline uniquement (les autres TNP comme déjeuner/congés ne comptent pas)
+    const total_h  = t.heures + t.tnp_hotline_h;
+    const total_nb = t.nb + t.tnp_hotline_nb;
+    return {
+      nom: t.nom, nb: t.nb, heures: t.heures,
+      dits: t.dits.size, clients: t.clients.size,
+      tnp_total_h:   t.tnp_total_h,    // toutes catégories (gardé pour le modal)
+      tnp_total_nb:  t.tnp_total_nb,
+      tnp_hotline_h: t.tnp_hotline_h,
+      tnp_hotline_nb: t.tnp_hotline_nb,
+      tnp_by_cat:    t.tnp_by_cat,
+      total_nb,
+      total_h,
+      pct_tnp:        total_h > 0 ? (t.tnp_hotline_h * 100 / total_h) : 0,
+      top_domaine: topDom,
+      is_it,
+    };
+  }).sort((a,b) => b.total_nb - a.total_nb);
+  TECHS.forEach((t,i) => t.rank = i+1);
+}
+
+// ════════ VUE D'ENSEMBLE ════════
+function renderOverview(){
+  const total = DITS.length;
+  const encours = DITS.filter(isEnCours).length;
+  const clos = DITS.filter(isClos).length;
+  const totalHours = DITS.reduce((s,d) => s + (d.tps_resolution||0), 0);
+  const totalInter = DITS.reduce((s,d) => s + (GLOBAL.tech ? (d.nb_interventions_filtered||0) : (d.nb_interventions||0)), 0);
+  const notes = DITS.map(d => d.note_satisfaction).filter(n => n != null && !isNaN(n)).map(Number);
+  const noteAvg = notes.length ? (notes.reduce((s,n)=>s+n,0)/notes.length) : null;
+  const clientsUniques = new Set(DITS.map(d => d.client_code)).size;
+
+  $('metrics').innerHTML = `
+    <div class="metric" onclick="filterListBy('all')"><div class="metric-label">DIT</div><div class="metric-value c-purple">${fmtNum(total)}</div><div class="metric-sub">${clientsUniques} clients</div></div>
+    <div class="metric" onclick="filterListBy('encours')"><div class="metric-label">En cours</div><div class="metric-value c-blue">${fmtNum(encours)}</div></div>
+    <div class="metric" onclick="filterListBy('clos')"><div class="metric-label">Clôturés</div><div class="metric-value c-green">${fmtNum(clos)}</div></div>
+    <div class="metric" onclick="filterListBy('all')"><div class="metric-label">Interventions</div><div class="metric-value">${fmtNum(totalInter)}</div></div>
+    <div class="metric" onclick="filterListBy('all')"><div class="metric-label">Heures totales</div><div class="metric-value c-amber">${fmtHours(totalHours)}</div></div>
+    <div class="metric"><div class="metric-label">Note satisfaction</div><div class="metric-value c-amber">${noteAvg!=null?noteAvg.toFixed(2):'—'}</div><div class="metric-sub">${notes.length} avis</div></div>
+  `;
+
+  // Répartition par état (cliquable)
+  const etats = {};
+  for(const d of DITS){
+    const e = d.etat || '?';
+    etats[e] = (etats[e]||0) + 1;
+  }
+  const totalEtats = DITS.length || 1;
+  $('repart-etats').innerHTML = Object.entries(etats)
+    .sort((a,b) => b[1]-a[1])
+    .map(([e,n]) => `<div onclick="filterListByEtat('${escapeHtml(e)}')" style="background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:.6rem 1rem;cursor:pointer;transition:all .15s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border2)'"><span class="etat-badge ${etatClass(e)}">${escapeHtml(e)}</span> <span class="num" style="margin-left:.5rem">${fmtNum(n)}</span> <span class="num-dim">(${(n*100/totalEtats).toFixed(1)}%)</span></div>`)
+    .join('') || '<div class="num-dim">Aucun DIT pour ce filtre</div>';
+
+  // Top 15 clients
+  const top = [...CLIENTS].sort((a,b) => b.nb - a.nb).slice(0,15);
+  $('tbody-top').innerHTML = top.map(c => `
+    <tr class="row-clickable" onclick="ouvrirModalClient('${escapeHtml(c.code)}')">
+      <td><div class="client-name">${escapeHtml(c.nom)}</div><div class="client-code">${escapeHtml(c.code)} · ${escapeHtml(c.org)}</div></td>
+      <td class="num">${fmtNum(c.nb)}</td>
+      <td class="num c-blue">${fmtNum(c.encours)}</td>
+      <td class="num c-green">${fmtNum(c.clos)}</td>
+      <td class="num">${fmtHours(c.heures)}</td>
+    </tr>
+  `).join('') || '<tr><td colspan="5" class="no-data">Aucun client</td></tr>';
+
+  // Top intervenants : classés par TOTAL (DIT+TNP)
+  const ovItOnly = $('overview-it-only') && $('overview-it-only').checked;
+  const techsForOverview = (ovItOnly ? TECHS.filter(t => t.is_it) : TECHS)
+    .filter(t => !EXCLUDED_TECHS.has(t.nom))
+    .slice() // copie pour ne pas casser le tri du tableau "Par technicien"
+    .sort((a,b) => b.total_nb - a.total_nb);
+  const top15 = techsForOverview.slice(0, 15);
+  $('tbody-intervenants').innerHTML = top15.map((t,i) => `
+    <tr class="row-clickable" onclick="ouvrirModalTech('${escapeHtml(t.nom)}')">
+      <td class="num-dim">${i+1}</td>
+      <td>${escapeHtml(t.nom)}${t.top_domaine?'<div class="num-dim" style="font-size:.75em">'+escapeHtml(t.top_domaine)+'</div>':''}</td>
+      <td class="num">${fmtNum(t.nb)}</td>
+      <td class="num">${fmtHours(t.heures)}</td>
+      <td class="num">${t.tnp_hotline_nb ? fmtNum(t.tnp_hotline_nb) : '<span class="num-dim">—</span>'}</td>
+      <td class="num c-amber">${t.tnp_hotline_h ? fmtHours(t.tnp_hotline_h) : '<span class="num-dim">—</span>'}</td>
+      <td class="num"><b>${fmtNum(t.total_nb)}</b></td>
+      <td class="num c-blue"><b>${fmtHours(t.total_h)}</b></td>
+      <td class="num c-amber">${t.total_h ? t.pct_tnp.toFixed(0)+' %' : '<span class="num-dim">—</span>'}</td>
+      <td class="num-dim">${fmtNum(t.dits)}</td>
+    </tr>
+  `).join('') || '<tr><td colspan="10" class="no-data">Aucune intervention</td></tr>';
+}
+
+// ════════ PAR CLIENT ════════
+function sortClients(col){
+  if(sortClientsState.col === col) sortClientsState.dir *= -1;
+  else { sortClientsState.col = col; sortClientsState.dir = -1; }
+  renderClients();
+}
+function renderClients(){
+  const q = ($('search-clients').value||'').toLowerCase().trim();
+  let rows = CLIENTS.filter(c => {
+    if(!q) return true;
+    return (c.nom + ' ' + c.code).toLowerCase().includes(q);
+  });
+  const { col, dir } = sortClientsState;
+  rows.sort((a,b) => {
+    let va, vb;
+    if(col === 'nom'){ va=(a.nom||'').toLowerCase(); vb=(b.nom||'').toLowerCase(); }
+    else if(col === 'org'){ va=(a.org||'').toLowerCase(); vb=(b.org||'').toLowerCase(); }
+    else if(col === 'note'){ va = a.note==null?-1:a.note; vb = b.note==null?-1:b.note; }
+    else { va = a[col]; vb = b[col]; }
+    if(va < vb) return -1*dir;
+    if(va > vb) return  1*dir;
+    return 0;
+  });
+  $('tbody-clients').innerHTML = rows.map(c => `
+    <tr class="row-clickable" onclick="ouvrirModalClient('${escapeHtml(c.code)}')">
+      <td><div class="client-name">${escapeHtml(c.nom)}</div><div class="client-code">${escapeHtml(c.code)}</div></td>
+      <td class="num-dim">${escapeHtml(c.org)}</td>
+      <td class="num">${fmtNum(c.nb)}</td>
+      <td class="num c-blue">${fmtNum(c.encours)}</td>
+      <td class="num c-green">${fmtNum(c.clos)}</td>
+      <td class="num">${fmtHours(c.heures)}</td>
+      <td class="num">${fmtNum(c.inters)}</td>
+      <td class="num">${c.note!=null?c.note.toFixed(2)+' / 5':'—'}</td>
+    </tr>
+  `).join('') || '<tr><td colspan="8" class="no-data">Aucun client</td></tr>';
+}
+
+// ════════ PAR TECHNICIEN ════════
+function sortTechs(col){
+  if(sortTechsState.col === col) sortTechsState.dir *= -1;
+  else { sortTechsState.col = col; sortTechsState.dir = -1; }
+  renderTechs();
+}
+function refreshTechBadge(){
+  const itOnly = $('filter-it-only') && $('filter-it-only').checked;
+  let visible = itOnly ? TECHS.filter(t => t.is_it) : TECHS;
+  visible = visible.filter(t => !EXCLUDED_TECHS.has(t.nom));
+  $('badge-techs').textContent = visible.length;
+}
+function renderTechs(){
+  const q = ($('search-techs').value||'').toLowerCase().trim();
+  const itOnly = $('filter-it-only') && $('filter-it-only').checked;
+  let rows = TECHS.filter(t => {
+    if(itOnly && !t.is_it) return false;
+    if(EXCLUDED_TECHS.has(t.nom)) return false;
+    if(q && !t.nom.toLowerCase().includes(q)) return false;
+    return true;
+  });
+  // Affiche le compteur d'exclusions
+  const excEl = $('excluded-count');
+  if(excEl){
+    if(EXCLUDED_TECHS.size > 0){
+      excEl.innerHTML = `${EXCLUDED_TECHS.size} masqué${EXCLUDED_TECHS.size>1?'s':''} · <a href="javascript:void(0)" onclick="afficherListeMasques()" style="color:var(--accent);text-decoration:none">voir</a> · <a href="javascript:void(0)" onclick="resetExcludedTechs()" style="color:var(--accent);text-decoration:none">tout réafficher</a>`;
+    } else {
+      excEl.innerHTML = '<span style="opacity:.6">Astuce : clique sur ✕ dans une ligne pour masquer un tech non-Créteil</span>';
+    }
+  }
+  const { col, dir } = sortTechsState;
+  rows.sort((a,b) => {
+    let va, vb;
+    if(col === 'nom'){ va=a.nom.toLowerCase(); vb=b.nom.toLowerCase(); }
+    else { va = a[col]; vb = b[col]; }
+    if(va < vb) return -1*dir;
+    if(va > vb) return  1*dir;
+    return 0;
+  });
+  // Recalcule le rang après filtre
+  rows.forEach((r,i) => r.display_rank = i+1);
+
+  // Ligne de totaux (sur les rows visibles)
+  const tot = rows.reduce((acc, t) => ({
+    nb:             acc.nb             + t.nb,
+    heures:         acc.heures         + t.heures,
+    tnp_hotline_nb: acc.tnp_hotline_nb + t.tnp_hotline_nb,
+    tnp_hotline_h:  acc.tnp_hotline_h  + t.tnp_hotline_h,
+    total_nb:       acc.total_nb       + t.total_nb,
+    total_h:        acc.total_h        + t.total_h,
+    dits:           acc.dits           + t.dits,
+    clients:        acc.clients        + t.clients,
+  }), {nb:0,heures:0,tnp_hotline_nb:0,tnp_hotline_h:0,total_nb:0,total_h:0,dits:0,clients:0});
+  const totPctTnp = tot.total_h > 0 ? (tot.tnp_hotline_h*100/tot.total_h) : 0;
+
+  const trRows = rows.map(t => `
+    <tr class="row-clickable" onclick="ouvrirModalTech('${escapeHtml(t.nom)}')">
+      <td class="num-dim">${t.display_rank}</td>
+      <td>
+        <span title="Masquer ce tech (non-Créteil)" onclick="toggleExcludeTech('${escapeHtml(t.nom).replace(/'/g,"\\'")}', event)" style="cursor:pointer;color:var(--muted);margin-right:.4rem;font-size:.85em;user-select:none">✕</span>
+        ${escapeHtml(t.nom)}${t.top_domaine?'<div class="num-dim" style="font-size:.75em;margin-left:1.2rem">'+escapeHtml(t.top_domaine)+'</div>':''}
+      </td>
+      <td class="num">${fmtNum(t.nb)}</td>
+      <td class="num">${fmtHours(t.heures)}</td>
+      <td class="num">${t.tnp_hotline_nb ? fmtNum(t.tnp_hotline_nb) : '<span class="num-dim">—</span>'}</td>
+      <td class="num c-amber">${t.tnp_hotline_h ? fmtHours(t.tnp_hotline_h) : '<span class="num-dim">—</span>'}</td>
+      <td class="num"><b>${fmtNum(t.total_nb)}</b></td>
+      <td class="num c-blue"><b>${fmtHours(t.total_h)}</b></td>
+      <td class="num">${t.total_h ? '<span class="pct-bar" style="background:linear-gradient(90deg,rgba(245,158,11,.25) '+t.pct_tnp.toFixed(0)+'%,transparent '+t.pct_tnp.toFixed(0)+'%);padding:2px 6px;border-radius:4px">'+t.pct_tnp.toFixed(0)+' %</span>' : '<span class="num-dim">—</span>'}</td>
+      <td class="num-dim">${fmtNum(t.dits)}</td>
+      <td class="num-dim">${fmtNum(t.clients)}</td>
+    </tr>
+  `).join('');
+
+  const totalsRow = rows.length ? `
+    <tr style="background:var(--surface2);border-top:2px solid var(--accent);font-weight:600">
+      <td colspan="2">∑ ${rows.length} intervenant${rows.length>1?'s':''}</td>
+      <td class="num">${fmtNum(tot.nb)}</td>
+      <td class="num">${fmtHours(tot.heures)}</td>
+      <td class="num">${fmtNum(tot.tnp_hotline_nb)}</td>
+      <td class="num c-amber">${fmtHours(tot.tnp_hotline_h)}</td>
+      <td class="num c-blue">${fmtNum(tot.total_nb)}</td>
+      <td class="num c-blue">${fmtHours(tot.total_h)}</td>
+      <td class="num c-amber">${totPctTnp.toFixed(0)} %</td>
+      <td class="num-dim">${fmtNum(tot.dits)}</td>
+      <td class="num-dim">${fmtNum(tot.clients)}</td>
+    </tr>` : '';
+
+  $('tbody-techs').innerHTML = (trRows + totalsRow) || '<tr><td colspan="11" class="no-data">Aucun intervenant</td></tr>';
+}
+
+// ════════ LISTE DIT ════════
+function sortList(col){
+  if(sortListState.col === col) sortListState.dir *= -1;
+  else { sortListState.col = col; sortListState.dir = -1; }
+  renderList();
+}
+function filteredList(){
+  LIST_FILTER.etat   = $('sel-etat').value;
+  LIST_FILTER.type   = $('sel-type').value;
+  LIST_FILTER.nature = $('sel-nature').value;
+  LIST_FILTER.search = ($('search-list').value||'').toLowerCase().trim();
+  return DITS.filter(d => {
+    if(LIST_FILTER.etat && d.etat !== LIST_FILTER.etat) return false;
+    if(LIST_FILTER.type && d.type_dit !== LIST_FILTER.type) return false;
+    if(LIST_FILTER.nature && d.nature !== LIST_FILTER.nature) return false;
+    if(LIST_FILTER.search){
+      const s = ((d.numero||'') + ' ' + (d.client_nom||'') + ' ' + (d.commentaire||'') + ' ' + (d.symptome||'') + ' ' + (d.demandeur||'')).toLowerCase();
+      if(!s.includes(LIST_FILTER.search)) return false;
+    }
+    return true;
+  });
+}
+function renderList(){
+  let rows = filteredList();
+  const { col, dir } = sortListState;
+  rows.sort((a,b) => {
+    let va, vb;
+    if(col === 'numero'){ va=a.numero||''; vb=b.numero||''; }
+    else if(col === 'date'){ va=a.date||''; vb=b.date||''; }
+    else if(col === 'client'){ va=(a.client_nom||'').toLowerCase(); vb=(b.client_nom||'').toLowerCase(); }
+    else if(col === 'etat'){ va=a.etat||''; vb=b.etat||''; }
+    else if(col === 'type'){ va=a.type_dit||''; vb=b.type_dit||''; }
+    else if(col === 'nature'){ va=a.nature||''; vb=b.nature||''; }
+    else if(col === 'demandeur'){ va=(a.demandeur||'').toLowerCase(); vb=(b.demandeur||'').toLowerCase(); }
+    else if(col === 'inter'){ va=GLOBAL.tech?(a.nb_interventions_filtered||0):(a.nb_interventions||0); vb=GLOBAL.tech?(b.nb_interventions_filtered||0):(b.nb_interventions||0); }
+    else if(col === 'duree'){ va=a.tps_resolution||0; vb=b.tps_resolution||0; }
+    if(va < vb) return -1*dir;
+    if(va > vb) return  1*dir;
+    return 0;
+  });
+
+  // pills filtres actifs
+  const pills = [];
+  if(LIST_FILTER.etat)   pills.push(`<span class="active-filter-pill">État: ${escapeHtml(LIST_FILTER.etat)} <button onclick="$('sel-etat').value='';renderList()">✕</button></span>`);
+  if(LIST_FILTER.type)   pills.push(`<span class="active-filter-pill">Type: ${escapeHtml(LIST_FILTER.type)} <button onclick="$('sel-type').value='';renderList()">✕</button></span>`);
+  if(LIST_FILTER.nature) pills.push(`<span class="active-filter-pill">Nature: ${escapeHtml(LIST_FILTER.nature)} <button onclick="$('sel-nature').value='';renderList()">✕</button></span>`);
+  $('list-active-filters').innerHTML = pills.join('');
+
+  const limit = 800;
+  $('tbody-list').innerHTML = rows.slice(0, limit).map(d => `
+    <tr class="row-clickable" onclick="ouvrirModalDIT('${escapeHtml(d.numero)}')">
+      <td class="dit-num">${escapeHtml(d.numero)}</td>
+      <td class="num-dim">${fmtDate(d.date)}</td>
+      <td><div class="client-name">${escapeHtml(d.client_nom)}</div><div class="client-code">${escapeHtml(d.client_code)}</div></td>
+      <td><span class="etat-badge ${etatClass(d.etat)}">${escapeHtml(d.etat||'?')}</span></td>
+      <td class="num-dim">${escapeHtml(d.type_dit||'—')}</td>
+      <td class="num-dim">${escapeHtml(d.nature||'—')}</td>
+      <td class="num-dim">${escapeHtml(d.demandeur||'—')}</td>
+      <td class="num">${fmtNum(GLOBAL.tech?(d.nb_interventions_filtered||0):(d.nb_interventions||0))}</td>
+      <td class="duree-cell">${fmtHours(d.tps_resolution)}</td>
+    </tr>
+  `).join('') || '<tr><td colspan="9" class="no-data">Aucun DIT</td></tr>';
+
+  if(rows.length > limit){
+    $('list-info').style.display = 'block';
+    $('list-info').textContent = `${fmtNum(rows.length)} DIT (les ${limit} premiers affichés). Affinez les filtres pour voir le reste.`;
+  } else {
+    $('list-info').style.display = 'none';
+  }
+}
+
+// Filtres rapides depuis les KPIs / pastilles
+function filterListBy(kind){
+  if(kind === 'encours'){ $('sel-etat').value = 'EnCours'; }
+  else if(kind === 'clos'){ $('sel-etat').value = 'Cloturee'; }
+  else { $('sel-etat').value = ''; }
+  // basculer sur l'onglet liste
+  document.querySelectorAll('.tab-content').forEach(x => x.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+  $('tab-list').classList.add('active');
+  document.querySelectorAll('.tab')[3].classList.add('active');
+  renderList();
+}
+function filterListByEtat(etat){
+  $('sel-etat').value = etat;
+  document.querySelectorAll('.tab-content').forEach(x => x.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+  $('tab-list').classList.add('active');
+  document.querySelectorAll('.tab')[3].classList.add('active');
+  renderList();
+}
+
+// ════════ MODAL CLIENT ════════
+function ouvrirModalClient(code){
+  const c = CLIENTS.find(x => x.code === code);
+  if(!c) return;
+  $('modal-title').textContent = c.nom;
+  $('modal-sub').textContent = `Code ${c.code} · ${c.org} · ${c.nb} DIT`;
+  const dits = [...c.dits].sort((a,b) => (b.date||'').localeCompare(a.date||''));
+  $('modal-body').innerHTML = `
+    <div class="modal-section">
+      <div class="modal-section-title">Synthèse</div>
+      <div class="modal-grid">
+        <div class="modal-card"><div class="modal-card-label">Total DIT</div><div class="modal-card-value">${fmtNum(c.nb)}</div></div>
+        <div class="modal-card"><div class="modal-card-label">En cours</div><div class="modal-card-value c-blue">${fmtNum(c.encours)}</div></div>
+        <div class="modal-card"><div class="modal-card-label">Clôturés</div><div class="modal-card-value c-green">${fmtNum(c.clos)}</div></div>
+        <div class="modal-card"><div class="modal-card-label">Heures totales</div><div class="modal-card-value c-amber">${fmtHours(c.heures)}</div></div>
+        <div class="modal-card"><div class="modal-card-label">Interventions</div><div class="modal-card-value">${fmtNum(c.inters)}</div></div>
+        <div class="modal-card"><div class="modal-card-label">Note satisfaction</div><div class="modal-card-value c-amber">${c.note!=null?c.note.toFixed(2)+' / 5':'—'}</div></div>
+      </div>
+    </div>
+    <div class="modal-section">
+      <div class="modal-section-title">DIT du client (${dits.length})</div>
+      ${dits.map(renderDITCard).join('')}
+    </div>
+  `;
+  $('modal-overlay').classList.add('show');
+}
+
+// ════════ MODAL TECH ════════
+function ouvrirModalTech(nom){
+  const t = TECHS.find(x => x.nom === nom);
+  if(!t) return;
+  // Récupérer toutes les interventions de ce tech dans DITS
+  const dits = [];
+  for(const d of DITS){
+    const inters = (d.interventions||[]).filter(it => it.intervenant === nom);
+    if(inters.length){
+      dits.push({...d, interventions: inters});
+    }
+  }
+  dits.sort((a,b) => (b.date||'').localeCompare(a.date||''));
+  $('modal-title').textContent = nom;
+  $('modal-sub').textContent = `Rang ${t.rank} · ${t.nb} DIT + ${t.tnp_total_nb||0} TNP = ${t.total_nb} entrées · ${fmtHours(t.total_h||0)} cumulées · ${t.dits} DIT distincts · ${t.clients} clients` + (t.top_domaine ? ` · ${t.top_domaine}` : '');
+
+  // Détail TNP par catégorie (trié par heures décroissantes)
+  const cats = Object.entries(t.tnp_by_cat||{})
+    .map(([code, info]) => ({ code, ...info }))
+    .sort((a,b) => b.h - a.h);
+  const tnpRows = cats.length
+    ? cats.map(c => `<tr><td>${escapeHtml(c.libelle||c.code)} <span class="num-dim" style="font-size:.8em">${escapeHtml(c.code)}</span></td><td class="num">${fmtNum(c.nb)}</td><td class="num c-amber">${fmtHours(c.h)}</td></tr>`).join('')
+    : '<tr><td colspan="3" class="no-data">Aucun TNP sur la période</td></tr>';
+
+  $('modal-body').innerHTML = `
+    <div class="modal-section">
+      <div class="modal-section-title">Synthèse</div>
+      <div class="modal-grid">
+        <div class="modal-card"><div class="modal-card-label">Rang</div><div class="modal-card-value c-purple">#${t.rank}</div></div>
+        <div class="modal-card"><div class="modal-card-label">DIT</div><div class="modal-card-value">${fmtNum(t.nb)}</div><div class="num-dim" style="font-size:.75em">${fmtHours(t.heures)}</div></div>
+        <div class="modal-card"><div class="modal-card-label">TNP</div><div class="modal-card-value">${fmtNum(t.tnp_total_nb||0)}</div><div class="num-dim" style="font-size:.75em">${fmtHours(t.tnp_total_h||0)}</div></div>
+        <div class="modal-card"><div class="modal-card-label">dont TNP Hotline</div><div class="modal-card-value c-amber">${fmtNum(t.tnp_hotline_nb||0)}</div><div class="num-dim" style="font-size:.75em">${fmtHours(t.tnp_hotline_h||0)}</div></div>
+        <div class="modal-card"><div class="modal-card-label">Total entrées</div><div class="modal-card-value c-blue">${fmtNum(t.total_nb)}</div><div class="num-dim" style="font-size:.75em">${fmtHours(t.total_h)}</div></div>
+        <div class="modal-card"><div class="modal-card-label">% TNP</div><div class="modal-card-value c-amber">${(t.pct_tnp||0).toFixed(0)} %</div><div class="num-dim" style="font-size:.75em">dont ${(t.pct_tnp_hotline||0).toFixed(0)} % Hotline</div></div>
+        <div class="modal-card"><div class="modal-card-label">DIT distincts</div><div class="modal-card-value">${fmtNum(t.dits)}</div></div>
+        <div class="modal-card"><div class="modal-card-label">Clients</div><div class="modal-card-value">${fmtNum(t.clients)}</div></div>
+      </div>
+    </div>
+    <div class="modal-section">
+      <div class="modal-section-title">Détail TNP par catégorie</div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Catégorie</th><th>Entrées</th><th>Heures</th></tr></thead>
+        <tbody>${tnpRows}</tbody>
+      </table></div>
+    </div>
+    <div class="modal-section">
+      <div class="modal-section-title">DIT avec interventions de ${escapeHtml(nom)} (${dits.length})</div>
+      ${dits.map(renderDITCard).join('')}
+    </div>
+  `;
+  $('modal-overlay').classList.add('show');
+}
+
+function renderDITCard(d){
+  const inters = d.interventions || [];
+  return `
+    <div class="dit-card">
+      <div class="dit-card-head">
+        <div>
+          <span class="dit-num">${escapeHtml(d.numero)}</span>
+          <span class="etat-badge ${etatClass(d.etat)}" style="margin-left:.5rem">${escapeHtml(d.etat||'?')}</span>
+          ${d.type_dit?'<span class="num-dim" style="margin-left:.5rem">'+escapeHtml(d.type_dit)+'</span>':''}
+        </div>
+        <div class="num-dim">${fmtDate(d.date)} · ${escapeHtml(d.client_nom||'')}</div>
+      </div>
+      <div class="dit-card-meta">
+        ${d.nature?'<div><b>Nature :</b> '+escapeHtml(d.nature)+'</div>':''}
+        ${d.symptome?'<div><b>Symptôme :</b> '+escapeHtml(d.symptome)+'</div>':''}
+        ${d.demandeur?'<div><b>Demandeur :</b> '+escapeHtml(d.demandeur)+'</div>':''}
+        ${d.tps_resolution!=null?'<div><b>Durée :</b> '+fmtHours(d.tps_resolution)+'</div>':''}
+        ${d.note_satisfaction!=null?'<div><b>Note :</b> <span class="c-amber">'+escapeHtml(d.note_satisfaction)+' / 5</span></div>':''}
+      </div>
+      ${d.commentaire?'<div class="dit-comment">'+escapeHtml(d.commentaire)+'</div>':''}
+      ${d.commentaire_cloture?'<div class="dit-comment" style="border-left-color:var(--green)"><b>Clôture :</b> '+escapeHtml(d.commentaire_cloture)+'</div>':''}
+      ${inters.length?`
+        <details class="inter-list">
+          <summary>Interventions (${inters.length}) — ${fmtHours(inters.reduce((s,i)=>s+(i.duree||0),0))}</summary>
+          ${inters.map(it => {
+            const interOpen = !['terminee','cloturee','annulee'].includes((it.etat||'').toLowerCase());
+            return `
+            <div class="inter-row">
+              <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
+                <div style="flex:1"><b>${escapeHtml(it.numero||'')}</b> · ${fmtDateTime(it.date_debut)} · <span class="etat-badge ${etatClass(it.etat)}">${escapeHtml(it.etat||'?')}</span> · ${fmtHours(it.duree)}</div>
+                ${interOpen?`<button class="btn-cloture" onclick="ouvrirFormCloture('${escapeHtml(it.numero)}','${escapeHtml(d.numero)}')">Clôturer</button>`:''}
+              </div>
+              ${it.intervenant?'<div><b>Intervenant :</b> '+escapeHtml(it.intervenant)+'</div>':''}
+              ${it.activite?'<div><b>Activité :</b> '+escapeHtml(it.activite)+'</div>':''}
+              ${it.commentaire?'<div style="color:var(--muted);margin-top:.3rem;white-space:pre-wrap">'+escapeHtml(it.commentaire)+'</div>':''}
+            </div>
+          `;}).join('')}
+        </details>
+      `:''}
+    </div>
+  `;
+}
+
+function ouvrirModalDIT(numero){
+  const d = DITS.find(x => x.numero === numero) || DITS_ALL.find(x => x.numero === numero);
+  if(!d) return;
+  $('modal-title').textContent = `DIT ${d.numero} — ${d.client_nom}`;
+  $('modal-sub').textContent = `${fmtDate(d.date)} · ${d.etat || '?'}`;
+  $('modal-body').innerHTML = renderDITCard(d);
+  $('modal-overlay').classList.add('show');
+}
+
+function fermerModal(){ $('modal-overlay').classList.remove('show'); }
+document.addEventListener('keydown', e => { if(e.key === 'Escape') fermerModal(); });
+
+// ════════ CLÔTURE INTERVENTION ════════
+let CLOTURE_CTX = null;
+
+function ouvrirFormCloture(itNumero, ditNumero){
+  // Trouver l'intervention dans nos données
+  const dit = DITS_ALL.find(d => d.numero === ditNumero);
+  const it = dit ? (dit.interventions||[]).find(x => x.numero === itNumero) : null;
+  CLOTURE_CTX = { itNumero, ditNumero, dit, it };
+
+  const toLocalInput = (d) => {
+    const pad = n => String(n).padStart(2,'0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+  // Pré-remplissage : heure actuelle pour début et fin (l'utilisateur ajustera la fin)
+  const now = new Date();
+  const dStart = toLocalInput(now);
+  const dEnd = toLocalInput(now);
+
+  $('modal-title').textContent = `Clôturer IT ${itNumero}`;
+  $('modal-sub').textContent = `DIT ${ditNumero} · ${dit ? dit.client_nom : ''} — ⚠ Mode dry-run par défaut (rien n'est envoyé à Artis)`;
+  $('modal-body').innerHTML = `
+    <div class="cloture-form">
+      <div class="cloture-row">
+        <div>
+          <label>Date début *</label>
+          <input type="datetime-local" id="cf-dateDebut" value="${dStart}">
+        </div>
+        <div>
+          <label>Date fin</label>
+          <input type="datetime-local" id="cf-dateFin" value="${dEnd}">
+        </div>
+      </div>
+      <div>
+        <label>Commentaire client * (visible client)</label>
+        <textarea id="cf-comClient" placeholder="Ce qui a été fait pour le client...">${escapeHtml(it && it.commentaire ? it.commentaire : '')}</textarea>
+      </div>
+      <div>
+        <label>Commentaire interne</label>
+        <textarea id="cf-comInterne" placeholder="Notes internes (optionnel)"></textarea>
+      </div>
+      <div>
+        <label style="margin-bottom:.4rem">Prestations (remplir au moins une des 3 lignes)</label>
+        <div class="presta-grid">
+          <div class="presta-row">
+            <div class="presta-name">Trajet (Aller)</div>
+            <input type="number" step="0.01" min="0" id="cf-qte-0"  placeholder="0.00" value="0" title="Temps passé en heures décimales">
+            <select id="cf-fact-0">
+              <option value="Couverte">Couverte</option>
+              <option value="Facturable">Facturable</option>
+              <option value="NonFacturable">Non facturable</option>
+            </select>
+          </div>
+          <div class="presta-row">
+            <div class="presta-name">M.O. Info <span style="font-size:9px;color:var(--muted);font-weight:400">(auto)</span></div>
+            <input type="number" step="0.01" min="0" id="cf-qte-1" placeholder="0.00" value="0" title="Calculé automatiquement depuis date début/fin">
+            <select id="cf-fact-1">
+              <option value="Couverte">Couverte</option>
+              <option value="Facturable">Facturable</option>
+              <option value="NonFacturable">Non facturable</option>
+            </select>
+          </div>
+          <div class="presta-row">
+            <div class="presta-name">MO Astreinte Informatique</div>
+            <input type="number" step="0.01" min="0" id="cf-qte-2" placeholder="0.00" value="0">
+            <select id="cf-fact-2">
+              <option value="Facturable">Facturable</option>
+              <option value="Couverte">Couverte</option>
+              <option value="NonFacturable">Non facturable</option>
+            </select>
+          </div>
+        </div>
+        <div style="font-size:10px;color:var(--muted);margin-top:.4rem">Temps en heures décimales (ex : 1.5 = 1h30, 0.25 = 15min)</div>
+      </div>
+      <div class="cloture-mode" id="cf-mode-box">
+        <input type="checkbox" id="cf-real">
+        <label for="cf-real" style="margin:0;cursor:pointer;color:var(--text);text-transform:none;font-size:12px;letter-spacing:0">
+          🔴 Envoi RÉEL à Artis (décocher = dry-run sécurisé)
+        </label>
+      </div>
+      <div>
+        <label>Aperçu du payload qui sera envoyé</label>
+        <pre class="cloture-preview" id="cf-preview"></pre>
+      </div>
+      <div id="cf-result" style="display:none"></div>
+      <div class="cloture-actions">
+        <button class="btn" onclick="fermerModal()">Annuler</button>
+        <button class="btn btn-primary" id="cf-submit" onclick="soumettreCloture()">Tester (dry-run)</button>
+      </div>
+    </div>
+  `;
+  $('modal-overlay').classList.add('show');
+  // Live update preview
+  const ids = ['cf-dateDebut','cf-dateFin','cf-comClient','cf-comInterne'];
+  PRESTA_DEFS.forEach((_,i) => { ids.push('cf-qte-'+i, 'cf-fact-'+i); });
+  ids.forEach(id => $(id).addEventListener('input', updateClotureBody));
+
+  // Auto-calc : la durée (dateFin-dateDebut) va dans M.O. Info (ligne 1) tant qu'elle n'a pas été éditée manuellement
+  let qte1EditedManually = false;
+  $('cf-qte-1').addEventListener('input', () => { qte1EditedManually = true; });
+  const recalcQte = () => {
+    if(qte1EditedManually) return;
+    const ds = $('cf-dateDebut').value, de = $('cf-dateFin').value;
+    if(ds && de){
+      const ms = new Date(de) - new Date(ds);
+      if(ms > 0) $('cf-qte-1').value = (ms / 3600000).toFixed(2);
+      updateClotureBody();
+    }
+  };
+  $('cf-dateDebut').addEventListener('change', recalcQte);
+  $('cf-dateFin').addEventListener('change', recalcQte);
+  $('cf-real').addEventListener('change', () => {
+    const real = $('cf-real').checked;
+    $('cf-submit').textContent = real ? '⚠ ENVOYER À ARTIS' : 'Tester (dry-run)';
+    $('cf-submit').className = real ? 'btn' : 'btn btn-primary';
+    $('cf-submit').style.background = real ? 'var(--red)' : '';
+    $('cf-submit').style.color = real ? '#fff' : '';
+    $('cf-submit').style.borderColor = real ? 'var(--red)' : '';
+    $('cf-mode-box').classList.toggle('real', real);
+  });
+  updateClotureBody();
+}
+
+const PRESTA_DEFS = [
+  { libelle: "Trajet (Aller)",            code: "INF" },
+  { libelle: "M.O. Info",                 code: "INF" },
+  { libelle: "MO Astreinte Informatique", code: "INFASTR" },
+];
+
+function buildClotureBody(){
+  const ds = $('cf-dateDebut').value;
+  const de = $('cf-dateFin').value;
+  const lignes = PRESTA_DEFS.map((p, i) => {
+    const presta = { libelle: p.libelle };
+    if(p.code) presta.code = p.code;
+    return {
+      prestation: presta,
+      qteUtilisee: parseFloat($('cf-qte-'+i).value) || 0,
+      typeFacturation: $('cf-fact-'+i).value || 'Couverte',
+    };
+  });
+  const body = {
+    dateDebut: ds ? ds + ':00' : '',
+    commentaireClient: $('cf-comClient').value || '',
+    lignes,
+  };
+  if(de) body.dateFin = de + ':00';
+  const ci = $('cf-comInterne').value;
+  if(ci) body.commentaireInterne = ci;
+  return body;
+}
+
+function updateClotureBody(){
+  $('cf-preview').textContent = JSON.stringify(buildClotureBody(), null, 2);
+}
+
+async function soumettreCloture(){
+  const real = $('cf-real').checked;
+  const body = buildClotureBody();
+  if(!body.dateDebut || !body.commentaireClient){
+    alert('Date début et commentaire client sont obligatoires.');
+    return;
+  }
+  if(real){
+    if(!confirm(`⚠ Envoi RÉEL à Artis pour l'IT ${CLOTURE_CTX.itNumero}.\nCette action est irréversible. Continuer ?`)) return;
+  }
+  $('cf-submit').disabled = true;
+  $('cf-submit').textContent = 'Envoi...';
+  const r = $('cf-result');
+  r.style.display = 'block';
+  r.className = 'cloture-result';
+  r.textContent = 'Requête en cours...';
+  try{
+    const resp = await fetch(`/api/it/${CLOTURE_CTX.itNumero}/cloturer?dry=${real?'0':'1'}`, {
+      method: 'PATCH',
+      headers: {'content-type':'application/json'},
+      body: JSON.stringify(body),
+    });
+    const j = await resp.json();
+    if(resp.ok && j.ok){
+      r.className = 'cloture-result ok';
+      r.textContent = (j.dry_run ? '✓ Dry-run OK — payload validé localement, rien envoyé à Artis.\n' : '✓ Artis a accepté la clôture.\n')
+                    + '\nRéponse:\n' + JSON.stringify(j, null, 2);
+    } else {
+      r.className = 'cloture-result err';
+      r.textContent = '✗ Échec\n\n' + JSON.stringify(j, null, 2);
+    }
+  } catch(e){
+    r.className = 'cloture-result err';
+    r.textContent = '✗ Erreur réseau: ' + e.message;
+  }
+  $('cf-submit').disabled = false;
+  $('cf-submit').textContent = real ? '⚠ ENVOYER À ARTIS' : 'Tester (dry-run)';
+}
+
+function showTab(id, el){
+  document.querySelectorAll('.tab-content').forEach(x => x.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+  $('tab-'+id).classList.add('active');
+  el.classList.add('active');
+}
+
+// ════════ EXPORT EXCEL ════════
+async function _save(buf, name){
+  const blob = new Blob([buf], {type:'application/octet-stream'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name; a.click();
+  URL.revokeObjectURL(url);
+}
+async function exportClients(){
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('DIT par client');
+  ws.columns = [
+    {header:'Code',key:'code',width:10},{header:'Client',key:'nom',width:36},
+    {header:'Org',key:'org',width:14},{header:'DIT',key:'nb',width:8},
+    {header:'En cours',key:'encours',width:10},{header:'Clôturés',key:'clos',width:10},
+    {header:'Heures',key:'heures',width:10},{header:'Interventions',key:'inters',width:14},
+    {header:'Note moy.',key:'note',width:10},
+  ];
+  for(const c of CLIENTS){
+    ws.addRow({...c, heures:+c.heures.toFixed(2), note:c.note==null?'':+c.note.toFixed(2)});
+  }
+  ws.getRow(1).font = {bold:true};
+  _save(await wb.xlsx.writeBuffer(), `DIT_par_client_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+async function exportTechs(){
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('DIT par technicien');
+  ws.columns = [
+    {header:'#',key:'rank',width:6},{header:'Intervenant',key:'nom',width:30},
+    {header:'Domaine principal',key:'top_domaine',width:34},
+    {header:'DIT (nb)',key:'nb',width:10},{header:'DIT (h)',key:'heures',width:10},
+    {header:'TNP Hotline (nb)',key:'tnp_hotline_nb',width:18},{header:'TNP Hotline (h)',key:'tnp_hotline_h',width:18},
+    {header:'Total (nb)',key:'total_nb',width:12},{header:'Total (h)',key:'total_h',width:12},
+    {header:'% Hotline',key:'pct_tnp',width:10},
+    {header:'DIT distincts',key:'dits',width:14},{header:'Clients distincts',key:'clients',width:18},
+  ];
+  // export uniquement IT si filtre actif (sinon tout) + exclusions
+  const itOnly = $('filter-it-only') && $('filter-it-only').checked;
+  const exp = (itOnly ? TECHS.filter(t => t.is_it) : TECHS).filter(t => !EXCLUDED_TECHS.has(t.nom));
+  for(const t of exp) ws.addRow({
+    ...t,
+    heures:        +t.heures.toFixed(2),
+    tnp_hotline_h: +(t.tnp_hotline_h||0).toFixed(2),
+    total_h:       +(t.total_h||0).toFixed(2),
+    pct_tnp:       +(t.pct_tnp||0).toFixed(0),
+  });
+  ws.getRow(1).font = {bold:true};
+  _save(await wb.xlsx.writeBuffer(), `DIT_par_tech_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+async function exportList(){
+  const rows = filteredList();
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('DIT');
+  ws.columns = [
+    {header:'N°',key:'numero',width:10},{header:'Date',key:'date',width:12},
+    {header:'Client',key:'client_nom',width:36},{header:'Code',key:'client_code',width:10},
+    {header:'État',key:'etat',width:14},{header:'Type',key:'type_dit',width:14},
+    {header:'Nature',key:'nature',width:18},{header:'Symptôme',key:'symptome',width:24},
+    {header:'Demandeur',key:'demandeur',width:22},
+    {header:'Interventions',key:'nb_interventions',width:10},
+    {header:'Heures',key:'tps_resolution',width:10},
+    {header:'Note',key:'note_satisfaction',width:8},
+    {header:'Commentaire',key:'commentaire',width:60},
+    {header:'Clôture',key:'commentaire_cloture',width:60},
+  ];
+  for(const d of rows) ws.addRow({...d, tps_resolution: d.tps_resolution==null?'':+d.tps_resolution.toFixed(2)});
+  ws.getRow(1).font = {bold:true};
+  _save(await wb.xlsx.writeBuffer(), `DIT_liste_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+// ════════ ONGLET PASSAGE NONFACTURABLE ════════
+let NF_LAST_DRY = null;     // dernier dry-run validé (pour activer le bouton Exécuter)
+let NF_HISTORY = [];        // historique session
+let NF_PREVIEW = null;      // dernière inspection DIT (résultat de /api/dit/<n>/inspect)
+
+// Peupler la datalist avec les DIT non-définitives (sur les 90j)
+function nfPopulateSuggestions(){
+  const el = $('nf-suggestions');
+  if(!el || !DITS_ALL || !DITS_ALL.length) return;
+  // États qui ont du sens pour passage NonFact : Cloturee, TravailTermine, TravailNonTermine, EnCours
+  const VALID = new Set(['Cloturee','TravailTermine','TravailNonTermine','EnCours']);
+  const candidates = DITS_ALL
+    .filter(d => VALID.has(d.etat))
+    .sort((a,b) => (b.date||'').localeCompare(a.date||''))
+    .slice(0, 500);
+  el.innerHTML = candidates.map(d => {
+    const date = (d.date||'').slice(0,10);
+    const lib = `${d.numero} — ${d.client_code||''} ${(d.client_nom||'').slice(0,30)} · ${date} · ${d.etat||'?'}`;
+    return `<option value="${escapeHtml(d.numero)}">${escapeHtml(lib)}</option>`;
+  }).join('');
+}
+
+function nfOnInputChange(){
+  // Si l'input change, on invalide la preview et le dry-run précédent
+  $('nf-preview').style.display = 'none';
+  NF_PREVIEW = null;
+  NF_LAST_DRY = null;
+  $('nf-btn-execute').disabled = true;
+  $('nf-btn-execute').style.opacity = '.5';
+}
+
+async function nfInspect(){
+  const num = ($('nf-numero').value || '').trim();
+  if(!/^\d+$/.test(num)){
+    nfStatusText('Numéro DIT invalide (chiffres uniquement)', 'var(--red)');
+    return;
+  }
+  nfStatusText('⏳ Lecture DIT live Artis...');
+  $('nf-preview').style.display = 'none';
+  try {
+    const r = await fetch(`/api/dit/${num}/inspect`);
+    const j = await r.json();
+    if(!r.ok || !j.ok){
+      $('nf-preview').style.display = 'block';
+      $('nf-preview').style.borderLeftColor = 'var(--red)';
+      $('nf-preview').innerHTML = `<div style="color:var(--red);font-weight:600">✗ DIT introuvable ou erreur</div><div style="color:var(--muted);font-size:12px;margin-top:.3rem">${escapeHtml(j.error||'erreur '+r.status)}</div>`;
+      nfStatusText('✗ DIT non lue', 'var(--red)');
+      return;
+    }
+    NF_PREVIEW = j;
+    nfRenderPreview(j);
+    nfStatusText('✓ DIT lue — vérifie les détails puis clique Vérifier (dry-run)', 'var(--green)');
+  } catch(e){
+    nfStatusText('✗ Erreur : ' + e.message, 'var(--red)');
+  }
+}
+
+function nfRenderPreview(j){
+  const dt = j.date ? new Date(j.date).toLocaleDateString('fr-FR') : '—';
+  const isClos = ['Cloturee','TravailTermine'].includes(j.etat);
+  const stateColor = isClos ? 'var(--green)' : 'var(--orange)';
+
+  // Lignes des interventions
+  const itersHtml = (j.interventions || []).map(it => {
+    const tfBadge = it.type_facturation ? (
+      it.type_facturation === 'NonFacturable'
+        ? '<span style="background:rgba(245,158,11,.15);color:#f59e0b;padding:1px 6px;border-radius:3px;font-size:10px">'+escapeHtml(it.type_facturation)+'</span>'
+        : it.type_facturation === 'Facturable'
+          ? '<span style="background:rgba(79,124,255,.15);color:var(--accent);padding:1px 6px;border-radius:3px;font-size:10px">'+escapeHtml(it.type_facturation)+'</span>'
+          : '<span class="num-dim" style="font-size:10px">'+escapeHtml(it.type_facturation)+'</span>'
+    ) : '<span class="num-dim" style="font-size:10px">—</span>';
+    const etatColor = ['Terminee','Cloturee'].includes(it.etat) ? 'var(--green)' :
+                      it.etat === 'Annulee' ? 'var(--red)' : 'var(--orange)';
+    const dateIt = it.date ? new Date(it.date).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—';
+    return `
+      <div style="display:flex;align-items:center;gap:.6rem;padding:.4rem 0;border-top:1px solid var(--border);font-size:12px;flex-wrap:wrap">
+        <span style="font-family:monospace;color:var(--muted);min-width:110px">${escapeHtml(String(it.numero||''))}</span>
+        <span style="color:${etatColor};min-width:120px">${escapeHtml(it.etat||'?')}</span>
+        <span class="num-dim" style="min-width:100px">${escapeHtml(dateIt)}</span>
+        <span style="min-width:55px"><b>${it.duree_h!=null?it.duree_h+'h':''}</b></span>
+        ${tfBadge}
+        <span class="num-dim">${escapeHtml(it.intervenant||'')}</span>
+        <span class="num-dim" style="font-size:11px">${escapeHtml(it.domaine||'')}</span>
+      </div>`;
+  }).join('') || '<div class="num-dim" style="padding:.5rem 0">Aucune intervention</div>';
+
+  $('nf-preview').style.display = 'block';
+  $('nf-preview').style.borderLeftColor = isClos ? 'var(--green)' : 'var(--orange)';
+  $('nf-preview').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:.6rem;flex-wrap:wrap;gap:1rem">
+      <div>
+        <div style="font-size:16px;font-weight:600">DIT ${escapeHtml(String(j.numero))}</div>
+        <div style="color:var(--muted);font-size:13px;margin-top:.2rem">${escapeHtml(j.client_code||'')} — ${escapeHtml(j.client_nom||'')} · ouverte le ${escapeHtml(dt)}</div>
+      </div>
+      <div style="text-align:right">
+        <span style="background:rgba(79,124,255,.15);color:${stateColor};padding:4px 12px;border-radius:6px;font-size:12px;font-weight:600">${escapeHtml(j.etat_libelle||j.etat||'?')}</span>
+        ${!isClos ? '<div style="color:var(--orange);font-size:11px;margin-top:.3rem">⚠ Pas Cloturee — mode resume</div>' : ''}
+      </div>
+    </div>
+    ${j.nature ? `<div style="font-size:12px;color:var(--muted);margin-bottom:.3rem"><b>Nature :</b> ${escapeHtml(j.nature)}${j.type_dit ? ' · '+escapeHtml(j.type_dit):''}</div>` : ''}
+    ${j.commentaire ? `<div style="background:var(--surface);border-left:2px solid var(--border2);padding:.5rem .8rem;margin:.5rem 0;font-size:12px;color:var(--text)"><b>Commentaire :</b> ${escapeHtml(j.commentaire)}</div>` : ''}
+    ${j.commentaire_cloture ? `<div style="background:var(--surface);border-left:2px solid var(--green);padding:.5rem .8rem;margin:.5rem 0;font-size:12px"><b>Clôture :</b> ${escapeHtml(j.commentaire_cloture)}</div>` : ''}
+    <div style="margin-top:.8rem">
+      <div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:.3rem">Interventions (${j.nb_interventions||0})</div>
+      ${itersHtml}
+    </div>
+  `;
+}
+
+function nfStatusText(txt, color='var(--muted)'){
+  const el = $('nf-status');
+  if(!el) return;
+  el.style.color = color;
+  el.textContent = txt;
+}
+
+function nfStepBadge(status){
+  if(status === 204 || status === 'OK')
+    return '<span style="background:rgba(34,197,94,.15);color:var(--green);padding:2px 8px;border-radius:4px;font-size:11px">✓ '+status+'</span>';
+  if(status === 'EXCEPTION' || (typeof status === 'number' && status >= 400))
+    return '<span style="background:rgba(239,68,68,.15);color:var(--red);padding:2px 8px;border-radius:4px;font-size:11px">✗ '+status+'</span>';
+  return '<span style="background:rgba(79,124,255,.15);color:var(--accent);padding:2px 8px;border-radius:4px;font-size:11px">'+status+'</span>';
+}
+
+function nfRenderResult(res, isDryRun){
+  $('nf-result').style.display = 'block';
+
+  const summaryEl = $('nf-summary');
+  if(isDryRun){
+    summaryEl.innerHTML = `<div style="color:var(--accent);font-size:14px;font-weight:600">🔍 Dry-run sur DIT ${escapeHtml(String(res.dit))}</div>
+      <div style="color:var(--muted);font-size:12px;margin-top:.3rem">Aucun appel envoyé. Vérifie le payload ci-dessous puis clique sur <b>Exécuter</b>.</div>`;
+  } else if(res.ok){
+    summaryEl.innerHTML = `<div style="color:var(--green);font-size:14px;font-weight:600">✓ DIT ${escapeHtml(String(res.dit))} passée en NonFacturable</div>
+      <div style="color:var(--muted);font-size:12px;margin-top:.3rem">Nouvelle IT : <b>${escapeHtml(String(res.new_it||'?'))}</b> · État final : <b>${escapeHtml(String(res.final_etat||'?'))}</b> · typeFacturation : <b>${escapeHtml(String(res.type_facturation||'?'))}</b></div>`;
+  } else {
+    summaryEl.innerHTML = `<div style="color:var(--red);font-size:14px;font-weight:600">✗ Échec sur DIT ${escapeHtml(String(res.dit))}</div>
+      <div style="color:var(--muted);font-size:12px;margin-top:.3rem">${escapeHtml(res.error||'erreur inconnue')}</div>`;
+  }
+
+  const stepsEl = $('nf-steps');
+  if(res.steps && res.steps.length){
+    stepsEl.innerHTML = '<div style="font-size:12px;color:var(--muted);margin-bottom:.4rem">Timeline :</div>' +
+      res.steps.map(s => `
+        <div style="display:flex;align-items:center;gap:.6rem;padding:.4rem 0;border-bottom:1px solid var(--border)">
+          <span style="color:var(--muted);font-size:11px;font-family:monospace;min-width:70px">${escapeHtml(s.ts||'')}</span>
+          <span style="min-width:100px;font-size:13px"><b>${escapeHtml(s.step)}</b></span>
+          ${nfStepBadge(s.status)}
+          <span style="color:var(--muted);font-size:12px">${escapeHtml(s.detail||s.error||'')}</span>
+          ${s.attempt ? `<span style="background:var(--surface);color:var(--muted);font-size:10px;padding:1px 6px;border-radius:3px">essai ${s.attempt}</span>` : ''}
+          ${s.retry ? '<span style="color:var(--orange);font-size:11px">⟳ retry</span>' : ''}
+        </div>
+      `).join('');
+  } else {
+    stepsEl.innerHTML = '';
+  }
+
+  $('nf-payload').textContent = JSON.stringify(res, null, 2);
+}
+
+async function nfDryRun(){
+  const num = ($('nf-numero').value || '').trim();
+  if(!/^\d+$/.test(num)){
+    nfStatusText('Numéro DIT invalide (chiffres uniquement)', 'var(--red)');
+    return;
+  }
+  $('nf-btn-execute').disabled = true;
+  $('nf-btn-execute').style.opacity = '.5';
+  NF_LAST_DRY = null;
+  nfStatusText('⏳ Dry-run...');
+  $('nf-result').style.display = 'none';
+  try {
+    const r = await fetch(`/api/dit/${num}/non-facturable?dry=1`, {
+      method: 'PATCH',
+      headers: {'content-type': 'application/json'},
+      body: '{}'
+    });
+    const j = await _safeJson(r);
+    nfRenderResult(j, true);
+    if(j.ok){
+      NF_LAST_DRY = num;
+      $('nf-btn-execute').disabled = false;
+      $('nf-btn-execute').style.opacity = '1';
+      nfStatusText('✓ Dry-run OK — clique sur Exécuter pour POST réel', 'var(--green)');
+    } else {
+      nfStatusText('✗ Dry-run échoué : ' + (j.error||'erreur'), 'var(--red)');
+    }
+  } catch(e){
+    nfStatusText('✗ Erreur : ' + e.message, 'var(--red)');
+  }
+}
+
+async function nfExecute(){
+  const num = ($('nf-numero').value || '').trim();
+  if(num !== NF_LAST_DRY){
+    nfStatusText('Refais un dry-run d\'abord (numéro modifié)', 'var(--orange)');
+    return;
+  }
+  if(!confirm(`⚠ Confirmer le passage RÉEL en NonFacturable pour la DIT ${num} ?\n\nSi la DIT est déjà partiellement réouverte (échec précédent), le backend reprendra automatiquement.\nCette opération écrira dans Artis prod.`)){
+    return;
+  }
+  // ⚠ on NE désactive PAS le bouton après échec → permet de relancer (resume auto si DIT déjà ouverte)
+  $('nf-btn-execute').disabled = true;
+  $('nf-btn-execute').style.opacity = '.5';
+  nfStatusText('⏳ Exécution en cours (peut prendre 15-30s)...', 'var(--orange)');
+  $('nf-result').style.display = 'none';
+  const tStart = Date.now();
+  try {
+    const r = await fetch(`/api/dit/${num}/non-facturable?dry=0`, {
+      method: 'PATCH',
+      headers: {'content-type': 'application/json'},
+      body: '{}'
+    });
+    const j = await _safeJson(r);
+    const elapsed = ((Date.now() - tStart)/1000).toFixed(1);
+    nfRenderResult(j, false);
+    NF_HISTORY.unshift({...j, ts: new Date().toISOString(), elapsed_s: elapsed});
+    nfRenderHistory();
+    if(j.ok){
+      nfStatusText(`✓ Terminé en ${elapsed}s — DIT ${num} → NonFacturable`, 'var(--green)');
+      NF_LAST_DRY = null;
+      // bouton désactivé après succès (plus rien à faire sur cette DIT)
+      // refresh historique persistant
+      nfLoadHistoryPersist();
+    } else {
+      nfStatusText(`✗ Échec en ${elapsed}s : ${j.error||'erreur'} — clique de nouveau pour relancer (resume auto si DIT déjà ouverte)`, 'var(--red)');
+      // Réactiver le bouton pour permettre le retry (backend détectera la DIT déjà ouverte)
+      $('nf-btn-execute').disabled = false;
+      $('nf-btn-execute').style.opacity = '1';
+    }
+  } catch(e){
+    nfStatusText('✗ Erreur : ' + e.message + ' — clique de nouveau pour relancer', 'var(--red)');
+    $('nf-btn-execute').disabled = false;
+    $('nf-btn-execute').style.opacity = '1';
+  }
+}
+
+function nfRenderHistory(){
+  if(!NF_HISTORY.length){ $('nf-history-wrap').style.display = 'none'; return; }
+  $('nf-history-wrap').style.display = 'block';
+  $('nf-history').innerHTML = NF_HISTORY.slice(0, 20).map(h => `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:.5rem .8rem;display:flex;align-items:center;gap:.6rem">
+      <span style="color:var(--muted);font-size:11px;font-family:monospace">${escapeHtml(h.ts.slice(11,19))}</span>
+      <span style="font-weight:600">DIT ${escapeHtml(String(h.dit))}</span>
+      ${h.ok ? '<span style="color:var(--green)">✓ OK</span>' : '<span style="color:var(--red)">✗ KO</span>'}
+      <span style="color:var(--muted);font-size:12px">${h.new_it ? 'IT '+escapeHtml(String(h.new_it)) : ''}</span>
+      <span style="color:var(--muted);font-size:12px">${h.elapsed_s}s</span>
+      ${h.error ? `<span style="color:var(--red);font-size:11px">${escapeHtml(h.error.substring(0,80))}</span>` : ''}
+    </div>
+  `).join('');
+}
+
+// ════════ HISTORIQUE PERSISTANT (côté serveur) ════════
+let NF_HIST_PERSIST = [];
+
+async function nfLoadHistoryPersist(){
+  try {
+    const r = await fetch('/api/dit/non-facturable/history');
+    if(!r.ok){
+      $('nf-hist-tbody').innerHTML = `<tr><td colspan="6" class="no-data">Erreur ${r.status}</td></tr>`;
+      return;
+    }
+    const j = await r.json();
+    NF_HIST_PERSIST = j.items || [];
+    $('nf-hist-count').textContent = NF_HIST_PERSIST.length + ' entrée' + (NF_HIST_PERSIST.length>1?'s':'');
+    nfRenderHistoryPersist();
+  } catch(e){
+    $('nf-hist-tbody').innerHTML = `<tr><td colspan="6" class="no-data">${escapeHtml(e.message)}</td></tr>`;
+  }
+}
+
+function nfRenderHistoryPersist(){
+  const q = ($('nf-hist-filter').value || '').toLowerCase().trim();
+  const rows = !q ? NF_HIST_PERSIST : NF_HIST_PERSIST.filter(h => {
+    const blob = `${h.dit||''} ${h.new_it||''} ${h.client_code||''} ${h.client_nom||''} ${h.commentaire||''} ${h.intervenant||''}`.toLowerCase();
+    return blob.includes(q);
+  });
+  if(!rows.length){
+    $('nf-hist-tbody').innerHTML = '<tr><td colspan="6" class="no-data">Aucune entrée</td></tr>';
+    return;
+  }
+  $('nf-hist-tbody').innerHTML = rows.map(h => {
+    const dt = h.ts ? new Date(h.ts) : null;
+    const dateStr = dt ? `${dt.toLocaleDateString('fr-FR')} ${dt.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}` : '—';
+    const isOk = h.type_facturation === 'NonFacturable';
+    return `
+      <tr>
+        <td style="white-space:nowrap;font-family:monospace;font-size:12px">${escapeHtml(dateStr)}</td>
+        <td><b>${escapeHtml(String(h.dit||''))}</b></td>
+        <td class="num-dim">${escapeHtml(String(h.new_it||''))}</td>
+        <td>${h.client_code ? '<span class="num-dim">'+escapeHtml(h.client_code)+'</span> '+escapeHtml(h.client_nom||'') : '—'}</td>
+        <td>${isOk ? '<span style="background:rgba(34,197,94,.15);color:var(--green);padding:2px 8px;border-radius:4px;font-size:11px">✓ NonFacturable</span>' : '<span style="color:var(--orange);font-size:12px">'+escapeHtml(String(h.type_facturation||'?'))+'</span>'}</td>
+        <td style="font-size:12px;color:var(--muted);max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(h.commentaire||'')}">${escapeHtml((h.commentaire||'').substring(0,60))}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+// ════════ ONGLET CLÔTURER DIT ════════
+let CL_LAST_DRY = null;       // dernier dry-run validé (numéro+force_finalize+commentaire signature)
+let CL_HISTORY = [];          // historique session
+let CL_PREVIEW = null;        // dernière inspection DIT
+let CL_HIST_PERSIST = [];
+
+// Peuple la datalist avec les DIT susceptibles d'être clôturées
+function clPopulateSuggestions(){
+  const el = $('cl-suggestions');
+  if(!el || !DITS_ALL || !DITS_ALL.length) return;
+  const VALID = new Set(['TravailTermine','TravailNonTermine']);
+  const candidates = DITS_ALL
+    .filter(d => VALID.has(d.etat))
+    .sort((a,b) => (b.date||'').localeCompare(a.date||''))
+    .slice(0, 500);
+  el.innerHTML = candidates.map(d => {
+    const date = (d.date||'').slice(0,10);
+    const lib = `${d.numero} — ${d.client_code||''} ${(d.client_nom||'').slice(0,30)} · ${date} · ${d.etat||'?'}`;
+    return `<option value="${escapeHtml(d.numero)}">${escapeHtml(lib)}</option>`;
+  }).join('');
+}
+
+function clSig(){
+  return ($('cl-numero').value||'').trim() + '|' +
+         ($('cl-force-finalize').checked ? '1' : '0') + '|' +
+         ($('cl-commentaire').value||'').trim();
+}
+
+function clOnInputChange(){
+  $('cl-preview').style.display = 'none';
+  CL_PREVIEW = null;
+  CL_LAST_DRY = null;
+  $('cl-btn-execute').disabled = true;
+  $('cl-btn-execute').style.opacity = '.5';
+}
+
+function clStatusText(txt, color='var(--muted)'){
+  const el = $('cl-status');
+  if(!el) return;
+  el.style.color = color;
+  el.textContent = txt;
+}
+
+function clStepBadge(status){
+  if(status === 204 || status === 'OK')
+    return '<span style="background:rgba(34,197,94,.15);color:var(--green);padding:2px 8px;border-radius:4px;font-size:11px">✓ '+status+'</span>';
+  if(status === 'EXCEPTION' || (typeof status === 'number' && status >= 400))
+    return '<span style="background:rgba(239,68,68,.15);color:var(--red);padding:2px 8px;border-radius:4px;font-size:11px">✗ '+status+'</span>';
+  return '<span style="background:rgba(79,124,255,.15);color:var(--accent);padding:2px 8px;border-radius:4px;font-size:11px">'+status+'</span>';
+}
+
+async function clInspect(){
+  const num = ($('cl-numero').value || '').trim();
+  if(!/^\d+$/.test(num)){
+    clStatusText('Numéro DIT invalide (chiffres uniquement)', 'var(--red)');
+    return;
+  }
+  clStatusText('⏳ Lecture DIT live Artis...');
+  $('cl-preview').style.display = 'none';
+  try {
+    const r = await fetch(`/api/dit/${num}/inspect`);
+    const j = await r.json();
+    if(!r.ok || !j.ok){
+      $('cl-preview').style.display = 'block';
+      $('cl-preview').style.borderLeftColor = 'var(--red)';
+      $('cl-preview').innerHTML = `<div style="color:var(--red);font-weight:600">✗ DIT introuvable ou erreur</div><div style="color:var(--muted);font-size:12px;margin-top:.3rem">${escapeHtml(j.error||'erreur '+r.status)}</div>`;
+      clStatusText('✗ DIT non lue', 'var(--red)');
+      return;
+    }
+    CL_PREVIEW = j;
+    clRenderPreview(j);
+    // Auto-coche force_finalize si TravailNonTermine
+    if(j.etat === 'TravailNonTermine'){
+      $('cl-force-finalize').checked = true;
+    }
+    clStatusText('✓ DIT lue — vérifie les détails puis clique Vérifier (dry-run)', 'var(--green)');
+  } catch(e){
+    clStatusText('✗ Erreur : ' + e.message, 'var(--red)');
+  }
+}
+
+function clRenderPreview(j){
+  const dt = j.date ? new Date(j.date).toLocaleDateString('fr-FR') : '—';
+  const isReady = j.etat === 'TravailTermine';
+  const needsForce = j.etat === 'TravailNonTermine';
+  const isAlreadyClosed = j.etat === 'Cloturee';
+  const stateColor = isReady ? 'var(--green)' : needsForce ? 'var(--orange)' : isAlreadyClosed ? 'var(--muted)' : 'var(--red)';
+  const FINALIZED = new Set(['Terminee','Cloturee','Annulee']);
+
+  let nbToFinalize = 0;
+  const itersHtml = (j.interventions || []).map(it => {
+    const tfBadge = it.type_facturation ? (
+      it.type_facturation === 'NonFacturable'
+        ? '<span style="background:rgba(245,158,11,.15);color:#f59e0b;padding:1px 6px;border-radius:3px;font-size:10px">'+escapeHtml(it.type_facturation)+'</span>'
+        : it.type_facturation === 'Facturable'
+          ? '<span style="background:rgba(79,124,255,.15);color:var(--accent);padding:1px 6px;border-radius:3px;font-size:10px">'+escapeHtml(it.type_facturation)+'</span>'
+          : '<span class="num-dim" style="font-size:10px">'+escapeHtml(it.type_facturation)+'</span>'
+    ) : '<span class="num-dim" style="font-size:10px">—</span>';
+    const etatIt = it.etat || '?';
+    const isFinalized = FINALIZED.has(etatIt);
+    if(!isFinalized) nbToFinalize++;
+    const etatColor = isFinalized ? 'var(--green)' : etatIt === 'Annulee' ? 'var(--red)' : 'var(--orange)';
+    const finalizeTag = !isFinalized ? '<span style="background:rgba(245,158,11,.15);color:#f59e0b;padding:1px 6px;border-radius:3px;font-size:10px">À finaliser</span>' : '';
+    const dateIt = it.date ? new Date(it.date).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—';
+    return `
+      <div style="display:flex;align-items:center;gap:.6rem;padding:.4rem 0;border-top:1px solid var(--border);font-size:12px;flex-wrap:wrap">
+        <span style="font-family:monospace;color:var(--muted);min-width:110px">${escapeHtml(String(it.numero||''))}</span>
+        <span style="color:${etatColor};min-width:120px">${escapeHtml(etatIt)}</span>
+        <span class="num-dim" style="min-width:100px">${escapeHtml(dateIt)}</span>
+        <span style="min-width:55px"><b>${it.duree_h!=null?it.duree_h+'h':''}</b></span>
+        ${tfBadge}
+        ${finalizeTag}
+        <span class="num-dim">${escapeHtml(it.intervenant||'')}</span>
+        <span class="num-dim" style="font-size:11px">${escapeHtml(it.domaine||'')}</span>
+      </div>`;
+  }).join('') || '<div class="num-dim" style="padding:.5rem 0">Aucune intervention</div>';
+
+  let hint = '';
+  if(isAlreadyClosed){
+    hint = '<div style="color:var(--muted);font-size:11px;margin-top:.3rem">⚠ Déjà clôturée — rien à faire</div>';
+  } else if(isReady){
+    hint = '<div style="color:var(--green);font-size:11px;margin-top:.3rem">✓ Prête à être clôturée directement</div>';
+  } else if(needsForce){
+    hint = `<div style="color:var(--orange);font-size:11px;margin-top:.3rem">⚠ ${nbToFinalize} IT non finalisée(s) — coche "Forcer finalisation"</div>`;
+  } else {
+    hint = '<div style="color:var(--red);font-size:11px;margin-top:.3rem">✗ État incompatible (doit être TravailTermine ou TravailNonTermine)</div>';
+  }
+
+  $('cl-preview').style.display = 'block';
+  $('cl-preview').style.borderLeftColor = stateColor;
+  $('cl-preview').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:.6rem;flex-wrap:wrap;gap:1rem">
+      <div>
+        <div style="font-size:16px;font-weight:600">DIT ${escapeHtml(String(j.numero))}</div>
+        <div style="color:var(--muted);font-size:13px;margin-top:.2rem">${escapeHtml(j.client_code||'')} — ${escapeHtml(j.client_nom||'')} · ouverte le ${escapeHtml(dt)}</div>
+      </div>
+      <div style="text-align:right">
+        <span style="background:rgba(79,124,255,.15);color:${stateColor};padding:4px 12px;border-radius:6px;font-size:12px;font-weight:600">${escapeHtml(j.etat_libelle||j.etat||'?')}</span>
+        ${hint}
+      </div>
+    </div>
+    ${j.nature ? `<div style="font-size:12px;color:var(--muted);margin-bottom:.3rem"><b>Nature :</b> ${escapeHtml(j.nature)}${j.type_dit ? ' · '+escapeHtml(j.type_dit):''}</div>` : ''}
+    ${j.commentaire ? `<div style="background:var(--surface);border-left:2px solid var(--border2);padding:.5rem .8rem;margin:.5rem 0;font-size:12px;color:var(--text)"><b>Commentaire :</b> ${escapeHtml(j.commentaire)}</div>` : ''}
+    <div style="margin-top:.8rem">
+      <div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:.3rem">Interventions (${j.nb_interventions||0})</div>
+      ${itersHtml}
+    </div>
+  `;
+}
+
+function clRenderResult(res, isDryRun){
+  $('cl-result').style.display = 'block';
+  const summaryEl = $('cl-summary');
+  if(isDryRun){
+    summaryEl.innerHTML = `<div style="color:var(--accent);font-size:14px;font-weight:600">🔍 Dry-run sur DIT ${escapeHtml(String(res.dit))}</div>
+      <div style="color:var(--muted);font-size:12px;margin-top:.3rem">Aucun appel envoyé. Vérifie le payload puis clique sur <b>Exécuter</b>.</div>`;
+  } else if(res.ok){
+    summaryEl.innerHTML = `<div style="color:var(--green);font-size:14px;font-weight:600">✓ DIT ${escapeHtml(String(res.dit))} clôturée</div>
+      <div style="color:var(--muted);font-size:12px;margin-top:.3rem">État initial : <b>${escapeHtml(String(res.etat_initial||'?'))}</b> → final : <b>${escapeHtml(String(res.final_etat||'?'))}</b></div>`;
+  } else {
+    summaryEl.innerHTML = `<div style="color:var(--red);font-size:14px;font-weight:600">✗ Échec sur DIT ${escapeHtml(String(res.dit))}</div>
+      <div style="color:var(--muted);font-size:12px;margin-top:.3rem">${escapeHtml(res.error||'erreur inconnue')}</div>`;
+  }
+
+  const stepsEl = $('cl-steps');
+  if(res.steps && res.steps.length){
+    stepsEl.innerHTML = '<div style="font-size:12px;color:var(--muted);margin-bottom:.4rem">Timeline :</div>' +
+      res.steps.map(s => `
+        <div style="display:flex;align-items:center;gap:.6rem;padding:.4rem 0;border-bottom:1px solid var(--border)">
+          <span style="color:var(--muted);font-size:11px;font-family:monospace;min-width:70px">${escapeHtml(s.ts||'')}</span>
+          <span style="min-width:160px;font-size:13px"><b>${escapeHtml(s.step)}</b></span>
+          ${clStepBadge(s.status)}
+          <span style="color:var(--muted);font-size:12px">${escapeHtml(s.detail||s.error||'')}</span>
+        </div>
+      `).join('');
+  } else {
+    stepsEl.innerHTML = '';
+  }
+
+  $('cl-payload').textContent = JSON.stringify(res, null, 2);
+}
+
+async function _safeJson(r){
+  // Lit r.text() puis tente JSON.parse. Sinon renvoie un objet d'erreur clair.
+  const txt = await r.text();
+  if(!txt) return {ok:false, error:`Réponse serveur vide (HTTP ${r.status}). Le backend a peut-être planté pendant l'opération — vérifie l'historique persistant ou les logs.`};
+  try { return JSON.parse(txt); }
+  catch(e){ return {ok:false, error:`Réponse non-JSON (HTTP ${r.status}) : ${txt.substring(0,200)}`}; }
+}
+
+async function clDryRun(){
+  const num = ($('cl-numero').value || '').trim();
+  if(!/^\d+$/.test(num)){
+    clStatusText('Numéro DIT invalide (chiffres uniquement)', 'var(--red)');
+    return;
+  }
+  $('cl-btn-execute').disabled = true;
+  $('cl-btn-execute').style.opacity = '.5';
+  CL_LAST_DRY = null;
+  clStatusText('⏳ Dry-run...');
+  $('cl-result').style.display = 'none';
+  const body = {
+    force_finalize: $('cl-force-finalize').checked,
+  };
+  const cmt = ($('cl-commentaire').value||'').trim();
+  if(cmt) body.commentaire = cmt;
+  try {
+    const r = await fetch(`/api/dit/${num}/cloturer-dit?dry=1`, {
+      method: 'PATCH',
+      headers: {'content-type': 'application/json'},
+      body: JSON.stringify(body),
+    });
+    const j = await _safeJson(r);
+    clRenderResult(j, true);
+    if(j.ok){
+      CL_LAST_DRY = clSig();
+      $('cl-btn-execute').disabled = false;
+      $('cl-btn-execute').style.opacity = '1';
+      clStatusText('✓ Dry-run OK — clique sur Exécuter pour PATCH réel', 'var(--green)');
+    } else {
+      clStatusText('✗ Dry-run échoué : ' + (j.error||'erreur'), 'var(--red)');
+    }
+  } catch(e){
+    clStatusText('✗ Erreur : ' + e.message, 'var(--red)');
+  }
+}
+
+async function clExecute(){
+  const num = ($('cl-numero').value || '').trim();
+  if(clSig() !== CL_LAST_DRY){
+    clStatusText('Refais un dry-run d\'abord (paramètres modifiés)', 'var(--orange)');
+    return;
+  }
+  const force = $('cl-force-finalize').checked;
+  if(!confirm(`⚠ Confirmer la clôture RÉELLE de la DIT ${num} ?\n\n${force ? 'Les IT non terminées seront finalisées (saisirCrit 0.01h) avant clôture.' : 'PATCH /dit/'+num+'/cloturer direct.'}\n\nCette opération écrira dans Artis prod.`)){
+    return;
+  }
+  $('cl-btn-execute').disabled = true;
+  $('cl-btn-execute').style.opacity = '.5';
+  clStatusText('⏳ Exécution en cours...', 'var(--orange)');
+  $('cl-result').style.display = 'none';
+  const body = { force_finalize: force };
+  const cmt = ($('cl-commentaire').value||'').trim();
+  if(cmt) body.commentaire = cmt;
+  const tStart = Date.now();
+  try {
+    const r = await fetch(`/api/dit/${num}/cloturer-dit?dry=0`, {
+      method: 'PATCH',
+      headers: {'content-type': 'application/json'},
+      body: JSON.stringify(body),
+    });
+    const j = await _safeJson(r);
+    const elapsed = ((Date.now() - tStart)/1000).toFixed(1);
+    clRenderResult(j, false);
+    CL_HISTORY.unshift({...j, ts: new Date().toISOString(), elapsed_s: elapsed});
+    clRenderHistory();
+    if(j.ok){
+      clStatusText(`✓ Terminé en ${elapsed}s — DIT ${num} → Cloturee`, 'var(--green)');
+      CL_LAST_DRY = null;
+      clLoadHistoryPersist();
+    } else {
+      clStatusText(`✗ Échec en ${elapsed}s : ${j.error||'erreur'}`, 'var(--red)');
+      $('cl-btn-execute').disabled = false;
+      $('cl-btn-execute').style.opacity = '1';
+    }
+  } catch(e){
+    clStatusText('✗ Erreur : ' + e.message, 'var(--red)');
+    $('cl-btn-execute').disabled = false;
+    $('cl-btn-execute').style.opacity = '1';
+  }
+}
+
+function clRenderHistory(){
+  if(!CL_HISTORY.length){ $('cl-history-wrap').style.display = 'none'; return; }
+  $('cl-history-wrap').style.display = 'block';
+  $('cl-history').innerHTML = CL_HISTORY.slice(0, 20).map(h => `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:.5rem .8rem;display:flex;align-items:center;gap:.6rem">
+      <span style="color:var(--muted);font-size:11px;font-family:monospace">${escapeHtml(h.ts.slice(11,19))}</span>
+      <span style="font-weight:600">DIT ${escapeHtml(String(h.dit))}</span>
+      ${h.ok ? '<span style="color:var(--green)">✓ OK</span>' : '<span style="color:var(--red)">✗ KO</span>'}
+      <span style="color:var(--muted);font-size:12px">${escapeHtml(String(h.etat_initial||''))} → ${escapeHtml(String(h.final_etat||''))}</span>
+      <span style="color:var(--muted);font-size:12px">${h.elapsed_s}s</span>
+      ${h.error ? `<span style="color:var(--red);font-size:11px">${escapeHtml(h.error.substring(0,80))}</span>` : ''}
+    </div>
+  `).join('');
+}
+
+async function clLoadHistoryPersist(){
+  try {
+    const r = await fetch('/api/dit/cloturer/history');
+    if(!r.ok){
+      $('cl-hist-tbody').innerHTML = `<tr><td colspan="7" class="no-data">Erreur ${r.status}</td></tr>`;
+      return;
+    }
+    const j = await r.json();
+    CL_HIST_PERSIST = j.items || [];
+    $('cl-hist-count').textContent = CL_HIST_PERSIST.length + ' entrée' + (CL_HIST_PERSIST.length>1?'s':'');
+    clRenderHistoryPersist();
+  } catch(e){
+    $('cl-hist-tbody').innerHTML = `<tr><td colspan="7" class="no-data">${escapeHtml(e.message)}</td></tr>`;
+  }
+}
+
+function clRenderHistoryPersist(){
+  const q = ($('cl-hist-filter').value || '').toLowerCase().trim();
+  const rows = !q ? CL_HIST_PERSIST : CL_HIST_PERSIST.filter(h => {
+    const blob = `${h.dit||''} ${h.client_code||''} ${h.client_nom||''} ${h.commentaire||''} ${h.etat_initial||''} ${h.final_etat||''}`.toLowerCase();
+    return blob.includes(q);
+  });
+  if(!rows.length){
+    $('cl-hist-tbody').innerHTML = '<tr><td colspan="7" class="no-data">Aucune entrée</td></tr>';
+    return;
+  }
+  $('cl-hist-tbody').innerHTML = rows.map(h => {
+    const dt = h.ts ? new Date(h.ts) : null;
+    const dateStr = dt ? `${dt.toLocaleDateString('fr-FR')} ${dt.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}` : '—';
+    const isOk = h.final_etat === 'Cloturee';
+    return `
+      <tr>
+        <td style="white-space:nowrap;font-family:monospace;font-size:12px">${escapeHtml(dateStr)}</td>
+        <td><b>${escapeHtml(String(h.dit||''))}</b></td>
+        <td>${h.client_code ? '<span class="num-dim">'+escapeHtml(h.client_code)+'</span> '+escapeHtml(h.client_nom||'') : '—'}</td>
+        <td><span class="num-dim" style="font-size:11px">${escapeHtml(String(h.etat_initial||'—'))}</span></td>
+        <td>${isOk ? '<span style="background:rgba(34,197,94,.15);color:var(--green);padding:2px 8px;border-radius:4px;font-size:11px">✓ Cloturee</span>' : '<span style="color:var(--orange);font-size:12px">'+escapeHtml(String(h.final_etat||'?'))+'</span>'}</td>
+        <td style="font-size:11px">${h.force_finalize ? '<span style="color:var(--orange)">oui</span>' : '<span class="num-dim">non</span>'}</td>
+        <td style="font-size:12px;color:var(--muted);max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(h.commentaire||'')}">${escapeHtml((h.commentaire||'').substring(0,60))}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+// ════════ BATCH CLÔTURE (client-side séquentiel) ════════
+let CL_BATCH_RUNNING = false;
+let CL_BATCH_STOP = false;
+
+function clBatchParseList(){
+  const raw = ($('cl-batch-list').value || '').trim();
+  if(!raw) return [];
+  const parts = raw.split(/[\s,;]+/).map(s => s.trim()).filter(Boolean);
+  const seen = new Set();
+  const out = [];
+  for(const p of parts){
+    if(!/^\d+$/.test(p)) continue;
+    if(seen.has(p)) continue;
+    seen.add(p);
+    out.push(p);
+  }
+  return out;
+}
+
+function clBatchSetStatus(txt, color='var(--muted)'){
+  const el = $('cl-batch-status');
+  if(!el) return;
+  el.style.color = color;
+  el.textContent = txt;
+}
+
+function clBatchAddRow(idx, num, res, elapsed_s, isDry){
+  const tb = $('cl-batch-tbody');
+  const ok = !!res.ok;
+  const initial = res.etat_initial || '—';
+  const finalE = res.final_etat || (isDry ? '(dry-run)' : '—');
+  const status = ok
+    ? (isDry ? '<span style="color:var(--accent);font-size:11px">✓ dry OK</span>'
+             : '<span style="background:rgba(34,197,94,.15);color:var(--green);padding:2px 8px;border-radius:4px;font-size:11px">✓ Cloturee</span>')
+    : '<span style="background:rgba(239,68,68,.15);color:var(--red);padding:2px 8px;border-radius:4px;font-size:11px">✗ KO</span>';
+  const detail = ok ? '' : escapeHtml((res.error||'').substring(0,140));
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td class="num-dim" style="font-size:11px">${idx}</td>
+    <td><b>${escapeHtml(String(num))}</b></td>
+    <td><span class="num-dim" style="font-size:11px">${escapeHtml(String(initial))}</span></td>
+    <td>${escapeHtml(String(finalE))}</td>
+    <td class="num-dim" style="font-size:11px">${elapsed_s}s</td>
+    <td>${status}</td>
+    <td style="font-size:11px;color:var(--red);max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${detail}">${detail}</td>
+  `;
+  tb.appendChild(tr);
+}
+
+async function clBatchRun(isDry){
+  if(CL_BATCH_RUNNING){
+    clBatchSetStatus('Batch déjà en cours', 'var(--orange)');
+    return;
+  }
+  const list = clBatchParseList();
+  if(!list.length){
+    clBatchSetStatus('Aucun numéro DIT valide', 'var(--red)');
+    return;
+  }
+  if(!isDry){
+    if(!confirm(`⚠ Confirmer la clôture RÉELLE de ${list.length} DIT ?\n\n${list.slice(0,10).join(', ')}${list.length>10 ? ' …' : ''}\n\nforce_finalize = ${$('cl-force-finalize').checked ? 'OUI' : 'non'}\nL'historique persistant trace chaque DIT.`)){
+      return;
+    }
+  }
+
+  CL_BATCH_RUNNING = true;
+  CL_BATCH_STOP = false;
+  $('cl-batch-stop').disabled = false;
+  $('cl-batch-stop').style.opacity = '1';
+  $('cl-batch-progress-wrap').style.display = 'block';
+  $('cl-batch-results-wrap').style.display = 'block';
+  $('cl-batch-tbody').innerHTML = '';
+  $('cl-batch-bar').style.width = '0%';
+
+  const force = $('cl-force-finalize').checked;
+  const cmt = ($('cl-commentaire').value||'').trim();
+  const body = { force_finalize: force };
+  if(cmt) body.commentaire = cmt;
+
+  let nbOk = 0, nbKo = 0;
+  for(let i = 0; i < list.length; i++){
+    if(CL_BATCH_STOP){
+      clBatchSetStatus(`⏹ Arrêté à ${i}/${list.length} — ${nbOk} OK, ${nbKo} KO`, 'var(--orange)');
+      break;
+    }
+    const num = list[i];
+    clBatchSetStatus(`⏳ ${i+1}/${list.length} : DIT ${num}…`, 'var(--accent)');
+    const tStart = Date.now();
+    let res;
+    try {
+      const r = await fetch(`/api/dit/${num}/cloturer-dit?dry=${isDry?1:0}`, {
+        method: 'PATCH',
+        headers: {'content-type': 'application/json'},
+        body: JSON.stringify(body),
+      });
+      res = await _safeJson(r);
+    } catch(e){
+      res = {ok:false, error: e.message};
+    }
+    const elapsed = ((Date.now() - tStart)/1000).toFixed(1);
+    if(res.ok) nbOk++; else nbKo++;
+    clBatchAddRow(i+1, num, res, elapsed, isDry);
+    const pct = Math.round((i+1) * 100 / list.length);
+    $('cl-batch-bar').style.width = pct + '%';
+    $('cl-batch-pct').textContent = `${i+1}/${list.length} traitées · ${nbOk} OK · ${nbKo} KO`;
+  }
+
+  CL_BATCH_RUNNING = false;
+  $('cl-batch-stop').disabled = true;
+  $('cl-batch-stop').style.opacity = '.5';
+  if(!CL_BATCH_STOP){
+    const msg = isDry
+      ? `🔍 Dry-run terminé : ${nbOk} OK · ${nbKo} KO`
+      : `✓ Batch terminé : ${nbOk} OK · ${nbKo} KO`;
+    clBatchSetStatus(msg, nbKo === 0 ? 'var(--green)' : 'var(--orange)');
+  }
+  if(!isDry) clLoadHistoryPersist();
+}
+
+function clBatchStop(){
+  if(!CL_BATCH_RUNNING) return;
+  CL_BATCH_STOP = true;
+  clBatchSetStatus('⏹ Arrêt demandé après la DIT en cours…', 'var(--orange)');
+}
+
+// Charger l'historique persistant + peupler les suggestions quand on ouvre l'onglet
+const _origShowTab = window.showTab;
+window.showTab = function(name, el){
+  _origShowTab(name, el);
+  if(name === 'nonfact'){
+    nfLoadHistoryPersist();
+    nfPopulateSuggestions();
+  }
+  if(name === 'cloturer'){
+    clLoadHistoryPersist();
+    clPopulateSuggestions();
+  }
+};
+
+document.addEventListener('DOMContentLoaded', charger);
+</script>
+</body>
+</html>

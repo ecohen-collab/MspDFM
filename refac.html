@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Refacturation Organisations — DFM</title>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<style>
+:root{
+  --bg:#0f1117; --surface:#1a1d27; --surface2:#22263a;
+  --border:#2a2f3e; --border2:#363b4e;
+  --text:#e8eaed; --muted:#888a96; --accent:#4f7cff;
+  --green:#22c55e; --orange:#f59e0b; --red:#ef4444;
+  --font:'Inter','Segoe UI',system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;}
+header{padding:1rem 2rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:1rem;}
+.brand{font-size:14px;font-weight:600;}
+.brand-sub{font-size:11px;color:var(--muted);}
+.btn-back{margin-left:auto;background:var(--surface2);border:1px solid var(--border2);color:var(--text);border-radius:8px;padding:6px 12px;font-size:11px;text-decoration:none;}
+.btn-back:hover{border-color:var(--accent);}
+main{padding:2rem;max-width:1300px;margin:0 auto;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.5rem;margin-bottom:1.5rem;}
+.card-header{display:flex;align-items:center;gap:.8rem;margin-bottom:1.2rem;}
+.card-icon{width:36px;height:36px;border-radius:10px;background:rgba(34,197,94,.15);display:flex;align-items:center;justify-content:center;font-size:18px;}
+.card-title{font-size:16px;font-weight:600;}
+.card-sub{font-size:11px;color:var(--muted);}
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem;margin-bottom:1.5rem;}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1rem 1.2rem;}
+.kpi-label{font-size:10px;text-transform:uppercase;color:var(--muted);letter-spacing:.5px;margin-bottom:.4rem;}
+.kpi-value{font-size:22px;font-weight:600;}
+.kpi-sub{font-size:11px;color:var(--muted);margin-top:.2rem;}
+table{width:100%;border-collapse:collapse;font-size:12px;}
+th,td{padding:.7rem .8rem;text-align:left;border-bottom:1px solid var(--border);}
+th{background:var(--surface2);color:var(--muted);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.5px;}
+.num{text-align:right;font-variant-numeric:tabular-nums;}
+.num-dim{color:var(--muted);}
+.row-clickable{cursor:pointer;transition:background .1s;}
+.row-clickable:hover{background:rgba(79,124,255,.08);}
+tr.row-total{background:var(--surface2);font-weight:600;}
+tr.row-total td{border-top:2px solid var(--border2);}
+.tabs{display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:1.2rem;border-bottom:1px solid var(--border);padding-bottom:.6rem;}
+.tab-btn{background:var(--surface2);border:1px solid var(--border2);color:var(--muted);border-radius:8px;padding:.5rem 1rem;font-size:12px;font-family:inherit;cursor:pointer;transition:all .15s;}
+.tab-btn:hover{color:var(--text);border-color:var(--accent);}
+.tab-btn.active{background:rgba(79,124,255,.15);border-color:var(--accent);color:var(--accent);font-weight:600;}
+.tab-content{display:none;}
+.tab-content.active{display:block;}
+.tab-badge{display:inline-block;background:var(--surface);border-radius:5px;padding:1px 6px;font-size:10px;margin-left:.4rem;color:var(--muted);}
+.tab-btn.active .tab-badge{color:var(--accent);}
+.svc-badge-cycle{display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:500;background:var(--surface2);color:var(--muted);}
+.svc-badge-cycle.cycle-monthly{background:rgba(34,197,94,.15);color:#86efac;}
+.svc-badge-cycle.cycle-annual{background:rgba(245,158,11,.15);color:#fcd34d;}
+.svc-badge-cycle.cycle-one_time{background:rgba(239,68,68,.15);color:#fca5a5;}
+.toolbar{display:flex;gap:.6rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap;}
+.toolbar input,.toolbar select{background:var(--surface2);border:1px solid var(--border2);color:var(--text);border-radius:8px;padding:.5rem .8rem;font-size:12px;font-family:inherit;}
+.toolbar input{flex:1;min-width:200px;}
+.toolbar select{min-width:180px;}
+.toolbar input:focus,.toolbar select:focus{outline:none;border-color:var(--accent);}
+.btn-export{background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.4);color:var(--green);border-radius:8px;padding:6px 12px;font-size:11px;font-family:inherit;font-weight:500;cursor:pointer;transition:all .15s;margin-left:auto;}
+.btn-export:hover{background:rgba(34,197,94,.22);}
+.no-data{text-align:center;padding:3rem;color:var(--muted);font-size:12px;}
+.admin-only{display:none;}
+body.is-admin .admin-only{display:revert;}
+.user-badge{font-size:11px;color:var(--muted);padding:4px 10px;background:var(--surface2);border-radius:6px;margin-right:.4rem;}
+.user-badge.admin{background:rgba(245,158,11,.15);color:#fcd34d;font-weight:600;}
+.banner-info{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);color:#fcd34d;padding:.8rem 1rem;border-radius:8px;font-size:12px;margin-bottom:1.2rem;}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:flex-start;justify-content:center;z-index:1000;padding:3rem 1rem;overflow-y:auto;}
+.modal-overlay.show{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:14px;width:min(1100px,100%);max-height:85vh;overflow:hidden;display:flex;flex-direction:column;}
+.modal-header{padding:1rem 1.2rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:1rem;}
+.modal-title{font-size:14px;font-weight:600;flex:1;}
+.modal-sub{font-size:11px;color:var(--muted);}
+.modal-close{background:transparent;border:1px solid var(--border2);color:var(--text);border-radius:8px;width:30px;height:30px;font-size:14px;cursor:pointer;}
+.modal-close:hover{border-color:var(--accent);}
+.modal-body{padding:1rem 1.2rem;overflow-y:auto;flex:1;}
+.modal-section{margin-bottom:1.5rem;}
+.modal-section-title{font-size:12px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.6rem;}
+</style>
+</head>
+<body>
+  <header>
+    <div>
+      <div class="brand">💰 Refacturation Organisations Internes</div>
+      <div class="brand-sub" id="header-sub">—</div>
+    </div>
+    <span id="user-badge" class="user-badge" style="margin-left:auto">—</span>
+    <span id="snapshot-banner" style="display:none;background:rgba(245,158,11,.15);color:#fcd34d;padding:6px 12px;border-radius:6px;font-size:11px"></span>
+    <button class="btn-back" onclick="creerSnapshot()" title="Sauvegarder un instantané" style="margin-left:.4rem;cursor:pointer">💾 Sauvegarder</button>
+    <a class="btn-back" href="/index.html">← Accueil</a>
+    <a class="btn-back" href="/authelia/logout?rd=https%3A%2F%2F10.127.15.239%2F" title="Se déconnecter" style="margin-left:.4rem">⏻</a>
+  </header>
+
+  <main>
+    <div class="banner-info" id="banner" style="display:none">⚠ <span id="banner-text"></span></div>
+
+    <div class="kpi-row" id="kpi-row"></div>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="recap" onclick="switchTab('recap')">Vue d'ensemble</button>
+      <button class="tab-btn" data-tab="datto"       onclick="switchTab('datto')">DATTO       <span class="tab-badge" id="badge-datto">—</span></button>
+      <button class="tab-btn" data-tab="m365"        onclick="switchTab('m365')">M365        <span class="tab-badge" id="badge-m365">—</span></button>
+      <button class="tab-btn" data-tab="sophos"      onclick="switchTab('sophos')">Sophos      <span class="tab-badge" id="badge-sophos">—</span></button>
+      <button class="tab-btn" data-tab="prosave"     onclick="switchTab('prosave')">PROSAVE     <span class="tab-badge" id="badge-prosave">—</span></button>
+      <button class="tab-btn" data-tab="prosave365"  onclick="switchTab('prosave365')">PROSAVE M365 <span class="tab-badge" id="badge-prosave365">—</span></button>
+      <button class="tab-btn" data-tab="vade"        onclick="switchTab('vade')">VADE        <span class="tab-badge" id="badge-vade">—</span></button>
+      <button class="tab-btn" data-tab="sentinelone" onclick="switchTab('sentinelone')">SentinelOne <span class="tab-badge" id="badge-sentinelone">—</span></button>
+      <button class="tab-btn" data-tab="historique"  onclick="switchTab('historique');renderHistorique()">📚 Historique <span class="tab-badge" id="badge-historique">—</span></button>
+    </div>
+
+    <div class="tab-content active" id="tab-recap">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon">📊</div>
+          <div>
+            <div class="card-title">Vue d'ensemble — refacturation par organisation</div>
+            <div class="card-sub" id="recap-sub">—</div>
+          </div>
+          <button class="btn-export" onclick="exportRecap()">⤓ Export Excel</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>Organisation interne</th>
+              <th class="num">DATTO</th>
+              <th class="num">M365</th>
+              <th class="num">Sophos</th>
+              <th class="num">PROSAVE</th>
+              <th class="num">PROSAVE M365</th>
+              <th class="num">VADE</th>
+              <th class="num">SentinelOne</th>
+              <th class="num">TOTAL</th>
+            </tr></thead>
+            <tbody id="tbody-recap"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-datto">      <div class="card"><div class="card-header"><div class="card-icon">💻</div><div><div class="card-title">DATTO — détail par client</div><div class="card-sub" id="sub-datto">—</div></div><button class="btn-export" onclick="exportService('datto')">⤓ Export Excel</button></div><div class="toolbar"><input type="text" placeholder="Rechercher client…" oninput="filterService('datto')" id="filter-text-datto"><select onchange="filterService('datto')" id="filter-org-datto"><option value="">Toutes les orgs</option></select></div><div class="table-wrap"><table id="table-datto"></table></div></div></div>
+    <div class="tab-content" id="tab-m365">       <div class="card"><div class="card-header"><div class="card-icon">📧</div><div><div class="card-title">M365 — détail par subscription</div><div class="card-sub" id="sub-m365">—</div></div><button class="btn-export" onclick="exportService('m365')">⤓ Export Excel</button></div><div class="toolbar"><input type="text" placeholder="Rechercher client / subscription…" oninput="filterService('m365')" id="filter-text-m365"><select onchange="filterService('m365')" id="filter-org-m365"><option value="">Toutes les orgs</option></select></div><div class="table-wrap"><table id="table-m365"></table></div></div></div>
+    <div class="tab-content" id="tab-sophos">     <div class="card"><div class="card-header"><div class="card-icon">🛡️</div><div><div class="card-title">Sophos — détail par tenant</div><div class="card-sub" id="sub-sophos">—</div></div><button class="btn-export" onclick="exportService('sophos')">⤓ Export Excel</button></div><div class="toolbar"><input type="text" placeholder="Rechercher client…" oninput="filterService('sophos')" id="filter-text-sophos"><select onchange="filterService('sophos')" id="filter-org-sophos"><option value="">Toutes les orgs</option></select></div><div class="table-wrap"><table id="table-sophos"></table></div></div></div>
+    <div class="tab-content" id="tab-prosave">    <div class="card"><div class="card-header"><div class="card-icon">💾</div><div><div class="card-title">PROSAVE (VEEAM TB) — détail par client</div><div class="card-sub" id="sub-prosave">—</div></div><button class="btn-export" onclick="exportService('prosave')">⤓ Export Excel</button></div><div class="toolbar"><input type="text" placeholder="Rechercher client…" oninput="filterService('prosave')" id="filter-text-prosave"><select onchange="filterService('prosave')" id="filter-org-prosave"><option value="">Toutes les orgs</option></select></div><div class="table-wrap"><table id="table-prosave"></table></div></div></div>
+    <div class="tab-content" id="tab-prosave365"> <div class="card"><div class="card-header"><div class="card-icon">📦</div><div><div class="card-title">PROSAVE M365 — détail par client</div><div class="card-sub" id="sub-prosave365">—</div></div><button class="btn-export" onclick="exportService('prosave365')">⤓ Export Excel</button></div><div class="toolbar"><input type="text" placeholder="Rechercher client…" oninput="filterService('prosave365')" id="filter-text-prosave365"><select onchange="filterService('prosave365')" id="filter-org-prosave365"><option value="">Toutes les orgs</option></select></div><div class="table-wrap"><table id="table-prosave365"></table></div></div></div>
+    <div class="tab-content" id="tab-vade">       <div class="card"><div class="card-header"><div class="card-icon">📮</div><div><div class="card-title">VADE — détail</div><div class="card-sub" id="sub-vade">—</div></div><button class="btn-export" onclick="exportService('vade')">⤓ Export Excel</button></div><div class="toolbar"><input type="text" placeholder="Rechercher client…" oninput="filterService('vade')" id="filter-text-vade"><select onchange="filterService('vade')" id="filter-org-vade"><option value="">Toutes les orgs</option></select></div><div class="table-wrap"><table id="table-vade"></table></div></div></div>
+    <div class="tab-content" id="tab-sentinelone"><div class="card"><div class="card-header"><div class="card-icon">🔒</div><div><div class="card-title">SentinelOne — détail par client</div><div class="card-sub" id="sub-sentinelone">—</div></div><button class="btn-export" onclick="exportService('sentinelone')">⤓ Export Excel</button></div><div class="toolbar"><input type="text" placeholder="Rechercher client…" oninput="filterService('sentinelone')" id="filter-text-sentinelone"><select onchange="filterService('sentinelone')" id="filter-org-sentinelone"><option value="">Toutes les orgs</option></select></div><div class="table-wrap"><table id="table-sentinelone"></table></div></div></div>
+    <div class="tab-content" id="tab-historique"><div class="card"><div class="card-header"><div class="card-icon">📚</div><div><div class="card-title">Historique des sauvegardes</div><div class="card-sub">Snapshots groupés par mois — clic pour charger, ✕ pour supprimer</div></div></div><div id="historique-content"></div></div></div>
+  </main>
+
+  <div class="modal-overlay" id="modal-overlay" onclick="if(event.target.id==='modal-overlay')closeModal()">
+    <div class="modal">
+      <div class="modal-header">
+        <div>
+          <div class="modal-title" id="modal-title">—</div>
+          <div class="modal-sub" id="modal-sub">—</div>
+        </div>
+        <button class="modal-close" onclick="closeModal()">×</button>
+      </div>
+      <div class="modal-body" id="modal-body"></div>
+    </div>
+  </div>
+
+<script>
+let DATA = null;
+let CURRENT_USER = { user: null, role: null, is_admin: false };
+const fmtEur = v => (v||0).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' €';
+
+async function detecterUser(){
+  try {
+    const r = await fetch('/api/whoami');
+    if(!r.ok) return;
+    CURRENT_USER = await r.json();
+    document.body.classList.toggle('is-admin', !!CURRENT_USER.is_admin);
+    const b = document.getElementById('user-badge');
+    if(b){
+      b.textContent = (CURRENT_USER.user || '?') + (CURRENT_USER.is_admin ? ' · admin' : '');
+      b.classList.toggle('admin', !!CURRENT_USER.is_admin);
+    }
+  } catch(_){}
+}
+
+let currentSnapshot = null;
+
+async function charger(url){
+  try{
+    const fetchUrl = (typeof url === 'string' && url) ? url : ('refac_data.json?t=' + Date.now());
+    const r = await fetch(fetchUrl);
+    if(!r.ok) throw new Error('refac_data.json introuvable');
+    DATA = await r.json();
+    document.getElementById('header-sub').textContent = `Mois ${DATA.mois || '—'} · MAJ ${DATA.updated_at_display || '—'}`;
+    updateSnapshotBanner();
+    renderKpis();
+    renderRecap();
+    renderServiceTabs();
+    rafraichirBadgeHistorique();
+  } catch(e){
+    document.getElementById('banner').style.display='block';
+    document.getElementById('banner-text').textContent =
+      `Données refac pas encore générées (${e.message}). Le calcul sera disponible quand le 2e dashboard sera branché.`;
+    document.getElementById('tbody-recap').innerHTML = '<tr><td colspan="9" class="no-data">Aucune donnée pour le moment</td></tr>';
+  }
+}
+
+function updateSnapshotBanner(){
+  const b = document.getElementById('snapshot-banner');
+  if(currentSnapshot){
+    const d = new Date(currentSnapshot.mtime*1000);
+    b.innerHTML = `📸 Snapshot du ${d.toLocaleString('fr-FR')} <a href="#" onclick="event.preventDefault();sortirSnapshot()" style="color:inherit;text-decoration:underline;margin-left:6px">retour live</a>`;
+    b.style.display = '';
+  } else { b.style.display = 'none'; }
+}
+function sortirSnapshot(){ currentSnapshot = null; charger(); }
+
+async function creerSnapshot(){
+  if(currentSnapshot){ alert("Tu visualises déjà un snapshot, retourne en mode live d'abord"); return; }
+  if(!confirm("Créer un snapshot des données refac actuelles ?")) return;
+  try {
+    const r = await fetch('/api/snapshot/refac', {method:'POST'});
+    const j = await r.json();
+    if(!r.ok){ alert('Erreur : ' + (j.error||r.status)); return; }
+    alert('Snapshot créé : ' + j.id);
+    if(document.getElementById('tab-historique').classList.contains('active')) renderHistorique();
+    rafraichirBadgeHistorique();
+  } catch(e){ alert('Erreur : ' + e.message); }
+}
+
+async function chargerSnapshot(id, mtime){
+  currentSnapshot = { id, mtime };
+  await charger('snapshots/refac/' + id + '.json?t=' + Date.now());
+  switchTab('recap');
+}
+
+async function supprimerSnapshot(id, ev){
+  if(ev) ev.stopPropagation();
+  if(!confirm('Supprimer le snapshot ' + id + ' ?')) return;
+  try {
+    const r = await fetch('/api/snapshot/refac/' + id, {method:'DELETE'});
+    const j = await r.json();
+    if(!r.ok){ alert('Erreur : ' + (j.error||r.status)); return; }
+    renderHistorique();
+    rafraichirBadgeHistorique();
+  } catch(e){ alert('Erreur : ' + e.message); }
+}
+
+async function rafraichirBadgeHistorique(){
+  try {
+    const r = await fetch('/api/snapshots/refac?t=' + Date.now());
+    if(!r.ok) return;
+    const j = await r.json();
+    document.getElementById('badge-historique').textContent = (j.snapshots||[]).length;
+  } catch(_){}
+}
+
+async function renderHistorique(){
+  const cont = document.getElementById('historique-content');
+  cont.innerHTML = '<div class="no-data">Chargement...</div>';
+  try {
+    const r = await fetch('/api/snapshots/refac?t=' + Date.now());
+    const j = await r.json();
+    const snaps = j.snapshots || [];
+    document.getElementById('badge-historique').textContent = snaps.length;
+    if(!snaps.length){ cont.innerHTML = '<div class="no-data">Aucun snapshot — clique sur 💾 Sauvegarder en haut à droite</div>'; return; }
+    const byMonth = {};
+    snaps.forEach(s => {
+      const d = new Date(s.mtime*1000);
+      const k = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+      const lbl = d.toLocaleDateString('fr-FR', {year:'numeric', month:'long'});
+      (byMonth[k] = byMonth[k] || {label:lbl, items:[]}).items.push(s);
+    });
+    cont.innerHTML = Object.keys(byMonth).sort().reverse().map(k => {
+      const m = byMonth[k];
+      return `<div style="margin-bottom:1.5rem">
+        <div class="modal-section-title" style="margin-bottom:.5rem;text-transform:capitalize">${esc(m.label)} — ${m.items.length} sauvegarde${m.items.length>1?'s':''}</div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Date</th><th>ID</th><th class="num">Taille</th><th></th></tr></thead>
+          <tbody>${m.items.map(s => {
+            const d = new Date(s.mtime*1000);
+            const sizeKB = Math.round(s.size/1024);
+            return `<tr class="row-clickable" onclick="chargerSnapshot('${esc(s.id)}',${s.mtime})">
+              <td>${d.toLocaleString('fr-FR')}</td>
+              <td>${esc(s.id)}</td>
+              <td class="num num-dim">${sizeKB.toLocaleString('fr-FR')} Ko</td>
+              <td style="text-align:right"><button class="btn-back" style="cursor:pointer;padding:4px 10px;font-size:11px" onclick="supprimerSnapshot('${esc(s.id)}',event)">✕</button></td>
+            </tr>`;
+          }).join('')}</tbody>
+        </table></div>
+      </div>`;
+    }).join('');
+  } catch(e){
+    cont.innerHTML = '<div class="banner-info" style="display:block">Erreur : ' + esc(e.message) + ' — le serveur a-t-il été redémarré ?</div>';
+  }
+}
+
+function renderKpis(){
+  const t = DATA.totaux || {};
+  const items = [
+    ['Total mensuel à refacturer', fmtEur(t.total||0), `${(DATA.entites||[]).length} organisations`],
+    ['Total DATTO', fmtEur(t.datto||0), ''],
+    ['Total M365', fmtEur(t.m365||0), ''],
+    ['Total Sophos', fmtEur(t.sophos||0), ''],
+    ['Total VEEAM (PROSAVE)', fmtEur((t.prosave||0)+(t.prosave365||0)), ''],
+  ];
+  document.getElementById('kpi-row').innerHTML = items.map(([l,v,s])=>
+    `<div class="kpi"><div class="kpi-label">${l}</div><div class="kpi-value">${v}</div>${s?`<div class="kpi-sub">${s}</div>`:''}</div>`).join('');
+}
+
+function renderRecap(){
+  const ents = DATA.entites || [];
+  const t = DATA.totaux || {};
+  document.getElementById('recap-sub').textContent = `${ents.length} organisations · clic sur une ligne pour le détail`;
+  const fmtCell = v => v > 0 ? `<td class="num">${fmtEur(v)}</td>` : `<td class="num num-dim">—</td>`;
+  const rowsHtml = ents.map((e,i)=>`<tr class="row-clickable" onclick="renderEntiteModal(${i})">
+    <td><strong>${esc(e.nom)}</strong></td>
+    ${fmtCell(e.datto||0)}
+    ${fmtCell(e.m365||0)}
+    ${fmtCell(e.sophos||0)}
+    ${fmtCell(e.prosave||0)}
+    ${fmtCell(e.prosave365||0)}
+    ${fmtCell(e.vade||0)}
+    ${fmtCell(e.sentinelone||0)}
+    <td class="num"><strong>${fmtEur(e.total||0)}</strong></td>
+  </tr>`).join('');
+  const totalRow = `<tr class="row-total">
+    <td>TOTAL</td>
+    <td class="num">${fmtEur(t.datto||0)}</td>
+    <td class="num">${fmtEur(t.m365||0)}</td>
+    <td class="num">${fmtEur(t.sophos||0)}</td>
+    <td class="num">${fmtEur(t.prosave||0)}</td>
+    <td class="num">${fmtEur(t.prosave365||0)}</td>
+    <td class="num">${fmtEur(t.vade||0)}</td>
+    <td class="num">${fmtEur(t.sentinelone||0)}</td>
+    <td class="num">${fmtEur(t.total||0)}</td>
+  </tr>`;
+  document.getElementById('tbody-recap').innerHTML = rowsHtml + totalRow;
+}
+
+function renderEntiteModal(idx){
+  const e = (DATA.entites||[])[idx];
+  if(!e) return;
+  document.getElementById('modal-title').textContent = e.nom;
+  document.getElementById('modal-sub').textContent = `Total ${fmtEur(e.total||0)} · ${e.nb_clients||0} clients`;
+  const services = [
+    ['DATTO', e.datto, e.detail_datto],
+    ['M365', e.m365, e.detail_m365],
+    ['Sophos', e.sophos, e.detail_sophos],
+    ['PROSAVE (VEEAM)', e.prosave, e.detail_prosave],
+    ['PROSAVE M365', e.prosave365, e.detail_prosave365],
+    ['VADE', e.vade, e.detail_vade],
+    ['SentinelOne', e.sentinelone, e.detail_sentinelone],
+  ].filter(([_,total])=>(total||0)>0);
+  const sectionsHtml = services.map(([label,total,details])=>{
+    const lines = (details||[]).map(d=>`<tr><td>${esc(d.client||'-')}</td><td class="num">${d.qty||0}</td><td class="num">${fmtEur(d.prix||0)}</td></tr>`).join('');
+    return `<div class="modal-section">
+      <div class="modal-section-title">${label} — ${fmtEur(total||0)}</div>
+      ${lines ? `<table><thead><tr><th>Client</th><th class="num">Qté</th><th class="num">Prix</th></tr></thead><tbody>${lines}</tbody></table>` : '<div class="no-data">Détail non disponible</div>'}
+    </div>`;
+  }).join('');
+  document.getElementById('modal-body').innerHTML = sectionsHtml || '<div class="no-data">Aucun service facturable pour cette entité</div>';
+  document.getElementById('modal-overlay').classList.add('show');
+}
+
+function closeModal(){ document.getElementById('modal-overlay').classList.remove('show'); }
+document.addEventListener('keydown', e=>{if(e.key==='Escape')closeModal();});
+
+function switchTab(tab){
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.toggle('active', c.id === 'tab-' + tab));
+}
+
+function renderServiceTabs(){
+  const lps = DATA.lignes_par_service || {};
+  const totaux = DATA.totaux || {};
+  for (const svc of ['datto','m365','sophos','prosave','prosave365','vade','sentinelone']) {
+    const rows = lps[svc] || [];
+    const badge = document.getElementById('badge-' + svc);
+    if (badge) badge.textContent = rows.length;
+    // Populate org select
+    const sel = document.getElementById('filter-org-' + svc);
+    if (sel) {
+      const orgs = [...new Set(rows.map(r => r.org).filter(Boolean))].sort();
+      sel.innerHTML = '<option value="">Toutes les orgs</option>' + orgs.map(o => `<option>${esc(o)}</option>`).join('');
+    }
+    filterService(svc); // initial render
+  }
+}
+
+function _filteredRows(svc) {
+  const rows = (DATA.lignes_par_service || {})[svc] || [];
+  const q = (document.getElementById('filter-text-' + svc)?.value || '').toLowerCase().trim();
+  const org = document.getElementById('filter-org-' + svc)?.value || '';
+  return rows.filter(r => {
+    if (org && r.org !== org) return false;
+    if (q) {
+      const hay = ((r.client||'') + ' ' + (r.subscription||'') + ' ' + (r.org||'')).toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+function filterService(svc) {
+  const rows = _filteredRows(svc);
+  const totaux = DATA.totaux || {};
+  const totalAll = totaux[svc] || 0;
+  const totalShown = rows.reduce((s, r) => s + (Number(r.prix)||0), 0);
+  const sub = document.getElementById('sub-' + svc);
+  if (sub) {
+    sub.textContent = totalShown === totalAll
+      ? `${rows.length} lignes · total ${fmtEur(totalAll)}`
+      : `${rows.length} lignes affichées · ${fmtEur(totalShown)} (sur ${fmtEur(totalAll)})`;
+  }
+  renderServiceTable(svc, rows);
+}
+
+function renderServiceTable(svc, rows){
+  const tbl = document.getElementById('table-' + svc);
+  if (!tbl) return;
+  if (!rows.length){ tbl.innerHTML = '<tr><td class="no-data">Aucune ligne</td></tr>'; return; }
+
+  const cycleBadge = c => {
+    if (!c) return '';
+    const cls = ['monthly','annual','one_time'].includes(c.toLowerCase()) ? 'cycle-' + c.toLowerCase() : '';
+    return `<span class="svc-badge-cycle ${cls}">${esc(c)}</span>`;
+  };
+
+  if (svc === 'm365') {
+    tbl.innerHTML = `<thead><tr>
+      <th>Org</th><th>Client</th><th>Subscription</th>
+      <th class="num">Licences</th><th>Cycle</th><th>Term</th>
+      <th class="num">Customer cost</th><th class="num">Prix mensuel</th>
+    </tr></thead><tbody>${rows.map(r => `<tr>
+      <td>${esc(r.org)}</td>
+      <td>${esc(r.client)}</td>
+      <td>${esc(r.subscription||'')}</td>
+      <td class="num">${r.qty||0}</td>
+      <td>${cycleBadge(r.billing_cycle)}</td>
+      <td class="num-dim">${esc(r.billing_term||'')}</td>
+      <td class="num">${fmtEur(r.customer_cost||0)}</td>
+      <td class="num"><strong>${fmtEur(r.prix||0)}</strong></td>
+    </tr>`).join('')}</tbody>`;
+  } else {
+    const qtyLabel = svc === 'prosave' ? 'TB utilisés' : (svc === 'prosave365' ? 'Orgs' : (svc === 'vade' ? '—' : 'Qté'));
+    tbl.innerHTML = `<thead><tr>
+      <th>Org</th><th>Client</th><th class="num">${qtyLabel}</th><th class="num">Prix mensuel</th>
+    </tr></thead><tbody>${rows.map(r => `<tr>
+      <td>${esc(r.org)}</td>
+      <td>${esc(r.client)}</td>
+      <td class="num">${r.qty||0}</td>
+      <td class="num"><strong>${fmtEur(r.prix||0)}</strong></td>
+    </tr>`).join('')}</tbody>`;
+  }
+}
+
+// ══════════════════════════════════════
+// EXPORT EXCEL
+// ══════════════════════════════════════
+function dateStr(){ return new Date().toISOString().slice(0,10).replace(/-/g,''); }
+
+async function exportService(svc) {
+  if (typeof ExcelJS === 'undefined') { alert('ExcelJS non chargé'); return; }
+  const rows = _filteredRows(svc);
+  if (!rows.length) { alert('Rien à exporter'); return; }
+
+  let headers, dataRows;
+  if (svc === 'm365') {
+    headers = ['Org','Client','Subscription','Licences','Cycle','Term','Customer cost','Prix mensuel'];
+    dataRows = rows.map(r => [r.org, r.client, r.subscription||'', r.qty||0,
+                              r.billing_cycle||'', r.billing_term||'',
+                              Number(r.customer_cost)||0, Number(r.prix)||0]);
+  } else {
+    const qtyLabel = svc === 'prosave' ? 'TB utilisés' : (svc === 'prosave365' ? 'Orgs' : 'Qté');
+    headers = ['Org','Client', qtyLabel,'Prix mensuel'];
+    dataRows = rows.map(r => [r.org, r.client, Number(r.qty)||0, Number(r.prix)||0]);
+  }
+  await writeExcel('Refac_'+svc+'_'+dateStr()+'.xlsx', svc.toUpperCase(), headers, dataRows);
+}
+
+async function exportRecap() {
+  if (typeof ExcelJS === 'undefined') { alert('ExcelJS non chargé'); return; }
+  const ents = DATA.entites || [];
+  if (!ents.length) { alert('Rien à exporter'); return; }
+  const headers = ['Organisation','Clients','DATTO','M365','Sophos','PROSAVE','PROSAVE M365','VADE','SentinelOne','TOTAL'];
+  const rows = ents.map(e => [e.nom, e.nb_clients||0,
+    e.datto||0, e.m365||0, e.sophos||0, e.prosave||0, e.prosave365||0, e.vade||0, e.sentinelone||0, e.total||0]);
+  // Ligne TOTAL
+  const t = DATA.totaux || {};
+  rows.push(['TOTAL', '', t.datto||0, t.m365||0, t.sophos||0, t.prosave||0, t.prosave365||0, t.vade||0, t.sentinelone||0, t.total||0]);
+  await writeExcel('Refac_recap_'+dateStr()+'.xlsx', 'Vue ensemble', headers, rows);
+}
+
+async function writeExcel(filename, sheetName, headers, rows) {
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'Dashboard Console Facturation SSC DFM';
+  wb.created = new Date();
+  const safeName = sheetName.replace(/[\\\/\?\*\[\]:]/g, ' ').slice(0, 31);
+  const ws = wb.addWorksheet(safeName, { views: [{ state: 'frozen', ySplit: 1 }] });
+  const cleanRows = rows.map(r => r.map(v => v === null || v === undefined ? '' : v));
+  ws.addTable({
+    name: 'T' + Math.floor(Math.random()*100000),
+    ref:  'A1', headerRow: true, totalsRow: false,
+    style: { theme: 'TableStyleMedium2', showRowStripes: true },
+    columns: headers.map(h => ({ name: String(h), filterButton: true })),
+    rows: cleanRows,
+  });
+  // Largeur auto
+  headers.forEach((h, i) => {
+    let max = String(h || '').length;
+    for (const r of cleanRows) {
+      const v = r[i] === '' ? '' : String(r[i]);
+      if (v.length > max) max = v.length;
+    }
+    ws.getColumn(i + 1).width = Math.min(55, Math.max(11, max + 3));
+  });
+  ws.getRow(1).height = 24;
+  // Format € sur colonnes "prix"
+  const eurCols = headers.map((h,i) => /prix|cost|total|datto|m365|sophos|prosave|vade|sentinel/i.test(String(h)) ? i+1 : null).filter(Boolean);
+  for (const c of eurCols) {
+    ws.getColumn(c).numFmt = '#,##0.00 [$€-fr-FR]';
+  }
+  const buf = await wb.xlsx.writeBuffer();
+  const url = URL.createObjectURL(new Blob([buf], { type: 'application/octet-stream' }));
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+window.addEventListener('DOMContentLoaded', async () => {
+  await detecterUser();
+  charger();
+});
+</script>
+</body>
+</html>

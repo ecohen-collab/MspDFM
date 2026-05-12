@@ -1,0 +1,22 @@
+# docker-compose.override.yml — DEV LOCAL UNIQUEMENT
+#
+# Auto-chargé par `docker compose up` en local. Permet le live-edit du code source
+# (volume mount) + DEV_MODE=1 (fake admin pour bypasser Easy Auth localement) +
+# /data sur le dossier hôte plutôt qu'un volume Docker, pour pouvoir inspecter
+# les fichiers générés (msp_data.json, snapshots, etc.) directement.
+#
+# Ce fichier ne doit PAS être copié dans l'image Docker ni utilisé en prod.
+
+services:
+  dashboard:
+    # Override : volume mount du code source pour live-edit
+    volumes:
+      - .:/app
+      - ./data:/data        # données runtime visibles dans ./data/ sur l'hôte
+
+    environment:
+      - DEV_MODE=1          # injecte un fake principal admin si pas de header Easy Auth
+      - DATA_DIR=/data
+
+    # En dev on tourne avec l'UID de l'utilisateur courant pour éviter chown root
+    user: "1000:1000"
