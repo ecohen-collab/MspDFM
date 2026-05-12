@@ -182,6 +182,10 @@ body.is-admin .admin-only{display:revert;}
       <div class="logo-sub">Facturation Artis × services déployés</div>
     </div>
   </div>
+  <div id="maj-progress" class="maj-progress" style="display:none">
+    <div class="maj-bar"><div class="maj-bar-fill"></div></div>
+    <span class="maj-phase">…</span>
+  </div>
   <div class="header-right">
     <span id="user-badge" class="user-badge">—</span>
     <span id="last-update">—</span>
@@ -191,6 +195,13 @@ body.is-admin .admin-only{display:revert;}
     <a class="btn" href="/authelia/logout?rd=https%3A%2F%2F10.127.15.239%2F" title="Se déconnecter">⏻</a>
   </div>
 </header>
+<style>
+.maj-progress{flex:1;display:flex;align-items:center;gap:12px;margin:0 24px;max-width:480px;}
+.maj-bar{flex:1;height:4px;background:var(--surface2);border-radius:2px;overflow:hidden;position:relative;}
+.maj-bar-fill{position:absolute;top:0;left:-30%;width:30%;height:100%;background:linear-gradient(90deg,transparent,var(--blue,#38bdf8),transparent);animation:maj-slide 1.4s ease-in-out infinite;}
+@keyframes maj-slide{0%{left:-30%;}100%{left:100%;}}
+.maj-phase{font-size:12px;color:var(--muted);white-space:nowrap;font-family:var(--mono,monospace);}
+</style>
 
 <nav class="tabs">
   <div class="tab active" onclick="showTab('recon',this)">Vue globale <span class="tab-badge" id="badge-total">—</span></div>
@@ -2036,5 +2047,27 @@ window.addEventListener('DOMContentLoaded', async () => {
     <div class="modal-body" id="modal-body"></div>
   </div>
 </div>
+<script>
+(function(){
+  const el = document.getElementById('maj-progress');
+  if (!el) return;
+  const phaseEl = el.querySelector('.maj-phase');
+  async function poll(){
+    try{
+      const r = await fetch('/api/maj/status', {cache:'no-store'});
+      if(!r.ok) return;
+      const s = await r.json();
+      if (s.in_progress){
+        el.style.display = 'flex';
+        phaseEl.textContent = s.phase || '…';
+      } else {
+        el.style.display = 'none';
+      }
+    }catch(e){}
+  }
+  poll();
+  setInterval(poll, 4000);
+})();
+</script>
 </body>
 </html>

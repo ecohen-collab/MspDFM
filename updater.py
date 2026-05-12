@@ -74,6 +74,13 @@ _logger.propagate = False
 def log(msg):
     _logger.info(msg)
 
+# ── État du cycle MAJ exposé via /api/maj/status ──────────────────────────────
+_maj_state = {"in_progress": False, "phase": "", "started_at": None, "ended_at": None}
+
+def _phase(msg):
+    _maj_state["phase"] = msg
+    log(f"  › {msg}")
+
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
 def normalize_code(code):
@@ -1048,7 +1055,7 @@ def artis_get_rfc_details(token, clients):
 
     t_start = time.time()
     session = requests.Session()
-    adapter = HTTPAdapter(pool_connections=50, pool_maxsize=50, max_retries=0)
+    adapter = HTTPAdapter(pool_connections=80, pool_maxsize=80, max_retries=0)
     session.mount("http://", adapter)
     session.mount("https://", adapter)
     session.headers.update(hdr)
@@ -1130,7 +1137,7 @@ def artis_get_rfc_details(token, clients):
         return []
 
     msc_triples = []
-    with ThreadPoolExecutor(max_workers=30) as ex:
+    with ThreadPoolExecutor(max_workers=80) as ex:
         futs = [ex.submit(fetch_msc, cc) for cc in contrat_client]
         for f in as_completed(futs):
             msc_triples.extend(f.result())
@@ -1152,7 +1159,7 @@ def artis_get_rfc_details(token, clients):
         return []
 
     rfc_items = []
-    with ThreadPoolExecutor(max_workers=30) as ex:
+    with ThreadPoolExecutor(max_workers=80) as ex:
         futs = [ex.submit(fetch_rfcs, *t) for t in msc_triples]
         for f in as_completed(futs):
             rfc_items.extend(f.result())
@@ -1223,7 +1230,7 @@ def artis_get_rfc_details(token, clients):
             pass
         return contrat_code, rfc_code, client_code, svcs, 0, 0.0
 
-    with ThreadPoolExecutor(max_workers=30) as ex:
+    with ThreadPoolExecutor(max_workers=80) as ex:
         futs = [ex.submit(fetch_detail, *t) for t in need_detail]
         for f in as_completed(futs):
             cc, rc, client_code, svcs, qty, prix_u = f.result()
@@ -2682,6 +2689,10 @@ def mise_a_jour(with_rfc=True, rfc_source="api"):
     rfc_source : "api" = scan complet RFC API Artis (~10-15 min) — seule source supportée
                  (le mode "excel" a été retiré le 2026-05-07 sur demande user)
     """
+    _maj_state["in_progress"] = True
+    _maj_state["started_at"]  = datetime.now().isoformat()
+    _maj_state["ended_at"]    = None
+    _maj_state["phase"]       = "Démarrage"
     log("═══ Début mise à jour MSP ═══")
     now     = datetime.now()
     payload = {
@@ -2702,7 +2713,7 @@ def mise_a_jour(with_rfc=True, rfc_source="api"):
     artis_affaires = {}
     chefs_projet = {}
     try:
-        log("  › Artis — clients...")
+        _phase("Artis — clients")
         token         = artis_get_token()
         artis_clients, artis_full_mapping = artis_get_clients(token)
         payload["sources"]["artis"] = {"count": len(artis_clients), "status": "ok",
@@ -2710,7 +2721,7 @@ def mise_a_jour(with_rfc=True, rfc_source="api"):
         log(f"  › Artis OK — {len(artis_clients)} clients CSI + {len(artis_full_mapping)} dans mapping SSC complet")
 
         # DIT (Demandes d'Intervention Technique) — 90 derniers jours
-        log("  › Artis — DIT (90 derniers jours)...")
+        _phase("Artis — DIT (90j)")
         dit_res = artis_get_dit(token, days=90)
         if dit_res.get("error"):
             log(f"  ⚠ DIT: {dit_res['error']}")
@@ -2723,7 +2734,7 @@ def mise_a_jour(with_rfc=True, rfc_source="api"):
             payload["sources"]["dit"] = {"status": "ok", "count": len(artis_dit), "total_received": len(dit_res["dit"])}
 
         # TNP (Temps Non Productif) — 90 derniers jours
-        log("  › Artis — TNP (90 derniers jours)...")
+        _phase("Artis — TNP (90j)")
         np_res = artis_get_non_productif(token, days=90)
         if np_res.get("error"):
             log(f"  ⚠ TNP: {np_res['error']}")
@@ -2735,17 +2746,17 @@ def mise_a_jour(with_rfc=True, rfc_source="api"):
             payload["sources"]["non_productif"] = {"status": "ok", "count": len(artis_np)}
 
         # Affaires (vendeur = commercial, gestionnaire = fallback chef projet)
-        log("  › Artis — affaires (commercial + fallback chef projet)...")
+        _phase("Artis — affaires")
         artis_affaires = artis_get_affaires(token, artis_clients)
         payload["sources"]["affaires"] = {"status": "ok", "count": len(artis_affaires)}
 
         # Chef de projet "réel" via UO INFO-PROJ sur 12 mois
-        log("  › Artis — chef de projet (UO INFO-PROJ, 365j)...")
+        _phase("Artis — chef de projet")
         chefs_projet = artis_get_chefs_projet(token, lookback_days=365)
         payload["sources"]["chef_projet"] = {"status": "ok", "count": len(chefs_projet)}
 
         if with_rfc:
-            log("  › Artis — scan RFC API complet (long)...")
+            _phase("RFC Artis (long, ~10 min)")
             billed, rfc_lines_by_contrat = artis_get_rfc_details(token, artis_clients)
             with_billing = sum(1 for v in billed.values() if any(v.values()))
             log(f"  › RFC OK — {with_billing} clients avec facturation")
@@ -2774,7 +2785,7 @@ def mise_a_jour(with_rfc=True, rfc_source="api"):
         payload["sources"]["artis"] = {"count": 0, "status": "error", "error": str(e)}
 
     # Sources externes en parallèle
-    log("  › Récupération VEEAM / Sophos / VADE / SentinelOne / DATTO / M365...")
+    _phase("Sources externes (VEEAM, Sophos, VADE, S1, Datto, M365)")
     fetchers = {
         "veeam":       veeam_get_data,
         "sophos":      sophos_get_data,
@@ -2817,7 +2828,7 @@ def mise_a_jour(with_rfc=True, rfc_source="api"):
 
     # Cross-reference
     if artis_clients:
-        log("  › Cross-référencement...")
+        _phase("Cross-référencement")
         recon = cross_reference(
             artis_clients,
             billed,
@@ -2876,6 +2887,9 @@ def mise_a_jour(with_rfc=True, rfc_source="api"):
     except Exception as e:
         log(f"  ⚠ Génération refac échouée : {e}")
 
+    _maj_state["in_progress"] = False
+    _maj_state["phase"]       = ""
+    _maj_state["ended_at"]    = datetime.now().isoformat()
     log("═══ Mise à jour terminée ═══\n")
 
 
@@ -3042,6 +3056,9 @@ class SecureHandler(SimpleHTTPRequestHandler):
         # /api/snapshot/<kind>/<id>                DELETE → remove (admin only)
         # /api/it/<numero>/cloturer                PATCH → saisir compte rendu IT (admin, dry-run par défaut via ?dry=1)
         parts = path.strip("/").split("/")
+        # /api/maj/status                          GET → état du cycle MAJ (pour barre de progression UI)
+        if len(parts) == 3 and parts[0] == "api" and parts[1] == "maj" and parts[2] == "status" and method == "GET":
+            return self._send_json(200, _maj_state)
         if len(parts) == 2 and parts[0] == "api" and parts[1] == "whoami" and method == "GET":
             p = self._principal() or {}
             roles = p.get("roles") or []
