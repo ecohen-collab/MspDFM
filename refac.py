@@ -7,7 +7,7 @@ Calcule les montants à refacturer par DFM aux SSC pour chaque service mutualis�
 Étape 2 : DATTO + SentinelOne uniquement.
 """
 
-import json, os
+import json, os, re
 from pathlib import Path
 from datetime import datetime
 from collections import defaultdict
@@ -40,7 +40,20 @@ def _resolve_ssc(code, overrides, full_mapping):
 
 
 def _client_label(code, name):
-    return f'{code} - {name}' if code else (name or '?')
+    """Construit "<code> - <nom>" en évitant la duplication du code/préfixe ville.
+    Ex.: ("30935", "30935 - PEOPLE") → "30935 - PEOPLE"
+         ("17555", "TROYES - 17555 - CABINET") → "17555 - CABINET"
+         ("502", "0502 - A19") → "502 - A19"
+    """
+    if not name:
+        return str(code) if code else '?'
+    if not code:
+        return name.strip()
+    code_str = str(code)
+    # Strip "<short prefix> - " puis "<0-padded code> - " en tête du nom
+    pattern = rf'^(?:[^-]{{0,30}}\s-\s)?0*{re.escape(code_str)}\s*-\s*'
+    cleaned = re.sub(pattern, '', name, count=1).strip()
+    return f'{code_str} - {cleaned}' if cleaned else code_str
 
 
 def generer_refac():
