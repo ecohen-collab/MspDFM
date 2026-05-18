@@ -889,6 +889,7 @@ function cmpCell(real, artis, decimals=0) {
   const delta = real - artis;
   let rColor = 'var(--text)';
   if (artis > 0) rColor = delta < -0.05 ? 'var(--red)' : delta > 0.05 ? 'var(--amber)' : 'var(--green)';
+  else if (real > 0.05) rColor = 'var(--amber)';  // déployé mais non facturé = anomalie
   return `<td class="td-real" style="color:${rColor}"><span class="num">${fmt(real, decimals)}</span></td><td class="td-artis"><span class="num-dim">${artis > 0 ? fmt(artis, decimals) : '—'}</span></td>`;
 }
 
@@ -1064,8 +1065,9 @@ function renderSvcMetrics(containerId, rows, realFn, billedFn) {
 }
 
 function deltaCell(delta, billed, decimals=0) {
-  if (billed === 0) return `<td class="td-delta"><span class="num-dim">—</span></td>`;
   const fmt = v => Math.abs(v).toLocaleString('fr-FR', {minimumFractionDigits:decimals, maximumFractionDigits:decimals});
+  // billed=0 ET delta=0 → vraiment rien, affiche tiret
+  if (billed === 0 && Math.abs(delta) < 0.05) return `<td class="td-delta"><span class="num-dim">—</span></td>`;
   if (Math.abs(delta) < 0.05) return `<td class="td-delta"><span class="delta-zero">0</span></td>`;
   if (delta < 0) return `<td class="td-delta"><span class="delta-neg">−${fmt(-delta)}</span></td>`;
   return `<td class="td-delta"><span class="delta-pos">+${fmt(delta)}</span></td>`;
@@ -1691,6 +1693,12 @@ function vendorStatus(v, r, code){
   const extra = v.extraStatus ? v.extraStatus(r, code) : null;
   if(extra === 'critical') return 'critical';
 
+  // Déployé mais non facturé = anomalie (warning)
+  if(billed === 0 && !v.isBinary){
+    const real = +v.kpi(r) || 0;
+    if(real > 0) return 'warning';
+  }
+
   let hasDelta = false;
   if(billed > 0 && !v.isBinary){
     const real = +v.kpi(r) || 0;
@@ -1753,6 +1761,10 @@ function renderVendorCard(v, r){
     else { deltaStr = `▼ ${fmtNum(delta, decimals)}`; deltaCls = 'c-red'; }
   } else if(v.isBinary && billed > 0){
     deltaStr = '✓'; deltaCls = 'c-green';
+  } else if(billed === 0 && !v.isBinary){
+    // Déployé mais non facturé Artis = anomalie
+    const real = +kpiVal || 0;
+    if(real > 0){ deltaStr = `⚠ ${fmtNum(real, decimals)} non facturé`; deltaCls = 'c-amber'; }
   }
   const billedDisplay = billed > 0 ? fmtNum(billed, decimals) : '—';
 
