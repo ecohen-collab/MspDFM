@@ -1111,11 +1111,19 @@ def artis_get_rfc_details(token, clients):
                 svcs.append("veeam_tb")
         if "365" in ml and "sauvegarde" not in ml:
             svcs.append("m365")
+        # 4b. M365 via RFC : "Gouvernance 365" / "Infogérance 365 (par licence)" sous MSC "Infogérance"
+        # → c'est un service M365 par licence, PAS du RMM. Évite faux positif DATTO ci-dessous.
+        is_365_rfc = "365" in rl and "sauvegarde" not in rl
+        if is_365_rfc and "m365" not in svcs:
+            svcs.append("m365")
         # 5. DATTO — "datto" explicite OU (MSC infog/maintenance + signal poste/serveur/infogér)
+        #    Exclut les RFC 365/gouvernance qui matcheraient "serveur" ("absence de serveur physique")
+        #    ou "infogér" ("Infogérance 365 par licence").
         is_infog_or_maint_msc = "infog" in ml or "maintenance" in ml
+        is_gouvernance = "gouvernance" in rl
         if "datto" in rl:
             svcs.append("datto")
-        elif is_infog_or_maint_msc and re.search(r"poste|serveur|infog[eé]r", rl):
+        elif is_infog_or_maint_msc and re.search(r"poste|serveur|infog[eé]r", rl) and not is_365_rfc and not is_gouvernance:
             svcs.append("datto")
         return svcs
 
