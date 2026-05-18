@@ -235,6 +235,7 @@ body.is-admin .admin-only{display:revert;}
           <button class="fbtn"        id="fbtn-anomaly" onclick="setFilter('anomaly',this)">⚠ Anomalies</button>
           <button class="fbtn"        id="fbtn-ok"      onclick="setFilter('ok',this)">✓ OK</button>
           <button class="fbtn"        id="fbtn-delta"   onclick="setFilter('delta',this)">Δ Écarts</button>
+          <button class="fbtn"        id="fbtn-cas"     onclick="setFilter('cas',this)">🔶 Cas particuliers</button>
         </div>
       </div>
       <button class="btn-export" onclick="exportTab('recon')">⤓ Export Excel (filtré)</button>
@@ -819,6 +820,7 @@ function filtrer() {
     if (filterMode === 'anomaly' && !hasAnomaly(r)) return false;
     if (filterMode === 'ok'      && hasAnomaly(r))  return false;
     if (filterMode === 'delta'   && !hasDelta(r))   return false;
+    if (filterMode === 'cas'     && !((DATA.cas_particuliers||{})[r.code] || []).length) return false;
     return true;
   });
   if (triCol) {
