@@ -2063,6 +2063,12 @@ document.addEventListener('keydown', e => { if(e.key==='Escape') closeClientModa
 // ══════════════════════════════════════
 const PATCH_NOTES = [
   {
+    date: '2026-05-19',
+    items: [
+      "Fix : le cycle MAJ quotidien se déclenche désormais de façon fiable à <b>20h00</b> même après des déclenchements manuels (mémorisation persistante sur Azure Files au lieu d'en mémoire).",
+    ]
+  },
+  {
     date: '2026-05-18',
     items: [
       "Vue globale : nouveau filtre 🔶 <b>Cas particuliers</b> pour afficher uniquement les clients avec une note.",
