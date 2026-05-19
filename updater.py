@@ -3624,15 +3624,27 @@ def main():
 
     threading.Thread(target=start_server, daemon=True).start()
 
+    # dernier_jour_maj persisté sur disque (Azure Files) → survit aux restarts/déploiements
+    # → évite les double-cycles quand on bump HEURE_MAJ entre 2 révisions
+    DJM_FILE = DATA_DIR / "dernier_jour_maj.txt"
+    def _load_djm():
+        try: return date.fromisoformat(DJM_FILE.read_text().strip())
+        except Exception: return None
+    def _save_djm(d):
+        try: DJM_FILE.write_text(d.isoformat())
+        except Exception as e: log(f"  ⚠ DJM save échoué : {e}")
+
     # Pas de MAJ au démarrage : on sert le msp_data.json existant (du dernier 20h).
     # Si le fichier n'existe pas (premier lancement), MAJ API complète obligatoire.
     if not DATA_FILE.exists():
         log("  › Pas de msp_data.json — MAJ API initiale (~11min)...")
         mise_a_jour(with_rfc=True, rfc_source="api")
+        _save_djm(date.today())
     else:
         log(f"  › msp_data.json existant servi — prochaine MAJ à {HEURE_MAJ}h00")
 
-    dernier_jour_maj = None  # MAJ planifiée pas encore faite aujourd'hui
+    dernier_jour_maj = _load_djm()
+    log(f"  › dernier_jour_maj chargé : {dernier_jour_maj}")
 
     while True:
         now = datetime.now()
@@ -3640,6 +3652,7 @@ def main():
             # MAJ planifiée du soir : scan RFC API complet (rafraîchit les quantités)
             mise_a_jour(with_rfc=True, rfc_source="api")
             dernier_jour_maj = date.today()
+            _save_djm(dernier_jour_maj)
         time.sleep(60)
 
 if __name__ == "__main__":
