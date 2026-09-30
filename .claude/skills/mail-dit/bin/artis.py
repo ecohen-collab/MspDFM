@@ -1,0 +1,173 @@
+# -*- coding: utf-8 -*-
+"""Helpers de lecture Artis pour la chaine mail -> DIT.
+
+Lecture seule : rien ici n'ecrit dans Artis. Les ecritures passent par
+mail_dit_ecriture (creer_dit, poser_uo, joindre_fichier) et par
+artis_type_travail (poser_type_travail, poser_commentaire).
+
+Usage en ligne de commande :
+
+    python artis.py client 9599          # raison sociale, biens, interlocuteurs
+    python artis.py dit 100175861        # etat, date, commentaire d'une DIT
+    python artis.py doublons 9599        # DIT du client sur 48 h
+    python artis.py symptomes 365        # symptomes dont le code/libelle matche
+"""
+import io
+import re
+import sys
+
+import requests
+
+sys.path.insert(0, r"C:\Users\ecohen\OneDrive - DFM\Bureau\Dashboard IA")
+import mail_dit as M                      # noqa: E402
+import mail_dit_ecriture as E             # noqa: E402
+
+if hasattr(sys.stdout, "buffer"):
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8",
+                                  errors="replace")
+
+_SESSION = {}
+
+
+def connexion():
+    """(base_url, token). Le jeton part en PARAMETRE `token`, jamais en Bearer."""
+    if "base" not in _SESSION:
+        _SESSION["base"], _SESSION["token"] = E._artis()
+    return _SESSION["base"], _SESSION["token"]
+
+
+def get(chemin, **params):
+    """GET Artis. Rend une liste, un dict, ou None si la requete echoue."""
+    base, token = connexion()
+    params["token"] = token
+    r = requests.get(base + chemin, headers={"accept": "application/json"},
+                     params=params, timeout=90)
+    if r.status_code != 200:
+        return None
+    try:
+        j = r.json()
+    except ValueError:
+        return None
+    if isinstance(j, list):
+        return j
+    if isinstance(j, dict):
+        return j.get("items") or j.get("dit") or j
+    return j
+
+
+def client(code):
+    """Fiche client, ou None."""
+    return get("/client/%s" % code)
+
+
+def biens(code):
+    """TOUS les biens du client. maxResults obligatoire : l'API pagine a 20."""
+    return get("/client/%s/bien" % code, maxResults=5000) or []
+
+
+def bien_dit(code):
+    """L'identifiantFabricant a poser dans la DIT, ou None si le client n'a ni
+    INFOGERANCE ni BAL EXCHANGE 365 (cas SPAT 7968 : il faut alors creer sans
+    bien et le signaler)."""
+    liste = biens(code)
+    for motif in ("INFOGERANCE", "BAL EXCHANGE 365", "EXCHANGE"):
+        for b in liste:
+            if motif in str(b.get("libelle") or "").upper():
+                return b.get("identifiantFabricant")
+    return None
+
+
+def dits(code, debut, fin):
+    """DIT du client sur une periode. Dates ISO uniquement (JJ/MM/AAAA -> 400)."""
+    return get("/client/%s/dit" % code, dateDebut=debut, dateFin=fin,
+               maxResults=200) or []
+
+
+def dit(numero):
+    """Une DIT par son numero. N'expose ni le bien ni le demandeur."""
+    return get("/dit/%s" % numero)
+
+
+def client_du_dit(numero):
+    """(code, libelle) du client porteur d'une DIT — sert a identifier un client
+    dont le domaine est absent de l'index fige au 10/09."""
+    d = dit(numero) or {}
+    c = d.get("client") or {}
+    return c.get("code"), c.get("raisonSociale") or c.get("libelle")
+
+
+def resoudre(adresse, domaine=None):
+    """Pistes de resolution d'un client depuis une adresse mail.
+
+    Rend {'exact': [...], 'domaine': [...]} sans jamais trancher : la decision
+    se prend apres verification dans Artis (raison sociale, interlocuteurs,
+    biens). Ne JAMAIS resoudre par similarite de libelle.
+    """
+    idx = M._index_clients()
+    libelles = M._libelles_clients()
+    adresse = (adresse or "").strip().lower()
+    if domaine is None and "@" in adresse:
+        domaine = adresse.split("@", 1)[1]
+    exact = (idx.get("emails") or {}).get(adresse) or []
+    parDomaine = [
+        {"client": c, "libelle": libelles.get(c), "poids": n}
+        for c, n in ((idx.get("domaines") or {}).get(domaine) or [])
+    ]
+    return {"exact": exact, "domaine": parDomaine}
+
+
+def symptomes(motif=""):
+    """Symptomes officiels dont le code ou le libelle contient `motif`."""
+    out = []
+    for s in M.symptomes_officiels():
+        code = s if isinstance(s, str) else (s.get("code") or "")
+        lib = "" if isinstance(s, str) else (s.get("libelle") or "")
+        if not motif or re.search(motif, code + " " + lib, re.I):
+            out.append((code, lib))
+    return out
+
+
+def _cli():
+    if len(sys.argv) < 2:
+        print(__doc__)
+        return
+    quoi = sys.argv[1]
+    arg = sys.argv[2] if len(sys.argv) > 2 else ""
+    if quoi == "client":
+        c = client(arg) or {}
+        print("raison sociale :", c.get("raisonSociale"))
+        print("bien pour DIT  :", bien_dit(arg))
+        print("--- biens infogerance / exchange")
+        for b in biens(arg):
+            lib = str(b.get("libelle") or "").upper()
+            if "INFOGERANCE" in lib or "EXCHANGE" in lib:
+                print("   ", b.get("identifiantFabricant"), "|", b.get("libelle"))
+        print("--- interlocuteurs")
+        for i in E.interlocuteurs_artis(arg):
+            print("   ", i.get("id"), "|", i.get("nom"), i.get("prenom"),
+                  "|", i.get("mail") or i.get("email"))
+    elif quoi == "dit":
+        d = dit(arg) or {}
+        print("numero :", d.get("numero"), "| etat :", d.get("etat"),
+              "| date :", d.get("date"))
+        c = d.get("client") or {}
+        print("client :", c.get("code"), c.get("raisonSociale") or c.get("libelle"))
+        print("--- commentaire")
+        print(d.get("commentaire"))
+    elif quoi == "doublons":
+        import datetime
+        j = datetime.date.today()
+        deb = (j - datetime.timedelta(days=2)).isoformat()
+        fin = (j + datetime.timedelta(days=1)).isoformat()
+        for x in dits(arg, deb, fin):
+            print(x.get("numero"), x.get("date"), x.get("etat"), "|",
+                  str(x.get("commentaire") or "")[:80].replace("\n", " "))
+    elif quoi == "symptomes":
+        for code, lib in symptomes(arg):
+            print("  ", code, "|", lib)
+    else:
+        print(__doc__)
+
+
+if __name__ == "__main__":
+    _cli()

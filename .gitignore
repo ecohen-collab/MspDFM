@@ -59,7 +59,10 @@ Thumbs.db
 # ═════════════════════════════════════════════════════════════════════
 # Claude Code / outils internes
 # ═════════════════════════════════════════════════════════════════════
-.claude/
+.claude/*
+# Exception : les skills sont de la procedure metier, elles se versionnent et
+# se partagent. Tout le reste de .claude/ (settings locaux, sessions) non.
+!.claude/skills/
 memory/
 
 # ═════════════════════════════════════════════════════════════════════
