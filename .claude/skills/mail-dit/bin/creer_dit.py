@@ -198,9 +198,9 @@ def main():
         E.dit_jumelle = lambda *a, **k: ""
 
     print("armee :", E.ecriture_armee(), "| GO :", go)
-    if len(lot) > 2:
-        print("ATTENTION : %d creations demandees, le garde-fou est de 2 par "
-              "passage." % len(lot))
+    if len(lot) > 10:
+        print("ATTENTION : %d creations demandees, le garde-fou est de 10 par "
+              "passage (releve de 2 a 10 par Elliot le 2026-10-01)." % len(lot))
     print("=" * 70)
 
     numeros = []

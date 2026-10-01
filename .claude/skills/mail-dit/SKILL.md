@@ -204,8 +204,13 @@ technicien lit le ticket, pas forcément les pièces.
   S'il refuse, c'est non : on signale, on ne force pas. Faux positif connu :
   deux demandes du même client, même phrase d'ouverture, bénéficiaires
   différents, à moins de 24 h — on attend l'expiration de la fenêtre.
-- **Maximum 2 créations par passage.** Pas deux DIT pour le même client à moins
-  de 60 s.
+- **Maximum 10 créations par passage.** Elliot a relevé la limite de 2 à 10 le
+  2026-10-01, après avoir vu la boîte accumuler sept demandes traitables
+  derrière le plafond : « on ne laisse RIEN en BAL ». Le plafond de 2 datait du
+  temps où il validait chaque création ; l'anti-doublon interroge Artis
+  lui-même et voit aussi les tickets saisis par les collègues, c'est lui qui
+  protège désormais.
+  Pas deux DIT pour le même client à moins de 60 s — ce délai-là reste.
 - **Expéditeur interne @dfm.fr** → ne JAMAIS créer de contact dans la fiche du
   client. DIT sans demandeur, et on le dit dans le rapport.
 - **Demandeur manquant** : chercher l'adresse exacte, puis le nom de famille.
