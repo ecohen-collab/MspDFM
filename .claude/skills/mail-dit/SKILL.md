@@ -99,6 +99,26 @@ après clôture donne un nouveau ticket.
 
 Une **relance sans information nouvelle ne produit rien** : on range, c'est tout.
 
+### Compléter ne suffit pas : prévenir l'intervenant
+
+**Tout ajout du client sur une DIT en cours se double d'un transfert du mail au
+dernier intervenant.** Elliot, le 2026-10-01, sur la DIT 100174590 (STEAMONE) :
+« tu as bien ajouté l'info dans la DIT, par contre mon intervenant n'était pas
+au courant ». Le commentaire ne notifie personne : le technicien a le ticket
+ouvert depuis des jours et ne le relit pas.
+
+1. `bin/artis.py intervenants <numero>` — le **dernier** de la liste est celui
+   qui a la main (la dernière intervention, même `Planifiee`).
+2. Son adresse dans Artis est `support@dfm.fr`, l'adresse de l'organisation :
+   **résoudre son nom dans l'annuaire Microsoft** (`search_people`) pour
+   obtenir l'adresse réelle. Ne jamais la reconstruire à partir du nom.
+3. Transférer le mail du client, en disant en une phrase ce qui a été ajouté,
+   sur quelle DIT, et ce que le client demande.
+4. Le dire dans le rapport.
+
+Pas d'intervenant du tout sur la DIT → c'est l'autre règle qui s'applique :
+transfert à Clifford, « aucun intervenant, redispatche ».
+
 ## Champs d'une DIT
 
 Voir `references/priorites-uo-biens.md` pour le détail. En résumé :
@@ -153,8 +173,10 @@ technicien lit le ticket, pas forcément les pièces.
   automatique, jamais un nom d'un seul mot. Toute création de contact est
   signalée.
 - **Jamais d'envoi de mail**, de réponse automatique, de règle, de suppression,
-  de transfert externe. La BAL est en production. **Deux exceptions**, toutes
-  deux des transferts internes, jamais ailleurs qu'à ces adresses :
+  de transfert externe. La BAL est en production. **Trois exceptions**, toutes
+  des transferts internes, jamais ailleurs qu'à ces adresses :
+  - **le dernier intervenant de la DIT**, chaque fois qu'on ajoute le mail d'un
+    client à son ticket en cours (voir plus haut) ;
   - `cdamato@dfm.fr` + Clifford en copie quand le client n'a pas de contrat
     Info (voir plus haut) ;
   - **Clifford seul** (`cyapnewkpin@dfm.fr`) quand le client attend une

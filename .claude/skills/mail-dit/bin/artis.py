@@ -9,6 +9,7 @@ Usage en ligne de commande :
 
     python artis.py client 9599          # raison sociale, biens, interlocuteurs
     python artis.py dit 100175861        # etat, date, commentaire d'une DIT
+    python artis.py intervenants 100174590   # qui prevenir apres un ajout
     python artis.py doublons 9599        # DIT du client sur 48 h
     python artis.py symptomes 365        # symptomes dont le code/libelle matche
 """
@@ -84,6 +85,28 @@ def dit(numero):
     return get("/dit/%s" % numero)
 
 
+def intervenants(numero):
+    """Les interventions d'une DIT, de la plus ancienne a la plus recente.
+
+    Sert a savoir QUI prevenir quand on ajoute le mail d'un client a un ticket
+    en cours : le dernier de la liste est l'intervenant en charge.
+
+    L'adresse rendue par Artis est celle de l'organisation (support@dfm.fr),
+    pas celle de la personne : resoudre le nom dans l'annuaire Microsoft
+    (search_people) pour obtenir son adresse reelle.
+    """
+    d = dit(numero) or {}
+    out = []
+    for it in d.get("inter") or []:
+        iv = it.get("intervenant") or {}
+        out.append({"intervention": it.get("numero"),
+                    "debut": it.get("dateDebut"),
+                    "etat": it.get("etat"),
+                    "nom": iv.get("nom"), "prenom": iv.get("prenom"),
+                    "matricule": iv.get("matricule")})
+    return out
+
+
 def client_du_dit(numero):
     """(code, libelle) du client porteur d'une DIT — sert a identifier un client
     dont le domaine est absent de l'index fige au 10/09."""
@@ -156,6 +179,10 @@ def _cli():
         print("client :", c.get("code"), c.get("raisonSociale") or c.get("libelle"))
         print("--- commentaire")
         print(d.get("commentaire"))
+    elif quoi == "intervenants":
+        for i in intervenants(arg):
+            print("  ", i["intervention"], "|", i["debut"], "|", i["etat"],
+                  "|", i["nom"], i["prenom"], "(", i["matricule"], ")")
     elif quoi == "doublons":
         import datetime
         j = datetime.date.today()
