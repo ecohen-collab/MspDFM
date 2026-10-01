@@ -21,11 +21,29 @@ donc réfléchir avant.
 
 ## UO
 
-- Symptôme commençant par `ADM-` → **HLN3** (administration, niveau 3).
-- Tout le reste → **HLI** (hotline informatique).
-- Onboarding (`ADM-ON`) → **HLN3**.
+**Ce n'est pas le préfixe du symptôme qui décide, c'est le niveau d'expertise
+que le geste demande.** Elliot, le 2026-10-01, sur la DIT 100176005 : « demande
+simple de reset de mot de passe = hotline N1/N2, t'as dû mettre HLN3 ».
+
+| | Ce qui y va |
+|---|---|
+| **HLI** — hotline informatique N1/N2 | ce qu'un technicien de premier niveau fait seul : **reset ou oubli de mot de passe**, configuration d'un poste ou d'un mobile, accès à un dossier partagé, imprimante, VPN, session Windows, application métier, réseau |
+| **HLN3** — niveau 3 | ce qui demande la console d'administration et un vrai pouvoir : création / suppression de compte M365, licences, délégations Exchange, boîtes partagées, SharePoint, MFA et accès conditionnel, antispam, antivirus, onboarding complet d'un salarié |
+
+Le piège : `ADM-365-GES` (« mot de passe, informations utilisateur M365 ») porte
+le préfixe `ADM-` mais désigne précisément le geste de premier niveau — il va en
+**HLI**. La règle mécanique « `ADM-` → HLN3 » a fait partir en HLN3 deux resets
+de mot de passe (100176005 SRP, 100176090 PARC ESPACE), corrigés depuis.
+
+- Dans le doute, demander : *est-ce qu'un N1 peut le faire avec ses droits ?*
+  Oui → HLI. Non → HLN3.
+- Onboarding (`ADM-ON`) → **HLN3** : il faut créer le compte, les licences et
+  les accès.
 - Posée par `poser_uo(numero_dit + "01", code)`, avec reprise sur 404
   (le ticket met parfois quelques secondes à être indexé).
+- **L'UO peut être changée après coup par un dispatcheur** : c'est normal, et
+  ce n'est pas une erreur à corriger. Une DIT déjà reprise (`Planifiee`,
+  `Terminee`) ne se retouche pas.
 
 ## Bien
 

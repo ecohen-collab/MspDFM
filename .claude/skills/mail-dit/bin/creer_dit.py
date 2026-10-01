@@ -71,9 +71,18 @@ def _controles(prop):
     alertes = []
     sym = (prop.get("symptome") or "").upper()
     uo = (prop.get("uo") or "").upper()
-    if sym.startswith("ADM-") and uo != "HLN3":
+    # L'UO suit le NIVEAU demande, pas le prefixe du symptome. ADM-365-GES
+    # (mot de passe, informations utilisateur) est du N1/N2 : HLI.
+    # Elliot, 2026-10-01, DIT 100176005.
+    N3 = ("ADM-365-CRE", "ADM-365-SUP", "ADM-365-LIC", "ADM-365-EXC-BAL",
+          "ADM-365-SHA-ACC", "ADM-365-AUT-ADM", "ADM-365-SEC-ADM",
+          "ADM-ANT", "ADM-AV", "ADM-ON")
+    if sym in N3 and uo != "HLN3":
         alertes.append("symptome %s -> l'UO devrait etre HLN3, pas %s" % (sym, uo))
-    if not sym.startswith("ADM-") and uo == "HLN3":
+    if sym == "ADM-365-GES" and uo != "HLI":
+        alertes.append("ADM-365-GES = mot de passe / infos utilisateur, du "
+                       "N1/N2 : l'UO devrait etre HLI, pas %s" % uo)
+    if sym not in N3 and sym != "ADM-365-GES" and uo == "HLN3":
         alertes.append("symptome %s -> l'UO devrait etre HLI" % sym)
     if prop.get("priorite") not in ("01", "02", "03"):
         alertes.append("priorite %r inattendue (01 tous / 02 une / 03 aucune)"

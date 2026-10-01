@@ -165,7 +165,10 @@ Voir `references/priorites-uo-biens.md` pour le détail. En résumé :
 - **Priorité** : personne n'est bloqué **03** · une personne bloquée **02** ·
   toute la société bloquée ou arrêt de production **01**.
   Les codes sont inversés par rapport à l'intuition : raisonner en libellé.
-- **UO** : `HLN3` si le symptôme commence par `ADM-`, `HLI` sinon.
+- **UO** : `HLI` pour tout ce qu'un N1/N2 fait seul — **reset de mot de passe
+  compris**, malgré son symptôme `ADM-365-GES` ; `HLN3` pour ce qui demande la
+  console d'administration (comptes, licences, délégations, MFA, onboarding).
+  Le préfixe du symptôme ne décide pas : voir `references/priorites-uo-biens.md`.
   Posée sur le numéro d'**intervention** = numéro de DIT + `01`.
 - **Bien** : `{code} - INFOGERANCE`, à défaut `{code} - BAL EXCHANGE 365`.
   Jamais vide — sauf client sans aucun des deux, et alors on le signale.
