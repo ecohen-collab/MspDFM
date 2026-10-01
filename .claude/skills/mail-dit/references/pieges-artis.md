@@ -13,7 +13,13 @@ Chaque ligne ici a coûté un incident réel. Les relire avant d'écrire du code
   à tort qu'un client n'a pas d'infogérance. Quatre fausses conclusions le
   2026-09-29, dont un « client peut-être hors contrat » totalement faux.
 - **`/client?libelle=X` ignore le filtre** et renvoie toute la base, plafonnée à
-  20 000. Ne jamais chercher un client par ce biais.
+  20 000. Le bon paramètre, celui du swagger, est **`chaineRecherchee`** :
+  `GET /client?chaineRecherchee=SEINE ET MARNE CONSTRUCTION&maxResults=10`
+  rend le client et lui seul. C'est la réponse aux clients absents de l'index
+  figé — SMC77, ESBGI, Maison Arnaud Larher ont été retrouvés comme ça le
+  2026-10-01, après avoir été « laissés en boîte, client non identifiable »
+  pendant trois passages. **La recherche donne un candidat, elle ne tranche
+  pas** : vérifier ensuite les interlocuteurs et les biens, comme toujours.
 - **`GET /affaire/{numero}` donne le client**, raison sociale comprise. C'est la
   seule façon fiable de rattacher un mail interne qui ne cite qu'un numéro
   d'affaire : le 2026-10-01, l'affaire 10009602 présentée comme « PPG

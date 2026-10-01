@@ -7,6 +7,7 @@ artis_type_travail (poser_type_travail, poser_commentaire).
 
 Usage en ligne de commande :
 
+    python artis.py chercher "SEINE ET MARNE"   # client absent de l'index
     python artis.py client 9599          # raison sociale, biens, interlocuteurs
     python artis.py dit 100175861        # etat, date, commentaire d'une DIT
     python artis.py intervenants 100174590   # qui prevenir apres un ajout
@@ -55,6 +56,24 @@ def get(chemin, **params):
 def client(code):
     """Fiche client, ou None."""
     return get("/client/%s" % code)
+
+
+def chercher_client(texte, maxi=10):
+    """Clients dont le nom ou le code contient `texte`.
+
+    `GET /client?chaineRecherchee=...` — le parametre du swagger, celui qui
+    filtre vraiment (contrairement a `libelle`, qui rend toute la base).
+    C'est la sortie de secours quand un client est absent de l'index fige :
+    SMC77, ESBGI et Maison Arnaud Larher ont ete retrouves ainsi le 2026-10-01.
+
+    Rend un candidat, pas une certitude : verifier interlocuteurs et biens.
+    """
+    out = []
+    for c in get("/client", chaineRecherchee=texte, maxResults=maxi) or []:
+        if isinstance(c, dict):
+            out.append({"code": c.get("code"),
+                        "nom": c.get("raisonSociale") or c.get("libelle")})
+    return out
 
 
 def biens(code):
@@ -179,6 +198,9 @@ def _cli():
         print("client :", c.get("code"), c.get("raisonSociale") or c.get("libelle"))
         print("--- commentaire")
         print(d.get("commentaire"))
+    elif quoi == "chercher":
+        for c in chercher_client(arg):
+            print("  ", c["code"], "|", c["nom"])
     elif quoi == "intervenants":
         for i in intervenants(arg):
             print("  ", i["intervention"], "|", i["debut"], "|", i["etat"],
