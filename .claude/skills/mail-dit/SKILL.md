@@ -213,6 +213,17 @@ technicien lit le ticket, pas forcément les pièces.
   Pas deux DIT pour le même client à moins de 60 s — ce délai-là reste.
 - **Expéditeur interne @dfm.fr** → ne JAMAIS créer de contact dans la fiche du
   client. DIT sans demandeur, et on le dit dans le rapport.
+  **Mais d'abord, lire l'historique du fil** : un collègue qui transfère la
+  demande d'un client n'est pas le demandeur, il est le facteur. Le demandeur
+  est la personne du client citée plus bas dans le mail, et elle est souvent
+  déjà dans la fiche Artis. Elliot, le 2026-10-01, sur le mail d'Abdourahmane
+  relayant la CNCT : « il faut clairement créer un ticket CEPROC, le demandeur
+  client est dans l'historique de mail, il faut pas le traiter directement ».
+  La DIT sans demandeur est pour le cas où le fil ne nomme aucun client.
+- **Une demande relayée par un collègue reste une demande client** : elle
+  donne une DIT, elle ne se traite pas de la main à la main. Même quand on
+  saurait la faire soi-même — sortir un historique de tickets, par exemple —
+  le ticket doit exister, sinon le travail n'est ni tracé ni facturable.
 - **Demandeur manquant** : chercher l'adresse exacte, puis le nom de famille.
   Créer le contact seulement si c'est une vraie personne — jamais un expéditeur
   automatique, jamais un nom d'un seul mot. Toute création de contact est
