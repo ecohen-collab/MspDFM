@@ -116,6 +116,11 @@ ouvert depuis des jours et ne le relit pas.
    sur quelle DIT, et ce que le client demande.
 4. Le dire dans le rapport.
 
+**Signature de tout transfert : `Service MCO - Mail automatique`.** Jamais le
+nom d'Elliot : le mail part de `support@dfm.fr`, pas de lui, et celui qui le
+reçoit doit voir tout de suite que c'est le robot qui écrit (demandé le
+2026-10-01).
+
 Pas d'intervenant du tout sur la DIT → c'est l'autre règle qui s'applique :
 transfert à Clifford, « aucun intervenant, redispatche ».
 
@@ -184,6 +189,10 @@ technicien lit le ticket, pas forcément les pièces.
     confirmation, un arbitrage, un rappel téléphonique. Dire ce qu'il attend,
     et depuis quand. Autorisé par Elliot le 2026-10-01 sur les deux mails de
     Sandrine Barotte (MISE).
+
+  Les trois se signent **`Service MCO - Mail automatique`**, jamais du nom
+  d'Elliot : le mail part de `support@dfm.fr`, et celui qui le reçoit doit voir
+  tout de suite que c'est le robot qui écrit.
 - **Une seule session web Artis par passage** : chaque connexion consomme un
   siège de licence et bloque l'équipe. Grouper tous les `poser_type_travail` et
   `poser_commentaire` dans la même session ouverte.
