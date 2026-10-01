@@ -48,6 +48,11 @@ Ne pas confondre avec le cas d'un client **sous contrat** dont l'identifiant de
 bien a une forme inhabituelle : là, `bien_dit` rend bien une chaîne, et la DIT
 se crée normalement.
 
+**La règle ne vaut que pour les créations à venir.** Elliot, le 2026-10-01 :
+« non, pas rétroactivement ». Une DIT déjà ouverte pour un client hors contrat
+suit son cours — on la complète comme les autres quand le client écrit, on ne
+l'annule pas et on ne transfère pas son fil.
+
 ## Ce qui fait une DIT
 
 Domaine INFO uniquement. Les autres métiers de DFM se rangent sans ticket :
@@ -63,6 +68,14 @@ Domaine INFO uniquement. Les autres métiers de DFM se rangent sans ticket :
 « Imprimante » n'est pas un mot-clé de filtrage : un problème de pilote ou de
 file d'impression sur un poste reste de l'informatique. C'est l'intervention
 demandée qui décide, pas le vocabulaire.
+
+**Une demande du client sur SON environnement est une DIT ordinaire**, même
+quand elle touche à de l'administration sensible — une élévation de droits dans
+son Entra ID, un accès privilégié, une délégation large. Ce n'est pas une
+escalade à la DSI DFM : on crée le ticket, l'équipe s'en occupe. Elliot sur la
+DIT 100175965 (SRP CONSTRUCTION, `Mail.ReadWrite`), le 2026-10-01 : « quel
+rapport Benjamin, c'est une demande d'un client sur son environnement ». Les
+escalades à Benjamin concernent nos ressources internes, pas celles des clients.
 
 ## Réponse à un ticket — jamais un nouveau ticket
 
@@ -115,6 +128,11 @@ supprime en silence ce qu'il ne sait pas encoder.
 Aucun avis de ma part dans le ticket. Ce qui est sensible se dit à Elliot dans
 le rapport, pas dans le commentaire.
 
+**Un commentaire déjà posé ne se repasse pas au propre.** Elliot, le
+2026-10-01 : « non, touche pas si clôturé ». Rouvrir une DIT close pour
+reformuler un texte que le technicien a déjà lu coûte plus que ça ne rapporte —
+la règle du mot pour mot vaut pour ce qu'on écrit, pas pour ce qui est écrit.
+
 Une capture d'écran annoncée par le client (« voici le message qui s'affiche »)
 se joint au ticket **et** se retranscrit en texte dans le commentaire : le
 technicien lit le ticket, pas forcément les pièces.
@@ -135,9 +153,15 @@ technicien lit le ticket, pas forcément les pièces.
   automatique, jamais un nom d'un seul mot. Toute création de contact est
   signalée.
 - **Jamais d'envoi de mail**, de réponse automatique, de règle, de suppression,
-  de transfert externe. La BAL est en production. **Une seule exception**, celle
-  décrite plus haut : le transfert interne à `cdamato@dfm.fr` + Clifford en
-  copie quand le client n'a pas de contrat Info.
+  de transfert externe. La BAL est en production. **Deux exceptions**, toutes
+  deux des transferts internes, jamais ailleurs qu'à ces adresses :
+  - `cdamato@dfm.fr` + Clifford en copie quand le client n'a pas de contrat
+    Info (voir plus haut) ;
+  - **Clifford seul** (`cyapnewkpin@dfm.fr`) quand le client attend une
+    **réponse humaine directe** qu'aucun ticket ne peut produire — une
+    confirmation, un arbitrage, un rappel téléphonique. Dire ce qu'il attend,
+    et depuis quand. Autorisé par Elliot le 2026-10-01 sur les deux mails de
+    Sandrine Barotte (MISE).
 - **Une seule session web Artis par passage** : chaque connexion consomme un
   siège de licence et bloque l'équipe. Grouper tous les `poser_type_travail` et
   `poser_commentaire` dans la même session ouverte.
