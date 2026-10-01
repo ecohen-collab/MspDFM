@@ -14,6 +14,13 @@ Chaque ligne ici a coûté un incident réel. Les relire avant d'écrire du code
   2026-09-29, dont un « client peut-être hors contrat » totalement faux.
 - **`/client?libelle=X` ignore le filtre** et renvoie toute la base, plafonnée à
   20 000. Ne jamais chercher un client par ce biais.
+- **`GET /affaire/{numero}` donne le client**, raison sociale comprise. C'est la
+  seule façon fiable de rattacher un mail interne qui ne cite qu'un numéro
+  d'affaire : le 2026-10-01, l'affaire 10009602 présentée comme « PPG
+  ingénierie » était en réalité **PPN INGENIERIE 29347** — le nom écrit dans le
+  mail était faux, le numéro non. `GET /commande/{numero}` existe aussi, et ne
+  rend pas le même client : ce sont deux registres différents, ne pas les
+  confondre.
 - **Les dates en paramètre sont ISO seulement** (`2026-09-30`). Le format
   `JJ/MM/AAAA` renvoie `400`.
 - **`/dit/{n}` n'expose ni le bien ni le demandeur** en lecture. Ne pas conclure
