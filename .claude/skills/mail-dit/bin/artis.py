@@ -22,10 +22,6 @@ sys.path.insert(0, r"C:\Users\ecohen\OneDrive - DFM\Bureau\Dashboard IA")
 import mail_dit as M                      # noqa: E402
 import mail_dit_ecriture as E             # noqa: E402
 
-if hasattr(sys.stdout, "buffer"):
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8",
-                                  errors="replace")
-
 _SESSION = {}
 
 
@@ -128,6 +124,12 @@ def symptomes(motif=""):
 
 
 def _cli():
+    # Le reencodage de stdout se fait ICI et pas a l'import : un module qui
+    # remplace le stdout de son appelant casse le wrapper deja pose par celui-ci
+    # (« I/O operation on closed file »).
+    if hasattr(sys.stdout, "buffer"):
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8",
+                                      errors="replace")
     if len(sys.argv) < 2:
         print(__doc__)
         return

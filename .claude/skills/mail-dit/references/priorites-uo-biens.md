@@ -33,9 +33,11 @@ Ordre de préférence, avec `?maxResults=5000` sur `/client/{code}/bien` :
 
 1. le bien dont le libellé contient `INFOGERANCE`
 2. à défaut, celui qui contient `BAL EXCHANGE 365`
-3. si le client n'a ni l'un ni l'autre : DIT **sans bien**, et le signaler
-   dans le rapport (cas SPAT 7968, dont les 14 biens sont tous télécom,
-   copieur ou réseau)
+3. **si le client n'a ni l'un ni l'autre, il n'est pas sous contrat
+   d'infogérance : PAS de DIT.** On transfère le mail à `cdamato@dfm.fr` avec
+   Clifford en copie, puis on le range en 01 - DIT (voir le SKILL.md). Une DIT
+   sans bien est le signe qu'on a créé un ticket pour un client hors contrat —
+   c'est l'erreur de la DIT 100175462 (AREAL 29449), annulée le 2026-10-01.
 
 L'`identifiantFabricant` varie d'un client à l'autre : `9599 - INFOGERANCE`,
 `5581-INFOGERANCE`, `20431-INFOGERANCE`, `INFOGERANCE-20431`… C'est cette

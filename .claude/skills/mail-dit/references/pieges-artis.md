@@ -63,10 +63,13 @@ Chaque ligne ici a coûté un incident réel. Les relire avant d'écrire du code
 
 ## Microsoft Graph
 
-- **Ne jamais reconstruire un identifiant de message par concaténation.** Le
-  2026-09-30, un rangement groupé bâti sur `préfixe + suffixe` a déplacé les
-  mauvais messages (un devis sécurité est parti en 01 - DIT). Toujours
-  reprendre l'`id` complet rendu par la recherche.
+- **Ne jamais reconstruire un identifiant de message par concaténation.**
+  Deux incidents le même jour (2026-09-30) : un rangement groupé bâti sur
+  `préfixe + suffixe` a envoyé un devis sécurité en 01 - DIT, puis un journal
+  Vigor au même endroit, pendant que les mails visés restaient en boîte.
+  Les suffixes se ressemblent (`…NXAAA=` / `…NYAAA=`) et rien ne signale
+  l'erreur : le `move` réussit sur le mauvais message. Toujours reprendre
+  l'`id` complet rendu par la recherche, et ranger **un message par appel**.
 - **L'identifiant change à chaque déplacement** : un id lu avant un `move` n'est
   plus valide après.
 - **`outlook_email_search` refuse `order` avec une requête plein texte.**

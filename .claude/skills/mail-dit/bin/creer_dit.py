@@ -34,8 +34,12 @@ Le JSON est un objet, ou une liste d'objets :
       "categorie": "hotline",
       "date_dit": "2026-09-30T12:23:13", date du mail en heure de Paris
       "commentaire": "texte du client MOT POUR MOT, signature exclue",
-      "pieces": ["C:/.../capture.png"]   optionnel, jointes apres creation
+      "pieces_fichiers": ["C:/.../capture.png"]   optionnel, jointes apres creation
     }]
+
+La cle s'appelle `pieces_fichiers` et NON `pieces` : `mail_dit_ecriture`
+utilise deja `prop["pieces"]` pour les pieces du mail, sous forme de dicts, et
+lui passer des chemins fait echouer la construction du commentaire.
 
 Apres coup, poser le type de travail Hotline / Non facturable sur les numeros
 rendus, dans UNE SEULE session web (voir type_travail.py).
@@ -67,7 +71,11 @@ def _controles(prop):
         alertes.append("priorite %r inattendue (01 tous / 02 une / 03 aucune)"
                        % prop.get("priorite"))
     if not prop.get("bien"):
-        alertes.append("DIT SANS BIEN — a signaler dans le rapport")
+        alertes.append(
+            "DIT SANS BIEN : verifier que le client a bien un contrat Info "
+            "(artis.py bien_dit). S'il n'en a pas, NE PAS CREER — transferer le "
+            "mail a cdamato@dfm.fr avec Clifford en copie, puis ranger en "
+            "01 - DIT (regle Elliot du 2026-10-01, DIT 100175462 annulee).")
     de = (prop.get("de") or "").lower()
     if de.endswith("@dfm.fr") and prop.get("pid_interlocuteur"):
         alertes.append("expediteur interne @dfm.fr : la DIT doit partir SANS "
@@ -116,7 +124,7 @@ def creer(prop, go):
         print("  UO %-5s     : ECHEC %s" % (prop["uo"],
                                             str(u.get("erreur"))[:140]))
 
-    for chemin in prop.get("pieces") or []:
+    for chemin in prop.get("pieces_fichiers") or []:
         if not os.path.exists(chemin):
             print("  PJ introuvable :", chemin)
             continue

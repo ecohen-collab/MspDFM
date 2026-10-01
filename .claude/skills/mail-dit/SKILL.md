@@ -23,6 +23,31 @@ créer ou compléter dans Artis, ranger le mail, rendre un rapport court.
 6. **Rapport** : créé / complété / rangé / laissé, une ligne de raison chacun.
    Rien d'autre : pas de synthèse, pas de tendance, pas de recommandation.
 
+## Pas de contrat d'infogérance → pas de DIT, on transmet
+
+**Avant toute création, vérifier que le client a un contrat Info.** Le test est
+`bin/artis.py` → `bien_dit(code)` : s'il rend `None`, le client n'a **ni**
+bien INFOGERANCE **ni** BAL EXCHANGE 365 dans sa fiche Artis — il n'est pas
+sous contrat d'infogérance, et une demande informatique ne donne pas de ticket
+chez nous.
+
+Dans ce cas, et **seulement** dans ce cas :
+
+1. **Transférer le mail** à `cdamato@dfm.fr`, avec **Clifford**
+   (`cyapnewkpin@dfm.fr`) **en copie**. C'est la seule exception à l'interdit
+   d'envoi : transfert interne, à ces deux destinataires, jamais ailleurs.
+2. **Ranger le mail en `01 - DIT ARTIS SUPPORT`** après le transfert.
+3. Le dire dans le rapport : client sans contrat Info, transmis à Céline
+   d'Amato et Clifford.
+
+Règle posée par Elliot le 2026-10-01 sur la DIT **100175462** (AREAL 29449,
+dont les 4 biens sont un écran et des copieurs) : « ta créé ça sans contrat
+info chez le client donc annule ». Le ticket a été annulé et le mail transmis.
+
+Ne pas confondre avec le cas d'un client **sous contrat** dont l'identifiant de
+bien a une forme inhabituelle : là, `bien_dit` rend bien une chaîne, et la DIT
+se crée normalement.
+
 ## Ce qui fait une DIT
 
 Domaine INFO uniquement. Les autres métiers de DFM se rangent sans ticket :
@@ -110,7 +135,9 @@ technicien lit le ticket, pas forcément les pièces.
   automatique, jamais un nom d'un seul mot. Toute création de contact est
   signalée.
 - **Jamais d'envoi de mail**, de réponse automatique, de règle, de suppression,
-  de transfert externe. La BAL est en production.
+  de transfert externe. La BAL est en production. **Une seule exception**, celle
+  décrite plus haut : le transfert interne à `cdamato@dfm.fr` + Clifford en
+  copie quand le client n'a pas de contrat Info.
 - **Une seule session web Artis par passage** : chaque connexion consomme un
   siège de licence et bloque l'équipe. Grouper tous les `poser_type_travail` et
   `poser_commentaire` dans la même session ouverte.
