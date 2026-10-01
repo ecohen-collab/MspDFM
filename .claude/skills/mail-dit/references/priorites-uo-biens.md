@@ -82,3 +82,18 @@ Après création, par le formulaire web, dans la session unique du passage :
 type de travail **Hotline**, facturation **Non facturable**.
 Le défaut à la création est `Terrain` / `Automatique` — donc l'étape n'est pas
 optionnelle.
+
+**Ce n'est pas facultatif, et ça ne se reporte pas au lendemain.** Elliot, le
+2026-10-01, sur les DIT 100175991 / 100176022 / 100176051 : « il a créé les
+tickets avec intervention terrain au lieu de hotline, comment ça se fait ???
+je t'ai dit que du HOTLINE ». Les DIT étaient parties en `Terrain` parce que la
+consigne de passage interdisait d'ouvrir le formulaire web — l'interdit portait
+sur le coût d'une licence, pas sur le résultat. **Une DIT laissée en Terrain est
+une DIT fausse** : on groupe donc tous les numéros du passage et on les pose
+dans la session unique, à la fin.
+
+**Fenêtre étroite** : tant que l'intervention est `APlanifier`, l'enregistrement
+passe. Dès qu'un dispatcheur l'a **planifiée**, Artis refuse avec
+`Enregistrer_KO_SYSTEM` et ne change rien — le type de travail reste alors tel
+quel, et seul un humain peut le corriger dans Artis. D'où l'urgence de le poser
+dans le passage même.
