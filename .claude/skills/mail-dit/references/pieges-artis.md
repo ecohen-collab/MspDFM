@@ -97,3 +97,42 @@ Chaque ligne ici a coûté un incident réel. Les relire avant d'écrire du code
 - **Pièces jointes** : filtrer sur `isInline`. Les images de signature et les
   bandeaux d'organisation (`org-int-img.png`) ne sont pas des pièces utiles.
   Une photo de 5 Mo envoyée par le client, si.
+
+## Les outils de `bin/` se lancent depuis n'importe où — maintenant
+
+`mail_auth`, `mail_dit` et `mail_dit_ecriture` cherchaient leur `./data` et leur
+`.env` **relativement au répertoire courant**. Lancés depuis
+`.claude/skills/mail-dit/bin/`, ils ne trouvaient rien, et chacun échouait à sa
+façon, sans jamais nommer la cause :
+
+| Outil | Symptôme observé | Cause réelle |
+|---|---|---|
+| `lire_mail.py` | « mail introuvable » | `access_token()` rendait `None` → Graph 401 `token could not be read` |
+| `artis.py` | `RuntimeError: configuration Artis absente` | `.env` introuvable |
+| `creer_dit.py` | `armee : False`, puis `ERREUR : None None` | le drapeau `data/mail_dit_ecriture.txt` invisible |
+
+Les trois chemins sont désormais ancrés sur le fichier Python lui-même
+(`Path(__file__).parent`), pas sur le `cwd`. `DATA_DIR` reste prioritaire : en
+production rien ne change. Corrigé le 2026-10-01.
+
+La leçon dépasse ces trois modules : **un chemin relatif dans un module importé
+depuis ailleurs est un piège silencieux**. Si un outil de `bin/` se met à ne
+rien trouver, vérifier d'abord d'où il croit lire.
+
+## Le type de facturation s'écrit « Non facturable », avec une espace
+
+`poser_type_travail(..., aussi={"cb_typeFactu": "..."})` lit le libellé du
+`<select>`, pas le code stocké. Artis **affiche** `NonFacturable` quand on relit
+la fiche, mais le formulaire attend `Non facturable`. Passer la forme collée
+rend `facturation inconnue : NonFacturable (attendu Facturable/Non
+facturable/Automatique)` — refus propre, avant écriture, mais le siège de
+licence est consommé pour rien.
+
+## Graph rend des 5xx par intermittence
+
+`GET /me/messages/{id}` a rendu trois `504 UnknownError` au corps vide le
+2026-10-01, sur une requête qui passait en direct l'instant d'après.
+`lire_mail.py` les lisait comme un mail absent. Il réessaie maintenant quatre
+fois sur tout code ≥ 500. Un 5xx n'est pas une réponse : c'est une absence de
+réponse.
+

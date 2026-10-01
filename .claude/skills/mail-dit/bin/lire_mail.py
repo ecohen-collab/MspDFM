@@ -14,6 +14,7 @@ import io
 import os
 import re
 import sys
+import time
 
 import requests
 
@@ -43,10 +44,24 @@ def en_texte(html_ou_texte):
     return re.sub(r"\n{3,}", "\n\n", c).strip()
 
 
+def _get(url, **kw):
+    """GET Graph avec reprise : Graph rend par intermittence des 504/503 au
+    corps vide. Sans reprise, `par_id` les lit comme un mail introuvable et on
+    croit que le mail a disparu de la boite (vu le 2026-10-01, 3 fois de
+    suite sur la meme requete qui passait en direct)."""
+    dernier = None
+    for essai in range(4):
+        dernier = requests.get(url, **kw)
+        if dernier.status_code < 500:
+            return dernier
+        time.sleep(1 + essai)
+    return dernier
+
+
 def par_message_id(internet_message_id):
     """Le mail depuis son internetMessageId (stable, contrairement a l'id)."""
-    r = requests.get(GRAPH + "/me/messages", headers=_entetes(), timeout=60,
-                     params={"$filter": "internetMessageId eq '%s'"
+    r = _get(GRAPH + "/me/messages", headers=_entetes(), timeout=60,
+             params={"$filter": "internetMessageId eq '%s'"
                                         % internet_message_id,
                              "$select": "id,subject,from,toRecipients,"
                                         "receivedDateTime,body,hasAttachments"})
@@ -55,9 +70,9 @@ def par_message_id(internet_message_id):
 
 
 def par_id(message_id):
-    r = requests.get(GRAPH + "/me/messages/%s" % message_id, headers=_entetes(),
-                     timeout=60,
-                     params={"$select": "id,subject,from,toRecipients,"
+    r = _get(GRAPH + "/me/messages/%s" % message_id, headers=_entetes(),
+             timeout=60,
+             params={"$select": "id,subject,from,toRecipients,"
                                         "receivedDateTime,body,hasAttachments"})
     return r.json() if r.status_code == 200 else None
 
@@ -65,8 +80,8 @@ def par_id(message_id):
 def pieces(message_id, dossier=None, mini=5000):
     """Pieces jointes NON inline. Les signatures et bandeaux d'organisation
     sont inline : on les ignore. `dossier` -> ecrit les fichiers sur disque."""
-    r = requests.get(GRAPH + "/me/messages/%s/attachments" % message_id,
-                     headers=_entetes(), timeout=180)
+    r = _get(GRAPH + "/me/messages/%s/attachments" % message_id,
+             headers=_entetes(), timeout=180)
     out = []
     for a in (r.json() or {}).get("value") or []:
         if a.get("isInline") or not a.get("contentBytes"):

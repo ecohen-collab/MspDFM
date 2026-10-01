@@ -42,7 +42,8 @@ utilise deja `prop["pieces"]` pour les pieces du mail, sous forme de dicts, et
 lui passer des chemins fait echouer la construction du commentaire.
 
 Apres coup, poser le type de travail Hotline / Non facturable sur les numeros
-rendus, dans UNE SEULE session web (voir type_travail.py).
+rendus, dans UNE SEULE session web (voir artis_type_travail.py,
+a la racine du repo).
 """
 import io
 import json
@@ -223,7 +224,17 @@ def main():
     if numeros:
         print("\n" + "=" * 70)
         print("A FAIRE : type de travail Hotline / Non facturable, UNE session :")
-        print("  python type_travail.py %s --go" % " ".join(numeros))
+        # artis_type_travail est a la RACINE du repo, et n'a pas de CLI :
+        # l'ancienne consigne renvoyait vers un "type_travail.py" qui n'existe
+        # pas (constate le 2026-10-01). La valeur de facturation s'ecrit
+        # "Non facturable", avec une espace — "NonFacturable" est refuse.
+        print("  import artis_type_travail as T")
+        print("  with T.session_dediee() as w:")
+        print("      for n in %r:" % (numeros,))
+        print("          T.poser_type_travail(n, 'Hotline', confirmer=True, "
+              "web=w,")
+        print("                               aussi={'cb_typeFactu': "
+              "'Non facturable'})")
 
 
 if __name__ == "__main__":
