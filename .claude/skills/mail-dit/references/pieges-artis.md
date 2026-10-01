@@ -36,6 +36,13 @@ Chaque ligne ici a coûté un incident réel. Les relire avant d'écrire du code
 - **Une DIT en état `TravailNonTermine` peut refuser l'ouverture en
   modification** : `poser_commentaire` échoue avec « la DIT ne s'ouvre pas en
   modification ». Signaler, ranger le mail quand même.
+- **Même refus quand une QUESTION est ouverte sur la DIT**, quel que soit son
+  état : le fil d'Ariane affiche `Demande d'intervention (M) / Question (V)` et
+  le commentaire ne passe pas (100175802, GCI, le 2026-10-01, pourtant
+  `EnCours`). **Et l'échec laisse la session web coincée sur cet écran** : tout
+  ce qui suit dans la même session échoue avec « impossible de repartir de
+  l'accueil ». Donc **traiter en dernier** une DIT dont l'ajout est incertain,
+  ou vérifier le résultat avant d'enchaîner.
 - **ISO-8859-15** : `E._stockable(texte)` sur tout ce qui part dans Artis. Sans
   ça, les apostrophes typographiques et les tirets longs disparaissent en
   collant les mots voisins (constaté sur la DIT 100173591 : « s'il vous plait »
