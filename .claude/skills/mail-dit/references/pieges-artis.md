@@ -136,3 +136,29 @@ licence est consommé pour rien.
 fois sur tout code ≥ 500. Un 5xx n'est pas une réponse : c'est une absence de
 réponse.
 
+## Un arriéré de propositions n'est pas un arriéré de travail
+
+Le 2026-10-01 à 18h00, à la seconde où le drapeau d'écriture a été posé sur
+`/data`, le robot a créé **neuf DIT en soixante secondes**. Aucune ne
+correspondait à un mail en boîte : c'étaient les propositions P-1390 à P-1399,
+nées de mails du **29 septembre**, restées à l'état `nouveau` parce que
+personne ne referme une proposition dont le mail a été traité ailleurs.
+
+Huit étaient des doublons exacts — même client, même minute, même objet que des
+tickets déjà ouverts. Elles ont été annulées. Une seule était légitime
+(100176161, client 30428).
+
+**L'anti-doublon ne protège pas de ça** : sa fenêtre est de 48 h, et ces mails
+en avaient 50. Un garde-fou calibré sur « deux demandes identiques le même
+jour » ne voit rien quand on rejoue l'avant-veille.
+
+La règle, désormais dans `traiter_automatiquement` : **un mail sorti de la boîte
+a reçu une issue**. Un collègue l'a traité dans Artis, ou il a été rangé sans
+ticket. Seules les propositions dont le mail est **encore en boîte** s'exécutent
+automatiquement.
+
+Corollaire pour tout armement futur : **vider la file de propositions avant
+d'armer**, ou s'attendre à ce qu'elle parte d'un bloc. Le drapeau n'est pas un
+interrupteur neutre — c'est un déclencheur sur une file qui a pu s'accumuler
+pendant des jours.
+

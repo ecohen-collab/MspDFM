@@ -2132,6 +2132,19 @@ def traiter_automatiquement(log=None, dans_la_boite=None):
                         or (dans_la_boite is not None
                             and x.get("message_id") in dans_la_boite)
                         or x.get("auto_version") != REGLES_VERSION)
+                   # ET LE MAIL DOIT ENCORE ETRE EN BOITE. Un mail sorti de la
+                   # boite a RECU UNE ISSUE : un collegue l'a traite dans Artis,
+                   # ou il a ete range sans ticket. Sa proposition, elle, reste
+                   # « nouveau » pour toujours — personne ne la referme.
+                   # Le 2026-10-01, a la seconde ou le drapeau d'ecriture a ete
+                   # pose, neuf propositions du 29 septembre (P-1390 a P-1399)
+                   # sont parties d'un coup : huit DIT en doublon exact, meme
+                   # client, meme minute, meme objet que les tickets deja
+                   # ouverts. L'anti-doublon n'a rien vu — sa fenetre est de
+                   # 48 h, et ces mails avaient deux jours.
+                   # Un arriere de propositions n'est pas un arriere de travail.
+                   and (dans_la_boite is None
+                        or x.get("message_id") in dans_la_boite)
                    and (x.get("ombre") or {}).get("action")
                    and not (x.get("ombre") or {}).get("retro")]
     # L'IA PASSE DEVANT. Si elle donne signe de vie, on lui laisse
