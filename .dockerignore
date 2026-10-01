@@ -4,6 +4,16 @@
 authelia/.env
 tdsynnex_token.txt
 tdsynnex_token.txt.bak.*
+yooz_refresh.txt
+yooz_refresh.txt.bak.*
+
+# Scratch / probes de dev (préfixe _) + PDF (factures = données client)
+_*.py
+_*.txt
+_*.json
+*.pdf
+# Captures réseau : lourdes et porteuses de jetons de session — jamais dans l'image
+*.har
 
 # Données runtime (vivent dans le volume DATA_DIR, pas dans l'image)
 msp_data.json
@@ -21,10 +31,16 @@ stdout.txt
 *.tmp
 _*_tmp.json
 
-# Excel & macros / CSV (lourds, non utilisés en runtime Container App)
+# Bureautique & mails (lourds, non utilisés en runtime — et souvent VERROUILLÉS par Word /
+# OneDrive, ce qui fait échouer `az acr build` sur un « Permission denied » au moment de
+# fabriquer le tar du contexte).
 *.xlsm
 *.xlsx
 *.xls
+*.docx
+*.doc
+*.eml
+*.msg
 vba_export.txt
 *.csv
 
@@ -60,3 +76,5 @@ codex/
 
 # Docker override dev local (jamais dans l'image)
 docker-compose.override.yml
+
+mail_dit_journal.jsonl

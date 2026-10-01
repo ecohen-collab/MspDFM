@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Journal mail → DIT — DFM</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0f1117; --surface:#1a1d27; --surface2:#22263a;
+  --border:rgba(255,255,255,0.07); --border2:rgba(255,255,255,0.14);
+  --text:#e8eaf2; --muted:#7b7f96;
+  --accent:#4f7cff; --green:#22c55e; --amber:#f59e0b; --red:#ef4444; --blue:#38bdf8; --violet:#a78bfa;
+  --font:'Sora',sans-serif; --mono:'DM Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;}
+.header{display:flex;align-items:center;justify-content:space-between;padding:1rem 2rem;border-bottom:1px solid var(--border);background:var(--surface);position:sticky;top:0;z-index:20;}
+.logo{display:flex;align-items:center;gap:10px;}
+.logo-dot{width:9px;height:9px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green);}
+.logo-text{font-size:15px;font-weight:600;letter-spacing:.04em;}
+.logo-sub{font-size:11px;color:var(--muted);font-weight:300;}
+.header-right{display:flex;align-items:center;gap:12px;}
+#maj{font-size:11px;color:var(--muted);font-family:var(--mono);}
+.btn{display:flex;align-items:center;gap:6px;background:var(--surface2);color:var(--text);border:1px solid var(--border2);border-radius:8px;padding:6px 14px;font-size:12px;font-family:var(--font);font-weight:500;cursor:pointer;transition:all .2s;text-decoration:none;}
+.btn:hover{border-color:var(--accent);color:var(--accent);}
+.main{padding:1.5rem 2rem;max-width:1400px;margin:0 auto;}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:1.3rem;}
+.metric{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:.9rem 1.1rem;cursor:pointer;transition:border-color .15s;}
+.metric:hover{border-color:var(--border2);}
+.metric.on{border-color:var(--accent);}
+.metric-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;}
+.metric-value{font-size:22px;font-weight:600;font-family:var(--mono);line-height:1;}
+.toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:10px;}
+.filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+.search{background:var(--surface2);border:1px solid var(--border2);color:var(--text);border-radius:8px;padding:7px 12px;font-size:12px;font-family:var(--font);width:260px;outline:none;}
+.search:focus{border-color:var(--accent);}
+.sel{background:var(--surface2);border:1px solid var(--border2);color:var(--text);border-radius:8px;padding:7px 10px;font-size:12px;font-family:var(--font);outline:none;cursor:pointer;}
+.btn-export{background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.4);color:var(--green);border-radius:8px;padding:6px 12px;font-size:11px;font-weight:500;cursor:pointer;}
+.btn-export:hover{background:rgba(34,197,94,.22);}
+.jour{font-size:11px;color:var(--muted);font-family:var(--mono);text-transform:uppercase;letter-spacing:.08em;margin:1.4rem 0 .5rem;padding-bottom:.4rem;border-bottom:1px solid var(--border);}
+.jour:first-of-type{margin-top:0;}
+.ligne{display:grid;grid-template-columns:62px 1fr 26px 1fr;gap:10px;align-items:start;padding:9px 12px;border-bottom:1px solid var(--border);}
+.ligne:hover{background:rgba(79,124,255,.05);}
+.heure{font-family:var(--mono);font-size:11px;color:var(--muted);padding-top:1px;}
+.gauche{min-width:0;}
+.droite{min-width:0;}
+.de{font-family:var(--mono);font-size:12px;color:var(--text);word-break:break-all;}
+.objet{font-size:11px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.fleche{color:var(--muted);font-family:var(--mono);font-size:13px;text-align:center;padding-top:1px;}
+.res{font-size:12px;font-weight:500;}
+.dit{font-family:var(--mono);color:var(--blue);text-decoration:none;}
+.dit:hover{text-decoration:underline;}
+.client{font-size:11px;color:var(--muted);margin-top:2px;}
+.detail{font-size:11px;color:var(--muted);margin-top:3px;line-height:1.45;}
+.tag{display:inline-block;font-size:9px;text-transform:uppercase;letter-spacing:.07em;padding:2px 7px;border-radius:5px;font-weight:600;vertical-align:1px;}
+.t-creation{background:rgba(34,197,94,.14);color:var(--green);}
+.t-complement{background:rgba(56,189,248,.14);color:var(--blue);}
+.t-rangement{background:rgba(123,127,150,.18);color:var(--muted);}
+.t-transfert{background:rgba(167,139,250,.16);color:var(--violet);}
+.t-annulation{background:rgba(239,68,68,.14);color:var(--red);}
+.t-laisse{background:rgba(245,158,11,.14);color:var(--amber);}
+.t-piece{background:rgba(79,124,255,.14);color:var(--accent);}
+.vide{text-align:center;padding:3rem;color:var(--muted);font-size:12px;}
+.banner{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:8px;padding:.8rem 1rem;font-size:12px;color:#fca5a5;margin-bottom:1rem;display:none;}
+footer{text-align:center;padding:1.5rem;color:var(--muted);font-size:10px;}
+@media (max-width:760px){.ligne{grid-template-columns:52px 1fr;}.fleche,.droite{grid-column:2;}.fleche{text-align:left;padding-top:4px;}}
+</style>
+<script>/*dfm-shell-redirect*/(function(){try{if(window.self===window.top&&!/[?&]raw=1/.test(location.search)){location.replace('/index.html#journal'+location.hash.replace('#','&'));}}catch(e){}})();</script>
+</head>
+<body>
+<div class="header">
+  <div class="logo">
+    <div class="logo-dot"></div>
+    <div><div class="logo-text">Journal mail → DIT</div>
+         <div class="logo-sub">ce que le robot a fait de la boîte support</div></div>
+  </div>
+  <div class="header-right">
+    <span id="maj"></span>
+    <button class="btn" onclick="charger()">Rafraîchir</button>
+  </div>
+</div>
+
+<div class="main">
+  <div class="banner" id="banner"></div>
+  <div class="metrics" id="metrics"></div>
+
+  <div class="toolbar">
+    <div class="filters">
+      <input class="search" id="q" placeholder="expéditeur, client, n° de DIT…" oninput="rendre()">
+      <select class="sel" id="periode" onchange="charger()">
+        <option value="jour">Aujourd’hui</option>
+        <option value="7">7 derniers jours</option>
+        <option value="30">30 derniers jours</option>
+        <option value="">Tout l’historique</option>
+      </select>
+    </div>
+    <button class="btn-export" onclick="exporter()">Export CSV</button>
+  </div>
+
+  <div id="liste"></div>
+</div>
+
+<footer>Chaque ligne est écrite au moment de l’action. Le journal ne se réécrit pas.</footer>
+
+<script>
+let LIGNES = [], FILTRE = null;
+
+const ACTIONS = {
+  creation:   {mot:'DIT créée',        cls:'t-creation'},
+  complement: {mot:'DIT complétée',    cls:'t-complement'},
+  rangement:  {mot:'rangé',            cls:'t-rangement'},
+  transfert:  {mot:'transféré',        cls:'t-transfert'},
+  annulation: {mot:'DIT annulée',      cls:'t-annulation'},
+  laisse:     {mot:'laissé en boîte',  cls:'t-laisse'},
+  piece:      {mot:'pièce jointe',     cls:'t-piece'}
+};
+
+const ECH = {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'};
+const esc = s => String(s==null?'':s).replace(/[&<>"]/g, c => ECH[c]);
+
+function dateFr(iso){
+  if(!iso) return '';
+  const d = new Date(iso);
+  if(isNaN(d)) return esc(iso);
+  return d.toLocaleDateString('fr-FR') + ' à ' + d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}).replace(':','h');
+}
+function jourFr(iso){
+  const d = new Date(iso);
+  if(isNaN(d)) return 'date inconnue';
+  return d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+}
+function heureFr(iso){
+  const d = new Date(iso);
+  return isNaN(d) ? '' : d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+}
+
+function erreur(msg){
+  const b = document.getElementById('banner');
+  b.textContent = msg; b.style.display = msg ? 'block' : 'none';
+}
+
+function bornePeriode(){
+  const p = document.getElementById('periode').value;
+  if(!p) return '';
+  const d = new Date();
+  if(p === 'jour'){ d.setHours(0,0,0,0); }
+  else { d.setDate(d.getDate() - parseInt(p,10)); }
+  const pad = n => String(n).padStart(2,'0');
+  return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes())+':00';
+}
+
+async function charger(){
+  erreur('');
+  document.getElementById('liste').innerHTML = '<div class="vide">chargement…</div>';
+  try{
+    const url = '/api/journal/lignes?limite=3000&depuis=' + encodeURIComponent(bornePeriode()) + '&t=' + Date.now();
+    const r = await fetch(url);
+    const d = await r.json();
+    if(!r.ok) throw new Error(d.error || ('HTTP ' + r.status));
+    LIGNES = d.lignes || [];
+    const c = {}; LIGNES.forEach(l => c[l.action] = (c[l.action]||0)+1);
+    metriques(c);
+    document.getElementById('maj').textContent = LIGNES.length + ' action' + (LIGNES.length>1?'s':'');
+    rendre();
+  }catch(e){
+    erreur('Lecture du journal impossible : ' + e.message);
+    document.getElementById('liste').innerHTML = '';
+  }
+}
+
+function metriques(c){
+  const ordre = ['creation','complement','transfert','rangement','piece','laisse','annulation'];
+  document.getElementById('metrics').innerHTML = ordre.filter(a => c[a]).map(a =>
+    '<div class="metric' + (FILTRE===a?' on':'') + '" onclick="basculer(&quot;'+a+'&quot;)">' +
+      '<div class="metric-label">' + ACTIONS[a].mot + '</div>' +
+      '<div class="metric-value">' + c[a] + '</div>' +
+    '</div>').join('');
+}
+
+function basculer(a){
+  FILTRE = (FILTRE === a) ? null : a;
+  const c = {}; LIGNES.forEach(l => c[l.action] = (c[l.action]||0)+1);
+  metriques(c); rendre();
+}
+
+function visibles(){
+  const q = document.getElementById('q').value.trim().toLowerCase();
+  return LIGNES.filter(l => {
+    if(FILTRE && l.action !== FILTRE) return false;
+    if(!q) return true;
+    return [l.mail_de,l.mail_objet,l.client_nom,l.client_code,l.dit,l.detail,l.destinataire]
+      .some(v => String(v||'').toLowerCase().includes(q));
+  });
+}
+
+function resultat(l){
+  const a = ACTIONS[l.action] || {mot:l.action, cls:'t-rangement'};
+  let txt = '<span class="tag ' + a.cls + '">' + esc(a.mot) + '</span>';
+  if(l.dit){
+    txt += ' <a class="dit" href="/artis.html?dit=' + encodeURIComponent(l.dit) + '" target="_blank">DIT ' + esc(l.dit) + '</a>';
+  }
+  if(l.action === 'transfert' && l.destinataire){
+    txt += ' <span class="res">→ ' + esc(l.destinataire) + '</span>';
+  }
+  if(l.action === 'rangement' && l.dossier){
+    txt += ' <span class="res">' + esc(l.dossier) + '</span>';
+  }
+  return txt;
+}
+
+function rendre(){
+  const lst = visibles();
+  if(!lst.length){
+    document.getElementById('liste').innerHTML = '<div class="vide">Aucune action sur cette période.</div>';
+    return;
+  }
+  let html = '', jourCourant = '';
+  for(const l of lst){
+    const j = jourFr(l.ts);
+    if(j !== jourCourant){ html += '<div class="jour">' + esc(j) + '</div>'; jourCourant = j; }
+    const client = [l.client_code, l.client_nom].filter(Boolean).join(' — ');
+    html += '<div class="ligne">' +
+      '<div class="heure">' + heureFr(l.ts) + '</div>' +
+      '<div class="gauche">' +
+        '<div class="de">' + (l.mail_de ? esc(l.mail_de) : '<span style="color:var(--muted)">(sans expéditeur)</span>') + '</div>' +
+        (l.mail_objet ? '<div class="objet" title="' + esc(l.mail_objet) + '">' + esc(l.mail_objet) + '</div>' : '') +
+        (l.mail_recu ? '<div class="objet">reçu le ' + dateFr(l.mail_recu) + '</div>' : '') +
+      '</div>' +
+      '<div class="fleche">──▸</div>' +
+      '<div class="droite">' +
+        '<div>' + resultat(l) + '</div>' +
+        (client ? '<div class="client">' + esc(client) + '</div>' : '') +
+        (l.detail ? '<div class="detail">' + esc(l.detail) + '</div>' : '') +
+      '</div>' +
+    '</div>';
+  }
+  document.getElementById('liste').innerHTML = html;
+}
+
+function exporter(){
+  const lst = visibles();
+  const col = ['ts','action','mail_de','mail_objet','mail_recu','client_code','client_nom','dit','destinataire','dossier','detail','par'];
+  const q = v => '"' + String(v==null?'':v).replace(/"/g,'""') + '"';
+  const csv = [col.join(';')].concat(lst.map(l => col.map(c => q(l[c])).join(';'))).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['﻿'+csv], {type:'text/csv;charset=utf-8'}));
+  a.download = 'journal_mail_dit_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+}
+
+charger();
+</script>
+<script src="/assistant.js" defer></script>
+</body>
+</html>

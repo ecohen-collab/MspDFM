@@ -22,6 +22,38 @@ créer ou compléter dans Artis, ranger le mail, rendre un rapport court.
 5. **Ranger** le mail — et seulement après le succès de l'action Artis.
 6. **Rapport** : créé / complété / rangé / laissé, une ligne de raison chacun.
    Rien d'autre : pas de synthèse, pas de tendance, pas de recommandation.
+7. **Journaliser chaque action** — voir ci-dessous.
+
+## Le journal : ce qui reste quand le terminal se ferme
+
+Un rapport de passage vit dans un terminal et meurt avec lui. Le **journal**
+(`mail_dit_journal.py`, à la racine du repo) écrit une ligne par action dans
+`DATA_DIR/mail_dit_journal.jsonl`, que l'onglet **Journal mail vers DIT** du
+dashboard affiche. Demandé par Elliot le 2026-10-01 : « un onglet unique avec
+tout ce qui a été fait ; mail de x@y du 02/09 à 14h54 ──▸ DIT 100176099 créée ».
+
+- **Les créations sont journalisées toutes seules** par `bin/creer_dit.py` :
+  rien à faire.
+- **Tout le reste est à écrire à la main**, dans le même passage :
+
+```python
+import mail_dit_journal as J
+J.ajouter("complement", mail_de="x@y.fr", mail_objet="RE: [IT …]",
+          dit="100175976", client_code="28964", client_nom="EDOLIX",
+          detail="le client demande quand la coupure sera rétablie")
+J.ajouter("transfert", mail_de="x@y.fr", destinataire="ckudlak@dfm.fr",
+          dit="100175976", detail="prévenir l'intervenant")
+J.ajouter("rangement", mail_de="x@y.fr", mail_objet="…",
+          dossier="BAL TELECOM", detail="standard téléphonique")
+J.ajouter("laisse", mail_de="x@y.fr", detail="corps vide, aucune demande")
+```
+
+Actions admises : `creation`, `complement`, `rangement`, `transfert`,
+`annulation`, `laisse`, `piece`. Une action hors liste lève une erreur —
+c'est voulu : une ligne au type inconnu serait invisible dans les filtres.
+
+Le fichier est en **append** : jamais de réécriture, jamais de verrou. Deux
+écrivains concurrents s'intercalent, ils ne s'effacent pas.
 
 ## Pas de contrat d'infogérance → pas de DIT, on transmet
 

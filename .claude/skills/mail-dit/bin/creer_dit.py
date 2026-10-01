@@ -53,6 +53,14 @@ import time
 sys.path.insert(0, r"C:\Users\ecohen\OneDrive - DFM\Bureau\Dashboard IA")
 import mail_dit_ecriture as E             # noqa: E402
 
+# Le journal alimente l'onglet << Journal mail vers DIT >> du dashboard.
+# Import defensif : une creation ne doit jamais echouer parce que le
+# journal manque.
+try:
+    import mail_dit_journal as J
+except Exception:                          # noqa: BLE001
+    J = None
+
 if hasattr(sys.stdout, "buffer"):
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8",
                                   errors="replace")
@@ -111,6 +119,24 @@ def creer(prop, go):
 
     numero = str(r["numero"])
     print("  CREEE          :", numero)
+
+    # Journaliser TOUT DE SUITE : si la pose d'UO ou d'une piece jointe
+    # echoue plus bas, la DIT existe quand meme et doit figurer au journal.
+    if J is not None:
+        try:
+            J.ajouter("creation",
+                      mail_de=prop.get("de"),
+                      mail_objet=prop.get("objet"),
+                      mail_recu=prop.get("date_dit"),
+                      client_code=prop.get("client"),
+                      dit=numero,
+                      detail="%s / %s / priorite %s" % (prop.get("symptome"),
+                                                        prop.get("uo"),
+                                                        prop.get("priorite")),
+                      dossier="01 - DIT ARTIS SUPPORT",
+                      par="claude-code")
+        except Exception as exc:           # noqa: BLE001
+            print("  JOURNAL        : non ecrit (%s)" % str(exc)[:80])
 
     # L'UO se pose sur le numero d'INTERVENTION = numero de DIT + "01".
     intervention = numero + "01"

@@ -70,3 +70,7 @@ memory/
 # ═════════════════════════════════════════════════════════════════════
 *.tar.gz
 *.zip
+
+# Journal mail -> DIT : contient des adresses et des objets de mails clients.
+# Il vit sur /data (Azure Files), pas dans le depot ni dans l image.
+mail_dit_journal.jsonl
