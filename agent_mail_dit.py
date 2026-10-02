@@ -98,6 +98,33 @@ def log(*a):
     print(datetime.datetime.now().strftime("%H:%M:%S"), *a, flush=True)
 
 
+def _ecrire_json(chemin, valeur):
+    """Ecriture atomique, avec repli en ecriture directe.
+
+    `os.replace` echoue par intermittence sur Azure Files (SMB) : le 2026-10-02
+    un `agent_mail_dit_usage.tmp` est reste sur le partage et le compteur du
+    mois a perdu un appel. Mieux vaut un fichier brievement incomplet qu'un
+    compteur de depense muet.
+    """
+    try:
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        texte = json.dumps(valeur, ensure_ascii=False, indent=1, default=str)
+        tmp = chemin.with_suffix(".tmp")
+        try:
+            tmp.write_text(texte, encoding="utf-8")
+            tmp.replace(chemin)
+        except Exception:
+            chemin.write_text(texte, encoding="utf-8")
+            try:
+                tmp.unlink()
+            except Exception:
+                pass
+        return True
+    except Exception as exc:                 # noqa: BLE001
+        log("ecriture %s impossible : %s" % (chemin.name, str(exc)[:120]))
+        return False
+
+
 # ═════════════════════════════════════════════════════════════════ budget
 def _mois():
     return datetime.date.today().strftime("%Y-%m")
@@ -172,14 +199,7 @@ def _compter(u, passage=False):
     m["cout_eur"] = round(float(m.get("cout_eur") or 0.0) + cout, 4)
     if passage:
         m["passages"] = int(m.get("passages") or 0) + 1
-    try:
-        DATA_DIR.mkdir(parents=True, exist_ok=True)
-        tmp = USAGE.with_suffix(".tmp")
-        tmp.write_text(json.dumps(d, ensure_ascii=False, indent=1),
-                       encoding="utf-8")
-        tmp.replace(USAGE)
-    except Exception as exc:                 # noqa: BLE001
-        log("compteur non ecrit :", str(exc)[:120])
+    _ecrire_json(USAGE, d)
     return cout
 
 
@@ -1194,13 +1214,7 @@ def _poser_type_travail(ctx):
 def _compter_passage():
     d = usage()
     d[_mois()]["passages"] = int(d[_mois()].get("passages") or 0) + 1
-    try:
-        tmp = USAGE.with_suffix(".tmp")
-        tmp.write_text(json.dumps(d, ensure_ascii=False, indent=1),
-                       encoding="utf-8")
-        tmp.replace(USAGE)
-    except Exception:
-        pass
+    _ecrire_json(USAGE, d)
 
 
 ETAT = DATA_DIR / "agent_mail_dit_etat.json"
@@ -1224,30 +1238,16 @@ def etat_demarrage(demarre, raison=""):
                                  or assembler_consigne()) else "ABSENTE",
             "quand": datetime.datetime.now().astimezone()
                      .isoformat(timespec="seconds")}
-    try:
-        DATA_DIR.mkdir(parents=True, exist_ok=True)
-        tmp = ETAT.with_suffix(".tmp")
-        tmp.write_text(json.dumps(etat, ensure_ascii=False, indent=2),
-                       encoding="utf-8")
-        tmp.replace(ETAT)
-    except Exception:
-        pass
+    _ecrire_json(ETAT, etat)
     return etat
 
 
 def _battre(resume):
     """Un robot qui s'arrete ne previent pas : le fichier qui vieillit est la
     seule alerte. Meme raison que dans `robot_mail_dit.py`."""
-    try:
-        DATA_DIR.mkdir(parents=True, exist_ok=True)
-        tmp = BATTEMENT.with_suffix(".tmp")
-        tmp.write_text(json.dumps(
-            dict(resume, quand=datetime.datetime.now().astimezone()
-                 .isoformat(timespec="seconds")),
-            ensure_ascii=False, indent=2, default=str), encoding="utf-8")
-        tmp.replace(BATTEMENT)
-    except Exception as exc:                 # noqa: BLE001
-        log("battement non ecrit :", str(exc)[:120])
+    _ecrire_json(BATTEMENT, dict(
+        resume, quand=datetime.datetime.now().astimezone()
+        .isoformat(timespec="seconds")))
 
 
 def _afficher(r):
@@ -1312,16 +1312,9 @@ def _boite_inchangee():
 
 
 def _memoriser_vue(ids):
-    try:
-        DATA_DIR.mkdir(parents=True, exist_ok=True)
-        tmp = VUE.with_suffix(".tmp")
-        tmp.write_text(json.dumps(
-            {"ids": ids, "quand": datetime.datetime.now().astimezone()
-             .isoformat(timespec="seconds")}, ensure_ascii=False),
-            encoding="utf-8")
-        tmp.replace(VUE)
-    except Exception:
-        pass
+    _ecrire_json(VUE, {"ids": ids,
+                       "quand": datetime.datetime.now().astimezone()
+                       .isoformat(timespec="seconds")})
 
 
 def boucle():
@@ -1353,12 +1346,23 @@ def boucle():
                     log("boite inchangee (%d mail(s)) : pas de passage" % len(ids))
                 else:
                     log("boite modifiee (%d mail(s)) : passage" % len(ids))
-                    passage()
-                    # On memorise l'etat d'APRES, pas celui d'avant : un
-                    # passage actif range des mails, et comparer au depart
-                    # ferait croire a un changement au tour suivant — donc un
-                    # second passage paye pour rien.
-                    _memoriser_vue(_boite_inchangee()[1])
+                    try:
+                        passage()
+                    finally:
+                        # Dans un `finally`, et c'est voulu : un passage qui
+                        # echoue ne doit PAS etre rejoue a l'identique toutes
+                        # les 15 minutes. Le mail qui l'a fait tomber le ferait
+                        # tomber encore, et chaque tentative se paie. Le
+                        # battement garde la trace de l'echec ; un mail de plus
+                        # dans la boite relancera un passage de toute facon.
+                        #
+                        # On memorise l'etat d'APRES, pas celui d'avant : un
+                        # passage actif range des mails, et comparer au depart
+                        # ferait croire a un changement au tour suivant.
+                        try:
+                            _memoriser_vue(_boite_inchangee()[1])
+                        except Exception:
+                            _memoriser_vue(ids)
         except Exception as exc:             # noqa: BLE001
             log("passage en echec :", repr(exc)[:240])
         time.sleep(PERIODE)
