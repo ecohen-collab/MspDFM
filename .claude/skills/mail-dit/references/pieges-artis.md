@@ -162,3 +162,60 @@ d'armer**, ou s'attendre à ce qu'elle parte d'un bloc. Le drapeau n'est pas un
 interrupteur neutre — c'est un déclencheur sur une file qui a pu s'accumuler
 pendant des jours.
 
+
+
+## Un mail joint à un mail n'a pas de `contentBytes`
+
+Graph distingue deux pièces jointes :
+
+- `fileAttachment` — un fichier, en base64 dans `contentBytes` ;
+- `itemAttachment` — **un mail transféré en pièce jointe**. Pas de
+  `contentBytes` du tout. `contenu_piece` rendait `None`, `joindre_pieces`
+  répondait « contenu illisible », et la pièce ne partait jamais dans la GED —
+  sans erreur visible ailleurs que dans le détail du retour.
+
+Constaté le 2026-10-02 sur le rapport Veeam d'OPTIM WAFER (DIT 04216913), que
+le client annonçait pourtant par « le message d'erreur ci-joint ». Son contenu
+s'obtient sur `/attachments/{id}/$value`, en MIME brut — c'est le repli
+désormais câblé dans `contenu_piece`.
+
+## Le mail déplacé change d'identifiant
+
+`ranger_mail` fait un `POST /messages/{id}/move` : **l'identifiant du message
+change**. Tout appel ultérieur avec l'ancien `mail_id` répond 404 — y compris
+`/attachments`, ce qui ressemble à « ce mail n'a pas de pièce jointe ».
+
+Donc : joindre les pièces AVANT de ranger. Et pour retrouver un mail déjà
+déplacé, passer par son `internetMessageId`, qui ne change jamais :
+
+```python
+M._get(tok, GRAPH + "/me/messages",
+       {"$filter": "internetMessageId eq '%s'" % mid, "$select": "id"})
+```
+
+## Un chemin UNC se recopie en chaine brute
+
+Un chemin recopie dans une chaine Python **non brute** se fait manger
+par les sequences d'echappement : `\r` devient un retour chariot,
+`\2` le caractere 0x02, `\e` est invalide. Le technicien lit
+alors un chemin casse, et la demande devient inexecutable. Constate le
+2026-10-02 sur la DIT 02301286 (lecteur W de Plasticoncept) -- et une
+seconde fois en redigeant ce paragraphe, ce qui dit assez a quel point
+la faute est facile.
+
+Recopier un chemin, une commande ou une cle de registre **toujours en
+`r"..."`**, et relire le commentaire pose (`relire_dit`) des qu'il en
+contient un.
+
+## La signature des transferts vivait dans le skill, pas dans le code
+
+`Service MCO - Mail automatique` était écrit ici depuis le 2026-10-01 et
+n'existait nulle part dans `mail_dit.py` : les transferts du robot partaient
+sans signature. Posée le 2026-10-02 dans `mail_dit.SIGNATURE_MCO`, appliquée
+par `_mot_du_transfert` et par `transferer_mail`.
+
+Même jour, même famille : `completer_dit_direct` écrivait « tu es le dernier
+intervenant » **même à Clifford** sur un ticket sans aucun intervenant — la
+correction d'Elliot du 2026-09-25 n'avait été appliquée que dans
+`_mot_du_transfert`, que ce chemin-là n'appelait pas. Quand une règle a une
+formulation, elle doit avoir **une seule** fonction qui la produit.

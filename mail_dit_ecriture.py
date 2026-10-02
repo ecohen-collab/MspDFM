@@ -1777,8 +1777,8 @@ def transferer_mail(pid, a="", mot="", confirmer=False, deplacer=True):
     if not tok:
         return {"erreur": "pas de jeton mail"}
 
-    mot = mot or ("Bonjour,\n\nCe message est arrivé sur la boîte du support "
-                  "mais t'est adressé — je te le transfère.\n")
+    mot = (mot or ("Bonjour,\n\nCe message est arrivé sur la boîte du support "
+                   "mais t'est adressé — je te le transfère.\n")) + M.SIGNATURE_MCO
     r = requests.post("%s/me/messages/%s/createForward" % (M.GRAPH, prop["mail_id"]),
                       headers={"Authorization": "Bearer " + tok,
                                "Content-Type": "application/json"},
@@ -1929,9 +1929,14 @@ def completer_dit_direct(numero, prop, log=None):
                      headers={"Authorization": "Bearer " + tok,
                               "Content-Type": "application/json"},
                      data=json.dumps({
-                         "comment": "Bonjour,\n\nSuite de la demande sur le "
-                                    "ticket %s, dont tu es le dernier "
-                                    "intervenant.\n" % numero,
+                         # `_mot_du_transfert` distingue les trois cas —
+                         # l'intervenant, l'adresse introuvable, et SURTOUT le
+                         # ticket sans aucun intervenant, ou Clifford doit
+                         # REDISPATCHER et non faire suivre. Ce chemin-ci
+                         # ecrivait « tu es le dernier intervenant » meme a
+                         # Clifford, ce qu'Elliot avait fait corriger ailleurs
+                         # le 2026-09-25 (constate ici le 2026-10-02).
+                         "comment": M._mot_du_transfert(numero, iv),
                          "toRecipients": [
                              {"emailAddress": {"address": iv["mail"]}}]}),
                      timeout=60)

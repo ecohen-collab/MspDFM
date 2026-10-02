@@ -3306,13 +3306,32 @@ def pieces_du_mail(tok, mail_id, taille_max=20 * 1024 * 1024, sans_texte=False,
 
 
 def contenu_piece(tok, mail_id, piece_id):
-    """Le contenu binaire d'une piece jointe."""
+    """Le contenu binaire d'une piece jointe.
+
+    Deux formes de pieces, et une seule porte `contentBytes` :
+
+    * `fileAttachment` — un fichier, encode en base64 dans la reponse ;
+    * `itemAttachment` — un MAIL transfere en piece jointe. Graph ne rend
+      alors aucun `contentBytes`, et le code d'origine repondait None : la
+      piece devenait « contenu illisible » et ne partait pas dans la GED.
+      Constate le 2026-10-02 sur le rapport Veeam d'OPTIM WAFER (DIT
+      04216913), que le client annoncait pourtant par « le message d'erreur
+      ci-joint ». Son contenu s'obtient sur `/$value`, en MIME brut.
+    """
     import base64
     r = _get(tok, "%s/me/messages/%s/attachments/%s" % (GRAPH, mail_id, piece_id))
     if r.status_code != 200:
         return None
-    b64 = (r.json() or {}).get("contentBytes")
-    return base64.b64decode(b64) if b64 else None
+    j = r.json() or {}
+    b64 = j.get("contentBytes")
+    if b64:
+        return base64.b64decode(b64)
+    if "itemAttachment" in (j.get("@odata.type") or ""):
+        v = _get(tok, "%s/me/messages/%s/attachments/%s/$value"
+                 % (GRAPH, mail_id, piece_id))
+        if v.status_code == 200 and v.content:
+            return v.content
+    return None
 
 
 def fil_de_discussion(tok, conversation_id, limite=25):
@@ -5289,6 +5308,14 @@ def _ranger_automatiquement(tok, msgs, log=None):
 
 
 
+# Toute la correspondance qui part de support@dfm.fr est signee ainsi, jamais
+# du nom d'Elliot : le mail part de la boite du support, et celui qui le recoit
+# doit voir tout de suite que c'est le robot qui ecrit (Elliot, 2026-10-01). La
+# regle etait dans le skill depuis ce jour-la, mais nulle part dans le code :
+# les transferts partaient sans signature (constate le 2026-10-02).
+SIGNATURE_MCO = chr(10) + chr(10) + "Service MCO - Mail automatique" + chr(10)
+
+
 def _mot_du_transfert(dit, iv):
     """Le texte qui accompagne le transfert d'une reponse client.
 
@@ -5306,18 +5333,19 @@ def _mot_du_transfert(dit, iv):
     saut = chr(10)
     if not iv.get("relais"):
         return ("Bonjour,%s%sRéponse du client sur le ticket %s, dont tu es le "
-                "dernier intervenant.%s" % (saut, saut, dit, saut))
+                "dernier intervenant.%s" % (saut, saut, dit, saut)) + SIGNATURE_MCO
     if iv.get("sans_intervenant"):
         return ("Bonjour,%s%sRéponse du client sur le ticket %s.%s%s"
                 "Ce ticket n'a AUCUN intervenant affecté : personne ne le suit "
                 "actuellement. Je te le transmets pour que tu le redispatches "
-                "à la bonne personne.%s" % (saut, saut, dit, saut, saut, saut))
+                "à la bonne personne.%s" % (saut, saut, dit, saut, saut, saut)
+                ) + SIGNATURE_MCO
     return ("Bonjour,%s%sRéponse du client sur le ticket %s.%s%s%s%s%s"
             "Je te la transmets pour que tu la fasses suivre à l'intervenant "
             "concerné.%s" % (saut, saut, dit, saut, saut,
                              iv.get("raison") or
                              "l'intervenant du ticket est injoignable",
-                             saut, saut, saut))
+                             saut, saut, saut)) + SIGNATURE_MCO
 
 
 
