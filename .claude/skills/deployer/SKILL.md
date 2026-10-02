@@ -93,6 +93,51 @@ sous `$ErrorActionPreference='Stop'`.
 
 Rollback : `az containerapp ingress traffic set … --revision-weight <ancienne>=100`.
 
+## Lancer `deploy.ps1` depuis PowerShell, pas depuis Bash
+
+Appelé via `powershell -File .\deploy.ps1` depuis le shell Bash, le script échoue sur
+`FAIL · containerapp update` alors que la commande équivalente passée à la main fonctionne
+(constaté le 2026-10-01). Le `AzQuiet { ... 2>$null }` masque la cause réelle.
+
+Si l'on est dans Bash : construire avec `deploy.ps1` puis, en cas d'échec de cette étape,
+relever le tag construit et faire l'update directement —
+
+```bash
+AZ="/c/Program Files/Microsoft SDKs/Azure/CLI2/wbin/az.cmd"
+"$AZ" acr repository show-tags --name dfmplateformeprocess \
+      --repository msp-dashboard --orderby time_desc --top 3 -o tsv
+"$AZ" containerapp update --name msp-dashboard --resource-group GRP-RES-CONTENEURS \
+      --image dfmplateformeprocess.azurecr.io/msp-dashboard:<tag> \
+      --query "properties.latestRevisionName" -o tsv
+```
+
+## Easy Auth : tout est fermé par défaut
+
+```
+globalValidation.unauthenticatedClientAction = RedirectToLoginPage
+```
+
+Toute requête sans session Entra est redirigée vers la page de connexion — **y compris les
+appels d'API**. D'où le `401` sur une route pourtant publique dans le code : le refus vient
+d'Easy Auth, pas de l'application. C'est aussi pourquoi un smoke test anonyme renvoie 401 ou
+302 et que c'est le signe que tout va bien.
+
+Pour exposer un chemin à un appelant sans compte DFM (partenaire, automate tiers), il faut
+l'exclure explicitement :
+
+```bash
+"$AZ" containerapp auth update --name msp-dashboard --resource-group GRP-RES-CONTENEURS \
+      --excluded-paths "/api/partenaire/soc"
+```
+
+**Ne jamais le faire de sa propre initiative.** Ouvrir un chemin, c'est le rendre accessible
+à tout Internet : la seule protection restante est celle que porte le code (clé d'API,
+journalisation, périmètre des données). Cela se décide avec Elliot, explicitement, chemin par
+chemin — jamais un préfixe large type `/api/*`.
+
+Vérifier l'état courant : `az containerapp auth show … -o json`.
+
+
 ## Secrets
 
 Les credentials sont des **secrets de Container App** référencés par `secretRef`, pas des env vars
@@ -135,6 +180,29 @@ travailler sur du réel :
 
 `--auth-mode login --enable-file-backup-request-intent` est nécessaire (RBAC, pas de clé de compte).
 Toujours télécharger dans le scratchpad, jamais dans le repo.
+
+## Les logs du conteneur sont illisibles depuis ce poste
+
+`az containerapp logs show` **plante** sur le premier caractère hors cp1252 —
+une flèche `→` suffit :
+
+```
+UnicodeEncodeError: 'charmap' codec can't encode character '→'
+```
+
+Le flux s'arrête là, sans rien dire : les lignes suivantes n'apparaissent pas,
+et on croit que l'application n'a rien écrit. Constaté le 2026-10-02, sur
+`log("mail→DIT : ...")`. `PYTHONIOENCODING=utf-8`, `chcp 65001` et
+`[Console]::OutputEncoding` n'y changent rien — `az.cmd` relance son propre
+Python.
+
+Conséquence pratique : **un composant qui tourne en fond doit écrire son état
+sur `/data`**, pas seulement dans les logs. C'est ce que font
+`robot_mail_dit_battement.json` et `agent_mail_dit_etat.json` : un fichier se
+télécharge (cf. « Lire ou écrire sur /data ») et se lit, lui.
+
+Pour les logs eux-mêmes : KQL sur Log Analytics (`ContainerAppConsoleLogs_CL`,
+runbook §8), ou écrire en ASCII dans les lignes de démarrage.
 
 ## `az containerapp exec` : ne pas insister
 

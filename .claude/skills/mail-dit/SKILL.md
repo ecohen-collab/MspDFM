@@ -268,3 +268,68 @@ technicien lit le ticket, pas forcément les pièces.
 - `bin/lire_mail.py` — corps texte d'un mail depuis son internetMessageId
 - `bin/artis.py` — helpers REST (auth, GET, biens, anti-doublon, interlocuteurs)
 - `bin/creer_dit.py` — crée une ou plusieurs DIT depuis un JSON de propriétés
+
+## L'agent sur Azure — quand ce n'est plus moi qui passe
+
+`agent_mail_dit.py` (racine du repo) fait ce passage **tout seul, dans le
+conteneur**, sans le PC d'Elliot. Demandé le 2026-10-02 : « je veux que ce soit
+TOI sur Azure en auto sans mon PC ». Ce n'est pas le robot à règles
+(`robot_mail_dit.py` / `mail_dit.decider_seul`) : c'est une boucle d'outils,
+avec ce fichier-ci en consigne système.
+
+**La consigne de l'agent EST ce skill.** `assembler_consigne()` concatène
+`SKILL.md` et les quatre références. Donc :
+
+> Toute modification de ce skill doit être republiée sur `/data`, sinon l'agent
+> continue avec l'ancienne règle :
+>
+> ```powershell
+> & $py agent_mail_dit.py --consigne "<scratchpad>\agent_consigne.md"
+> & $az storage file upload --account-name dfmmspdashboardstor --share-name msp-data `
+>      --source "<scratchpad>\agent_consigne.md" --path agent_consigne.md `
+>      --auth-mode login --enable-file-backup-request-intent --only-show-errors
+> ```
+>
+> `.dockerignore` exclut `.claude/` : le skill n'est **pas** dans l'image, et
+> l'agent lit `/data/agent_consigne.md`. Un déploiement seul ne suffit donc pas.
+
+### Ce que l'agent ne peut pas faire, par construction
+
+Les garde-fous sont en Python, pas dans la consigne — une consigne se contourne
+par une tournure de phrase, pas par un `if` :
+
+| Garde-fou | Où |
+|---|---|
+| 10 créations par passage | `Contexte.peut_creer` |
+| 60 s entre deux DIT du même client | `Contexte.cadencer`, vraie attente |
+| anti-doublon | `E.creer_dit`, inchangé, sans échappatoire |
+| destinataire d'un transfert | `_transferer` : l'outil prend un **motif**, jamais une adresse |
+| signature `Service MCO - Mail automatique` | ajoutée par `_transferer` |
+| type de travail Hotline / Non facturable | `_poser_type_travail`, après le rapport, une seule session web |
+| suppression de mail | aucun outil ne l'expose ; `corbeille` est hors de `DOSSIERS_PERMIS` |
+
+### Modes et coût
+
+`AGENT_MODE=observation` (défaut) : tout est lu, rien n'est écrit, `creer_dit`
+passe quand même par l'anti-doublon. `AGENT_MODE=actif` : écrit, toujours sous
+le drapeau `/data/mail_dit_ecriture.txt`.
+
+**Un passage coûte environ 0,90 € sur Sonnet** (mesuré le 2026-10-02 : 7 mails,
+31 tours, 196 s). D'où `_boite_inchangee()` : on ne paie que si la boîte a bougé
+depuis le dernier passage. Sans ce garde-fou, un mail laissé en boîte serait
+réanalysé — et repayé — tous les quarts d'heure.
+
+Budget : `AGENT_PLAFOND_EUR`, compteur mensuel sur
+`/data/agent_mail_dit_usage.json`. Plafond atteint → `disponible()` est faux,
+l'agent s'arrête, le robot à règles continue seul.
+
+### Le voir tourner
+
+Les logs du conteneur sont illisibles depuis le poste d'Elliot (voir
+`references/pieges-artis.md`). Trois fichiers sur `/data` disent tout :
+
+| Fichier | Ce qu'il dit |
+|---|---|
+| `agent_mail_dit_etat.json` | ce qu'il a décidé au démarrage (clé, budget, consigne) |
+| `agent_mail_dit_battement.json` | le dernier passage, avec son rapport complet |
+| `agent_mail_dit_usage.json` | la dépense du mois, détail du cache |
