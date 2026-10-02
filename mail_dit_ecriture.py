@@ -1565,6 +1565,100 @@ def _existe_dans_annuaire(upn):
 # ranges le mail ».
 RELAIS = {"mail": "cyapnewkpin@dfm.fr", "nom": "Clifford YAP NEWK PIN"}
 
+# Le commercial a qui revient un client sans contrat d'infogerance. Elliot,
+# 2026-10-02 : « il faudrait plutot transferer au commercial qui est assigne au
+# client ». Celine d'Amato reste le repli quand la fiche n'en designe aucun.
+COMMERCE_REPLI = {"mail": "cdamato@dfm.fr", "nom": "Celine D'AMATO"}
+
+
+def commercial_informatique(code_client):
+    """Le commercial informatique du client, d'apres sa fiche Artis.
+
+    La donnee est dans les CLASSIFICATIONS de la fiche (onglet « Classifications »
+    de l'ecran client) : `categ[].classification.abrev == "COMINF"`, et l'`abrev`
+    de la categorie EST le matricule — JKTORZA, SVOCI, CGALLOT...
+
+    Du matricule a l'adresse : `matricule.lower() + "@dfm.fr"` est la convention
+    du tenant, mais on ne la DEVINE pas — on la verifie dans l'annuaire, et on
+    exige un compte actif. Un commercial parti garde sa ligne dans Artis des
+    annees ; lui ecrire, c'est ecrire dans le vide.
+
+    Un client peut porter plusieurs COMINF quand il appartient a plusieurs
+    organisations internes (AREAL : CGALLOT pour DFM, AELKAIM pour MOO). On ne
+    tranche pas : le premier est le destinataire, les autres passent en copie.
+
+    Rend {principal, copies, matricules, raison} — `principal` est None quand la
+    fiche ne designe personne de joignable.
+    """
+    out = {"principal": None, "copies": [], "matricules": [], "raison": ""}
+    try:
+        base, tok = _artis()
+        r = requests.get("%s/client/%s" % (base, code_client),
+                         params={"token": tok},
+                         headers={"accept": "application/json"}, timeout=40)
+        if r.status_code != 200:
+            out["raison"] = "fiche client %s : HTTP %s" % (code_client, r.status_code)
+            return out
+        fiche = r.json() or {}
+    except Exception as exc:                       # noqa: BLE001
+        out["raison"] = "fiche client illisible : %s" % str(exc)[:120]
+        return out
+
+    vus, mats = set(), []
+    for c in (fiche.get("categ") or []):
+        if ((c.get("classification") or {}).get("abrev") or "").upper() != "COMINF":
+            continue
+        m = (c.get("abrev") or "").strip()
+        if m and m.upper() not in vus:
+            vus.add(m.upper())
+            mats.append(m)
+    out["matricules"] = mats
+    if not mats:
+        out["raison"] = "aucun commercial informatique sur la fiche"
+        return out
+
+    joignables = []
+    for m in mats:
+        upn = m.lower() + "@dfm.fr"
+        qui = _annuaire_actif(upn)
+        if qui:
+            joignables.append(qui)
+    if not joignables:
+        out["raison"] = ("commercial(aux) %s : aucun compte actif dans l'annuaire"
+                         % ", ".join(mats))
+        return out
+    out["principal"] = joignables[0]
+    out["copies"] = joignables[1:]
+    return out
+
+
+_CACHE_ACTIF = {}
+
+
+def _annuaire_actif(upn):
+    """{mail, nom} si le compte existe ET est actif, sinon None."""
+    if upn in _CACHE_ACTIF:
+        return _CACHE_ACTIF[upn]
+    qui = None
+    try:
+        tok = M.access_token()
+        if tok:
+            r = requests.get("%s/users/%s" % (M.GRAPH, upn),
+                             headers={"Authorization": "Bearer " + tok},
+                             params={"$select": "displayName,mail,"
+                                                "userPrincipalName,accountEnabled"},
+                             timeout=25)
+            if r.status_code == 200:
+                j = r.json() or {}
+                if j.get("accountEnabled"):
+                    qui = {"mail": (j.get("mail") or j.get("userPrincipalName")
+                                    or upn).lower(),
+                           "nom": j.get("displayName") or upn}
+    except Exception:
+        qui = None
+    _CACHE_ACTIF[upn] = qui
+    return qui
+
 
 def dernier_intervenant(numero_dit):
     """Le dernier technicien affecté sur cette DIT, avec son mail.

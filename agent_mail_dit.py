@@ -435,10 +435,10 @@ OUTILS = [
      "description": "Transfere un mail en interne. Trois motifs seulement : "
                     "`intervenant` (le dernier technicien de la DIT, numero "
                     "obligatoire), `sans_contrat` (client sans contrat Info -> "
-                    "Celine d'Amato, Clifford en copie), `relais_humain` "
-                    "(Clifford, quand le client attend une reponse humaine "
-                    "qu'aucun ticket ne produit). L'adresse est choisie par "
-                    "l'outil, pas par toi.",
+                    "son commercial informatique, code client obligatoire), "
+                    "`relais_humain` (Clifford, quand le client attend une "
+                    "reponse humaine qu'aucun ticket ne produit). L'adresse "
+                    "est choisie par l'outil, pas par toi.",
      "input_schema": {"type": "object",
                       "required": ["mail_id", "motif", "mot"],
                       "properties": {
@@ -448,6 +448,10 @@ OUTILS = [
                           "dit": {"type": "string",
                                   "description": "numero de DIT, obligatoire "
                                                  "pour le motif intervenant"},
+                          "client": {"type": "string",
+                                     "description": "code client Artis, "
+                                                    "obligatoire pour le motif "
+                                                    "sans_contrat"},
                           "mot": {"type": "string",
                                   "description": "une ou deux phrases : ce qui "
                                                  "est demande et pourquoi on "
@@ -982,6 +986,7 @@ def _transferer(args, ctx, M, E, J):
     motif = args["motif"]
     m = _message(M, args["mail_id"], complet=False)
     copie = []
+    note = ""
     if motif == "intervenant":
         if not args.get("dit"):
             return {"refus": "motif intervenant : le numero de DIT est "
@@ -991,7 +996,24 @@ def _transferer(args, ctx, M, E, J):
         if not a:
             return {"erreur": iv.get("erreur") or iv.get("raison")}
     elif motif == "sans_contrat":
-        a, copie = "cdamato@dfm.fr", [E.RELAIS["mail"]]
+        # Le client sans contrat d'infogerance revient a SON commercial
+        # informatique, pas a l'ADV (Elliot, 2026-10-02). Celine d'Amato ne
+        # garde que les fiches qui ne designent personne de joignable.
+        if not args.get("client"):
+            return {"refus": "motif sans_contrat : le code client est "
+                             "obligatoire, c'est lui qui donne le commercial"}
+        com = E.commercial_informatique(str(args["client"]).strip())
+        if com.get("principal"):
+            a = com["principal"]["mail"]
+            copie = [c["mail"] for c in com["copies"]] + [E.RELAIS["mail"]]
+            note = "commercial informatique du client : %s" % com["principal"]["nom"]
+            if com["copies"]:
+                note += (" (la fiche en designe %d, les autres sont en copie)"
+                         % len(com["matricules"]))
+        else:
+            a, copie = E.COMMERCE_REPLI["mail"], [E.RELAIS["mail"]]
+            note = "repli sur %s : %s" % (E.COMMERCE_REPLI["nom"],
+                                          com.get("raison") or "commercial introuvable")
     elif motif == "relais_humain":
         a = E.RELAIS["mail"]
     else:
@@ -1003,7 +1025,7 @@ def _transferer(args, ctx, M, E, J):
     mot = (args.get("mot") or "").strip() + SIGNATURE
     if not ctx.actif:
         return {"simulation": True, "mode": "observation", "a": a,
-                "copie": copie, "mot": mot}
+                "copie": copie, "note": note, "mot": mot}
     if not E.ecriture_armee():
         return {"refus": "ecriture non armee : %s" % E.DRAPEAU}
 
@@ -1022,16 +1044,18 @@ def _transferer(args, ctx, M, E, J):
     e = requests.post("%s/me/messages/%s/send" % (M.GRAPH, bid),
                       headers={"Authorization": "Bearer " + tok}, timeout=60)
     envoye = e.status_code in (200, 202, 204)
-    out = {"envoye": envoye, "a": a, "copie": copie}
+    out = {"envoye": envoye, "a": a, "copie": copie, "note": note}
     if not envoye:
         out["erreur"] = "send HTTP %s (brouillon laisse en Brouillons)" % e.status_code
         return out
-    ctx.transferts.append({"a": a, "motif": motif, "objet": m.get("subject")})
+    ctx.transferts.append({"a": a, "motif": motif, "note": note,
+                           "objet": m.get("subject")})
     try:
         J.ajouter("transfert", mail_de=_adr(m.get("from")),
                   mail_objet=m.get("subject"), destinataire=a,
                   dit=args.get("dit") or "", par="agent-azure",
-                  detail="%s — %s" % (motif, (args.get("mot") or "")[:160]))
+                  detail="%s — %s%s" % (motif, (note + " — ") if note else "",
+                                      (args.get("mot") or "")[:160]))
     except Exception:
         pass
     # Le mail est parti chez un collegue : il n'a plus rien a faire en boite.

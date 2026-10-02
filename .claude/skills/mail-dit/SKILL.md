@@ -65,12 +65,33 @@ chez nous.
 
 Dans ce cas, et **seulement** dans ce cas :
 
-1. **Transférer le mail** à `cdamato@dfm.fr`, avec **Clifford**
-   (`cyapnewkpin@dfm.fr`) **en copie**. C'est la seule exception à l'interdit
-   d'envoi : transfert interne, à ces deux destinataires, jamais ailleurs.
+1. **Transférer le mail au commercial informatique du client**, avec
+   **Clifford** (`cyapnewkpin@dfm.fr`) **en copie**.
 2. **Ranger le mail en `01 - DIT ARTIS SUPPORT`** après le transfert.
-3. Le dire dans le rapport : client sans contrat Info, transmis à Céline
-   d'Amato et Clifford.
+3. Le dire dans le rapport : client sans contrat Info, transmis à son
+   commercial.
+
+### Qui est le commercial informatique du client
+
+Il est dans la fiche Artis, onglet **Classifications**, ligne
+`COMMERCIAL INFORMATIQUE`. Par l'API : `GET /client/{code}` →
+`categ[].classification.abrev == "COMINF"`, et l'`abrev` de la catégorie **est
+le matricule** (`JKTORZA`, `SVOCI`, `CGALLOT`…). Elliot, le 2026-10-02 : « il
+faudrait plutôt transférer au commercial qui est assigné au client ».
+
+`mail_dit_ecriture.commercial_informatique(code)` fait le chemin complet :
+
+- du matricule à l'adresse, `matricule.lower() + "@dfm.fr"` est la convention
+  du tenant — mais elle n'est jamais **devinée** : elle est vérifiée dans
+  l'annuaire Microsoft, et le compte doit être **actif**. Un commercial parti
+  garde sa ligne dans Artis pendant des années (`FMEIRINHO`, `CNEBEL` sont
+  désactivés) ;
+- un client présent dans **plusieurs organisations internes** porte plusieurs
+  `COMINF` (AREAL : `CGALLOT` pour DFM, `AELKAIM` pour MOO). On ne tranche
+  pas : le premier est destinataire, les autres passent en copie ;
+- **repli sur `cdamato@dfm.fr`** quand la fiche ne désigne personne de
+  joignable — c'est le cas de POLYTRANS et d'AREAL, qui n'ont par ailleurs
+  aucune affaire. Le dire dans le rapport quand ça arrive.
 
 Règle posée par Elliot le 2026-10-01 sur la DIT **100175462** (AREAL 29449,
 dont les 4 biens sont un écran et des copieurs) : « ta créé ça sans contrat
@@ -233,8 +254,8 @@ technicien lit le ticket, pas forcément les pièces.
   des transferts internes, jamais ailleurs qu'à ces adresses :
   - **le dernier intervenant de la DIT**, chaque fois qu'on ajoute le mail d'un
     client à son ticket en cours (voir plus haut) ;
-  - `cdamato@dfm.fr` + Clifford en copie quand le client n'a pas de contrat
-    Info (voir plus haut) ;
+  - **le commercial informatique du client** + Clifford en copie quand le
+    client n'a pas de contrat Info (voir plus haut) — à défaut `cdamato@dfm.fr` ;
   - **Clifford seul** (`cyapnewkpin@dfm.fr`) quand le client attend une
     **réponse humaine directe** qu'aucun ticket ne peut produire — une
     confirmation, un arbitrage, un rappel téléphonique. Dire ce qu'il attend,
@@ -304,6 +325,7 @@ par une tournure de phrase, pas par un `if` :
 | 60 s entre deux DIT du même client | `Contexte.cadencer`, vraie attente |
 | anti-doublon | `E.creer_dit`, inchangé, sans échappatoire |
 | destinataire d'un transfert | `_transferer` : l'outil prend un **motif**, jamais une adresse |
+| commercial d'un client sans contrat | `E.commercial_informatique` : lu dans Artis, vérifié dans l'annuaire |
 | signature `Service MCO - Mail automatique` | ajoutée par `_transferer` |
 | type de travail Hotline / Non facturable | `_poser_type_travail`, après le rapport, une seule session web |
 | suppression de mail | aucun outil ne l'expose ; `corbeille` est hors de `DOSSIERS_PERMIS` |
