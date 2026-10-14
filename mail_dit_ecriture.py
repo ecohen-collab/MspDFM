@@ -34,18 +34,22 @@ ETAT_CREATION = "EnCours"
 
 
 # ═══════════════════════════════════════════════════════ garde-fou
-# Le drapeau d'ecriture a trois sources, dans cet ordre. Le fichier local est
-# l'original : sur le poste d'Elliot et dans le conteneur, `DATA_DIR` est
-# monte et `mail_dit_ecriture.txt` y vit. Une session distante n'a ni l'un ni
-# l'autre — d'ou les deux autres :
+# Le drapeau d'ecriture a trois sources, et l'ordre compte.
 #
-#   - `MAIL_DIT_ECRITURE=OUI` en variable d'environnement : ce qu'on pose dans
-#     une routine Cloud pour l'armer ;
-#   - le meme fichier sur Azure Files, lu par SAS : c'est le bouton d'arret.
-#     Elliot peut desarmer la chaine distante en remplacant « OUI » par autre
-#     chose sur `/data`, sans toucher a la routine ni attendre un deploiement.
-#     Relu au plus une fois par minute pour ne pas marteler l'API.
-_DRAPEAU_DISTANT = {"vu": 0.0, "valeur": False}
+# Le fichier de `DATA_DIR` est l'original : sur le poste d'Elliot et dans le
+# conteneur, il est monte et `mail_dit_ecriture.txt` y vit. Une session
+# distante n'a ni l'un ni l'autre — d'ou `MAIL_DIT_ECRITURE=OUI`, qu'on pose
+# sur la routine Cloud pour l'armer.
+#
+# Mais une variable posee dans une routine ne se retire pas vite : il faut
+# ouvrir l'interface, editer, enregistrer. D'ou le VETO : quand la chaine
+# tourne en distant et que le fichier de `/data` existe sans dire OUI, rien
+# ne s'ecrit, quelle que soit la variable. Elliot arrete la chaine en
+# remplacant un mot dans un fichier, et au plus tard une minute apres.
+#
+# Sans le veto, « OUI » dans la routine aurait gagne contre « NON » sur
+# `/data` — c'est-a-dire qu'il n'y aurait pas eu de bouton d'arret du tout.
+_DRAPEAU_DISTANT = {"vu": 0.0, "valeur": None}
 _DRAPEAU_FRAIS = 60                      # secondes
 
 
@@ -54,23 +58,27 @@ def _arme_texte(t):
 
 
 def _drapeau_distant():
+    """OUI / NON tel qu'il est sur /data, ou None s'il n'y a rien a lire."""
     try:
         import azure_files
         if not azure_files.disponible():
-            return False
-        if time.time() - _DRAPEAU_DISTANT["vu"] < _DRAPEAU_FRAIS:
+            return None
+        if (time.time() - _DRAPEAU_DISTANT["vu"]) < _DRAPEAU_FRAIS:
             return _DRAPEAU_DISTANT["valeur"]
         brut = azure_files.lire("mail_dit_ecriture.txt")
-        _DRAPEAU_DISTANT["valeur"] = _arme_texte(
-            brut.decode("utf-8", "replace") if brut else "")
+        _DRAPEAU_DISTANT["valeur"] = (None if brut is None
+                                      else _arme_texte(brut.decode("utf-8", "replace")))
         _DRAPEAU_DISTANT["vu"] = time.time()
         return _DRAPEAU_DISTANT["valeur"]
     except Exception:                    # noqa: BLE001
-        return False
+        return None
 
 
 def ecriture_armee():
-    """Le drapeau d'autorisation est-il pose ? (fichier ou variable, « OUI »)"""
+    """Le drapeau d'autorisation est-il posé ? (fichier, variable, ou /data)"""
+    distant = _drapeau_distant()
+    if distant is False:                 # veto : /data dit non, on n'ecrit pas
+        return False
     try:
         if DRAPEAU.exists() and _arme_texte(
                 DRAPEAU.read_text(encoding="utf-8")):
@@ -79,7 +87,7 @@ def ecriture_armee():
         pass
     if _arme_texte(os.environ.get("MAIL_DIT_ECRITURE")):
         return True
-    return _drapeau_distant()
+    return bool(distant)
 
 
 def _autorise(confirmer):

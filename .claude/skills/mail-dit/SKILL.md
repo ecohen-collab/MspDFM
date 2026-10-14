@@ -810,35 +810,76 @@ mêmes garde-fous. Ce qui change, c'est qu'il n'y a ni `/data` monté, ni
 `az login`, ni `.env` — une session distante n'a que des **variables
 d'environnement** et le dépôt git.
 
-Trois choses vivaient sur le disque et ont donc appris à vivre sur Azure
-Files, par **SAS** (`azure_files.py`, trois appels REST, aucune dépendance
-nouvelle) :
+Trois fichiers doivent pourtant survivre d'un passage à l'autre :
 
-| Quoi | Avant | En distant |
-|---|---|---|
-| jeton Graph | `data/mail_tokens.json` | `mail_tokens.json` sur le share, lu **et réécrit** — le refresh token tourne à chaque rafraîchissement, le déposer en variable ne suffirait pas |
-| journal | `az storage file upload` | `journal_sync.synchroniser()` — même fusion, même garde-fou « aucune ligne de prod perdue » |
-| drapeau d'écriture | `data/mail_dit_ecriture.txt` | `MAIL_DIT_ECRITURE=OUI`, **ou** le même fichier sur le share — c'est le bouton d'arrêt : remplacer « OUI » par autre chose sur `/data` désarme la chaîne distante en moins d'une minute, sans toucher à la routine |
+| Fichier | Pourquoi il doit persister |
+|---|---|
+| `mail_tokens.json` | le jeton Graph, lu **et réécrit** : le refresh token tourne à chaque rafraîchissement, le déposer en variable ne survivrait pas au premier passage |
+| `mail_dit_journal.jsonl` | c'est lui que l'onglet du dashboard affiche |
+| `mail_dit_ecriture.txt` | le drapeau — en lecture seule depuis l'extérieur |
 
-Les six variables à poser sur la routine :
+### Le relais du dashboard, parce que la SAS n'était pas possible
+
+La voie naturelle serait une **SAS** sur le share. Elle est fermée : une SAS
+Azure Files se fabrique à partir des **clés du compte de stockage**, et le
+compte d'Elliot n'a pas le droit de les lire — vérifié le 2026-10-14,
+`AuthorizationFailed` sur `az storage account keys list`. Ses rôles portent
+sur l'ACR, la Container App et l'environnement, **pas** sur
+`dfmmspdashboardstor`. Demander la SAS à Benjamin restait possible ; Elliot a
+préféré ne dépendre de personne.
+
+Le dashboard, lui, a `/data` monté. Il sert donc de **relais** :
+`GET|POST /api/relais/<fichier>` dans `updater.py`, gardé par `RELAIS_CLE`
+(secret de Container App), avec :
+
+- une **liste blanche** de trois noms — le nom reçu ne sert jamais à
+  construire un chemin, sinon « ../ » suffirait à sortir de `/data` ;
+- le **drapeau en lecture seule** : une clé qui fuite ne doit pas pouvoir
+  *armer* la chaîne, seulement constater qu'elle l'est ;
+- une **écriture atomique** (fichier temporaire puis `replace`) : un lecteur
+  ne tombe jamais sur un journal à moitié écrit ;
+- **POST, pas PUT** : le serveur est un `SimpleHTTPRequestHandler`, qui
+  répond 501 à PUT.
+
+Les trois chemins sont exclus d'Easy Auth **un par un** (jamais `/api/relais/*`) :
+un nom hors liste reste donc derrière Entra, et répond 401 avant même
+d'atteindre l'application. `azure_files.py` parle au relais quand
+`RELAIS_URL` + `RELAIS_CLE` sont posées, et retombe sur la SAS si un jour on
+en obtient une.
+
+### Le bouton d'arrêt
+
+`mail_dit_ecriture.txt` sur `/data` a un **droit de veto** : s'il existe et ne
+dit pas « OUI », **rien ne s'écrit**, même si `MAIL_DIT_ECRITURE=OUI` est posé
+sur la routine. C'est voulu : une variable d'environnement ne se retire pas
+vite, un mot dans un fichier si — et au plus tard une minute après, le temps
+du cache. Sans ce veto il n'y aurait pas de bouton d'arrêt du tout.
+
+Donc pour **armer** la chaîne distante : poser `OUI` dans ce fichier. Pour
+l'**arrêter** : y écrire autre chose. La variable ne sert qu'aux cas où le
+fichier n'existe pas encore.
+
+### Les variables de la routine
 
 ```
 ARTIS_AUTH_URL  ARTIS_USERNAME  ARTIS_PASSWORD  ARTIS_BASE_URL
-AZ_FILES_ACCOUNT=dfmmspdashboardstor   AZ_FILES_SHARE=msp-data
-AZ_FILES_SAS=sv=...&sp=rcwl&sig=...    MAIL_DIT_ECRITURE=OUI
+RELAIS_URL=https://msp-dashboard.<...>.azurecontainerapps.io
+RELAIS_CLE=<secret relais-cle de la Container App>
+MAIL_DIT_ECRITURE=OUI
 ```
 
-La SAS doit porter **lecture, création, écriture et liste** sur le share
-`msp-data`. Elle se génère depuis le portail (le compte d'Elliot est
-*Storage data contributor*, il ne peut pas lister les clés du compte, donc
-`az storage share generate-sas` lui est refusé).
-
 Contrôle avant le premier passage : `python azure_files.py` doit afficher
-`aller-retour : OK`. S'il échoue, inutile d'aller plus loin — le jeton ne
-sera pas lisible et rien ne s'écrira.
+`stockage par relais : OK`. S'il échoue, inutile d'aller plus loin — le jeton
+ne sera pas lisible et rien ne s'écrira.
 
-**Ne pas poser `DATA_DIR` en distant** : il ferait chercher les fichiers sur
-un disque qui ne survit pas à la session.
+**Ne pas poser `DATA_DIR`** : il ferait chercher les fichiers sur un disque
+qui ne survit pas à la session.
+
+**Un seul rafraîchisseur à la fois.** Le jeton de `/data` est partagé avec le
+conteneur et le robot à règles. Microsoft invalide l'ancien refresh token à
+chaque rotation : si deux chaînes rafraîchissent en parallèle, l'une des deux
+perd l'accès. Tant que la routine Cloud tourne, l'agent du conteneur doit
+rester à l'arrêt — et inversement.
 
 ## L'agent sur Azure — quand ce n'est plus moi qui passe
 

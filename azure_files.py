@@ -1,5 +1,10 @@
 # -*- coding: utf-8 -*-
-"""Lire et ecrire un fichier du share Azure Files, par SAS, sans Azure CLI.
+"""Lire et ecrire les fichiers persistants de la chaine, sans Azure CLI.
+
+Deux voies, dans cet ordre : le **relais du dashboard** (`RELAIS_URL` +
+`RELAIS_CLE`), et a defaut une **SAS** sur le share (`AZ_FILES_*`). La
+premiere existe parce que la seconde demande les cles du compte de stockage,
+que le compte d'Elliot n'a pas le droit de lire.
 
 Pourquoi ce module existe : la chaine mail -> DIT garde deux choses sur
 `/data` (Azure Files) — le jeton Graph (`mail_tokens.json`) et le journal
@@ -34,9 +39,26 @@ def _conf():
             os.environ.get("AZ_FILES_SAS"))
 
 
+# ── le relais du dashboard ───────────────────────────────────────────────────
+# La SAS suppose qu'on puisse en fabriquer une : il faut les cles du compte de
+# stockage, et Elliot ne les a pas (verifie le 2026-10-14 : `AuthorizationFailed`
+# sur `az storage account keys list` — ses roles portent sur l'ACR, la Container
+# App et l'environnement, pas sur `dfmmspdashboardstor`).
+#
+# Le dashboard, lui, a `/data` monte. Il sert donc de relais : trois chemins
+# `/api/relais/<fichier>`, exclus d'Easy Auth un par un, gardes par `RELAIS_CLE`.
+# C'est ce chemin-la qu'utilise une routine Cloud ; la SAS reste accepte si un
+# jour quelqu'un en fournit une.
+#
+#   RELAIS_URL   https://msp-dashboard.<...>.azurecontainerapps.io
+#   RELAIS_CLE   la cle, secret de la Container App
+def _relais():
+    return (os.environ.get("RELAIS_URL"), os.environ.get("RELAIS_CLE"))
+
+
 def disponible():
-    """Vrai si les trois variables sont posees — donc si on est en distant."""
-    return all(_conf())
+    """Vrai si un chemin de persistance est configure — relais ou SAS."""
+    return all(_relais()) or all(_conf())
 
 
 def _url(chemin):
@@ -48,12 +70,27 @@ def _url(chemin):
             % (compte, share, chemin.lstrip("/"), sas.lstrip("?")))
 
 
+def _url_relais(chemin):
+    base, _ = _relais()
+    return "%s/api/relais/%s" % (base.rstrip("/"), chemin.lstrip("/"))
+
+
 def lire(chemin):
     """Contenu du fichier en octets, ou None s'il n'existe pas.
 
     Un 404 n'est pas une erreur : au premier passage le fichier n'est pas
     encore la, et l'appelant doit pouvoir partir d'un contenu vide.
     """
+    base, cle = _relais()
+    if base and cle:
+        r = requests.get(_url_relais(chemin), timeout=TIMEOUT,
+                         headers={"X-Relais-Cle": cle})
+        if r.status_code == 404:
+            return None
+        if r.status_code != 200:
+            raise RuntimeError("relais, lecture %s : HTTP %s %s"
+                               % (chemin, r.status_code, r.text[:200]))
+        return r.content
     r = requests.get(_url(chemin), headers={"x-ms-version": VERSION},
                      timeout=TIMEOUT)
     if r.status_code == 404:
@@ -74,6 +111,17 @@ def ecrire(chemin, donnees):
     """
     if isinstance(donnees, str):
         donnees = donnees.encode("utf-8")
+    base, cle = _relais()
+    if base and cle:
+        # POST et non PUT : le serveur du dashboard est un
+        # `SimpleHTTPRequestHandler`, qui ne connait pas PUT et repond 501.
+        r = requests.post(_url_relais(chemin), data=donnees, timeout=TIMEOUT,
+                          headers={"X-Relais-Cle": cle,
+                                   "Content-Type": "application/octet-stream"})
+        if r.status_code != 200:
+            raise RuntimeError("relais, ecriture %s : HTTP %s %s"
+                               % (chemin, r.status_code, r.text[:200]))
+        return True
     url = _url(chemin)
     r = requests.put(url, timeout=TIMEOUT, headers={
         "x-ms-version": VERSION,
@@ -98,7 +146,16 @@ def ecrire(chemin, donnees):
 
 
 def essai():
-    """Aller-retour de controle : ecrit un petit fichier, le relit, l'oublie."""
+    """Controle avant le premier passage : le stockage repond-il ?
+
+    Par le relais on se contente de LIRE le drapeau : les trois fichiers sont
+    une liste blanche, un fichier temoin n'y est pas, et on ne va pas ecrire
+    dans le journal pour tester. Par SAS on fait un vrai aller-retour, le
+    share acceptant n'importe quel nom.
+    """
+    base, cle = _relais()
+    if base and cle:
+        return lire("mail_dit_ecriture.txt") is not None
     temoin = "azure_files_test.txt"
     ecrire(temoin, "ok")
     return lire(temoin) == b"ok"
@@ -107,7 +164,8 @@ def essai():
 if __name__ == "__main__":
     import sys
     if not disponible():
-        print("variables absentes : AZ_FILES_ACCOUNT / AZ_FILES_SHARE / "
-              "AZ_FILES_SAS")
+        print("aucun stockage configure : il faut RELAIS_URL + RELAIS_CLE, "
+              "ou AZ_FILES_ACCOUNT + AZ_FILES_SHARE + AZ_FILES_SAS")
         sys.exit(1)
-    print("aller-retour :", "OK" if essai() else "KO")
+    voie = "relais" if all(_relais()) else "SAS"
+    print("stockage par %s :" % voie, "OK" if essai() else "KO")
