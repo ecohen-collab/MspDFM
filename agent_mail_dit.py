@@ -67,7 +67,7 @@ if str(RACINE) not in sys.path:
 
 DATA_DIR = pathlib.Path(os.environ.get("DATA_DIR") or RACINE)
 
-MODELE = os.environ.get("AGENT_MODELE", "claude-sonnet-5")
+MODELE = os.environ.get("AGENT_MODELE", "claude-sonnet-5-5")
 MODE = (os.environ.get("AGENT_MODE") or "observation").strip().lower()
 MAX_TOURS = int(os.environ.get("AGENT_MAX_TOURS") or 120)
 MAX_CREATIONS = int(os.environ.get("AGENT_MAX_CREATIONS") or 10)
@@ -85,10 +85,10 @@ CONSIGNE_DATA = DATA_DIR / "agent_consigne.md"
 PLAFOND_EUR = float(os.environ.get("AGENT_PLAFOND_EUR") or 30)
 # Tarifs par million de jetons, en dollars. Constantes a corriger si les tarifs
 # bougent — elles ne sont lues nulle part ailleurs.
-PRIX_ENTREE = float(os.environ.get("AGENT_PRIX_ENTREE") or 3.00)
-PRIX_SORTIE = float(os.environ.get("AGENT_PRIX_SORTIE") or 15.00)
-PRIX_CACHE_ECRIT = float(os.environ.get("AGENT_PRIX_CACHE_ECRIT") or 3.75)
-PRIX_CACHE_LU = float(os.environ.get("AGENT_PRIX_CACHE_LU") or 0.30)
+PRIX_ENTREE = float(os.environ.get("AGENT_PRIX_ENTREE") or 2.00)   # Sonnet 5.5
+PRIX_SORTIE = float(os.environ.get("AGENT_PRIX_SORTIE") or 10.00)
+PRIX_CACHE_ECRIT = float(os.environ.get("AGENT_PRIX_CACHE_ECRIT") or 2.50)
+PRIX_CACHE_LU = float(os.environ.get("AGENT_PRIX_CACHE_LU") or 0.10)   # 0,05x sur Sonnet 5.5
 USD_VERS_EUR = 0.92
 
 SIGNATURE = "\n\nService MCO - Mail automatique\n"
@@ -299,11 +299,16 @@ def consigne():
 
 DOSSIERS_PERMIS = ("traite", "informations", "sauvegarde", "firewall",
                    "antispam", "rmm", "antivirus", "telecom", "impression",
-                   "securite", "devis", "terrain")
+                   "securite", "devis", "terrain", "validation")
 # `corbeille` est volontairement absent : la consigne permanente d'Elliot
 # interdit toute suppression dans cette boite.
 
 MOTIFS_TRANSFERT = ("intervenant", "sans_contrat", "relais_humain")
+
+# La table des contrats portes par une autre societe du groupe (les
+# CLINIQUE DES CHAMPS-ELYSEES chez ELITE CENTER) vit dans
+# `mail_dit_ecriture.CONTRAT_PORTE_PAR` : le robot a regles la lit aussi,
+# et deux copies finiraient par diverger.
 
 OUTILS = [
     {"name": "boite",
@@ -393,11 +398,22 @@ OUTILS = [
              "mail_id": {"type": "string"},
              "client": {"type": "string", "description": "code Artis"},
              "bien": {"type": "string",
-                      "description": "libelle exact rendu par l'outil client"},
+                      "description": "identifiantFabricant du bien, tel que "
+                                     "l'outil client le rend dans "
+                                     "`bien_pour_la_dit` (forme « 9599 - "
+                                     "INFOGERANCE »). JAMAIS un libelle nu "
+                                     "comme « INFOGERANCE » : c'est une cle "
+                                     "GLOBALE qui designe le bien d'un AUTRE "
+                                     "client. Le mieux est de ne rien passer : "
+                                     "l'outil va chercher le bon tout seul."},
              "pid_interlocuteur": {
                  "type": "integer",
                  "description": "identifiant du demandeur chez le client. "
-                                "Omettre si l'expediteur est interne @dfm.fr"},
+                                "Quand un collegue @dfm.fr relaie la demande, "
+                                "ce n'est pas lui le demandeur : chercher dans "
+                                "l'historique du fil la personne du client qui "
+                                "a ecrit, et passer SON id. Omettre seulement "
+                                "si le fil ne nomme aucun client."},
              "objet": {"type": "string"},
              "priorite": {"type": "string", "enum": ["01", "02", "03"],
                           "description": "03 personne bloquee / 02 une "
@@ -409,11 +425,14 @@ OUTILS = [
                                             "POUR MOT, signature exclue"}}}},
 
     {"name": "completer_dit",
-     "description": "Ajoute le mail du client a une DIT existante : rouvre si "
-                    "elle est close, pose le commentaire sous banniere, joint "
-                    "les pieces, previent le dernier intervenant, range le "
-                    "mail. C'est la reponse a tout objet portant [IT ...] ou "
-                    "[DIT ...].",
+     "description": "Ajoute le mail du client a une DIT existante : pose le "
+                    "commentaire sous banniere, joint les pieces, previent le "
+                    "dernier intervenant, range le mail. C'est la reponse a "
+                    "tout objet portant [IT ...] ou [DIT ...]. Une DIT CLOSE "
+                    "N'EST JAMAIS ROUVERTE : le commentaire se pose quand meme "
+                    "et le mail part au dernier intervenant, a qui il revient "
+                    "de rouvrir ou d'ouvrir un ticket neuf. Vrai aussi quand le "
+                    "client redemande du travail.",
      "input_schema": {"type": "object",
                       "required": ["mail_id", "numero", "commentaire"],
                       "properties": {"mail_id": {"type": "string"},
@@ -512,8 +531,9 @@ class Contexte(object):
 
     def __init__(self, actif):
         self.actif = actif
-        self.crees = []             # [{numero, client, uo, objet}]
+        self.crees = []             # [{numero, client, uo, objet, a_valider}]
         self.completes = []
+        self.tags_validation = []   # DIT dont le valideur client vient de repondre
         self.ranges = []
         self.transferts = []
         self.signales = []
@@ -606,6 +626,136 @@ def _message(M, mail_id, complet=True):
     if r.status_code != 200:
         raise RuntimeError("mail %s : HTTP %s" % (mail_id[:12], r.status_code))
     return r.json()
+
+
+def _nom_prenom_expediteur(m, adresse):
+    """(NOM, Prenom) de l'expediteur, ou (None, None) si ce n'est pas une
+    personne qu'on puisse inscrire dans la fiche d'un client.
+
+    Trois refus, repris des regles du skill :
+    - un expediteur INTERNE n'est jamais le demandeur, il est le facteur ;
+    - un expediteur AUTOMATIQUE n'est pas une personne (`alerts@`, `jira@`…) ;
+    - un nom d'UN SEUL MOT ne suffit pas — « Compta », « Direction » ou une
+      boite collective ne sont pas des interlocuteurs nominatifs.
+    """
+    import mail_dit as _M
+    adr = (adresse or "").strip()
+    if not adr or _M.est_interne(adr):
+        return None, None
+    import mail_dit_ecriture as _E
+    if _E._est_expediteur_automatique(adr):
+        return None, None
+    brut = ((m.get("from") or {}).get("emailAddress") or {}).get("name") or ""
+    brut = brut.strip()
+    if "@" in brut or "," in brut:               # « nom, prenom » ou une adresse
+        return None, None
+    # Jamais couper sur le tiret : « Souci-Guedj » et « LE GAUDU » sont des
+    # noms entiers, les casser donne un demandeur faux dans la fiche client.
+    mots = [p for p in brut.split() if len(p) > 1]
+    if len(mots) < 2:
+        return None, None
+    # Convention des signatures : le NOM est en capitales, le reste est le
+    # prenom — « Olivier HOSATTE », « Margerie LE GAUDU ». Faute de capitales,
+    # usage francais : le dernier mot est le nom.
+    hauts = [p for p in mots if p.isupper()]
+    bas = [p for p in mots if not p.isupper()]
+    if hauts and bas:
+        return " ".join(hauts), " ".join(bas)
+    return mots[-1], " ".join(mots[:-1])
+
+
+# Les trois modeles qui portent un contrat d'infogerance informatique, dans
+# l'ordre de preference voulu par Elliot (2026-10-09). Compares a
+# `modele.code` EXACTEMENT : « INFOGERANCE AUDIO » n'est pas de l'infogerance
+# informatique, et « 17661 - Materiel Videosurveillance » non plus.
+MODELES_BIEN = ("INFOGERANCE", "BAL EXCHANGE 365", "PROTECT")
+
+
+def _bien_et_site(E, code, valide=None, trace=None):
+    """(identifiantFabricant, codeSite) du bien a poser dans la DIT, ou (None, None).
+
+    Regle posee par Elliot le 2026-10-09 : « tu mets toujours le bien du SITE
+    principal (et evidemment toujours du meme client) INFOGERANCE, si tu
+    trouves pas BAL EXCHANGE, sinon PROTECT, et si toujours rien tu passes au
+    site suivant ».
+
+    Donc on balaye les SITES, principal d'abord, et dans chaque site les trois
+    modeles dans cet ordre. Le premier qui repond gagne, et c'est SON site
+    qu'on posera — jamais un site calcule a part.
+
+    Le tri se fait sur `modele.code`, EXACTEMENT, jamais sur « le libelle
+    contient INFOG » : Constantia Jeanne d'Arc (17661) n'a que de la securite
+    et un bien « INFOGERANCE **AUDIO** », que l'ancien filtre prenait pour un
+    contrat d'infogerance informatique.
+
+    `maxResults` est INDISPENSABLE : l'API pagine a 20 et le bien
+    d'infogerance est souvent au-dela (client 9599 : 166 biens).
+
+    Avec `valide=<identifiant>`, la fonction ne cherche plus : elle repond si
+    cet identifiant appartient bien a ce client. Necessaire parce que
+    `identifiantFabricant` est une cle GLOBALE chez Artis — « INFOGERANCE »
+    tout court est le bien du client 14630 (XILAM), et `POST /dit` suit le
+    site du bien, pas le `codeClient` qu'on lui donne.
+    """
+    import requests
+    base, tok = E._artis()
+
+    def _get(url, **params):
+        try:
+            p = {"token": tok}
+            p.update(params)
+            r = requests.get(url, params=p,
+                             headers={"accept": "application/json"}, timeout=90)
+            return r.json() if r.status_code == 200 else []
+        except Exception:                    # noqa: BLE001
+            return []
+
+    cible = str(code).strip()
+    porteur = E.CONTRAT_PORTE_PAR.get(cible)
+    if porteur:
+        # Le contrat est porte par une autre societe du groupe : les biens de
+        # cette filiale vivent dans la fiche du porteur, prefixes de son code.
+        # Elliot a tranche le 2026-10-12 : on pose le bien du porteur, bien et
+        # site exacts — le ticket s'affichera donc a son nom.
+        biens = E.biens_portes(cible)
+        if valide is None:
+            return E.bien_porte(cible, trace=trace)
+        if trace is not None:
+            trace["porteur"] = porteur
+    else:
+        biens = _get("%s/client/%s/bien" % (base, cible), maxResults=5000)
+    if valide is not None:
+        v = str(valide).strip().upper()
+        for b in biens:
+            if (b.get("identifiantFabricant") or "").strip().upper() == v:
+                return (b.get("identifiantFabricant"),
+                        (b.get("site") or {}).get("code"),
+                        (b.get("orgInt") or {}).get("code"))
+        return (None, None, None)
+
+    sites = _get("%s/client/%s/site" % (base, cible))
+    ordre = ([s for s in sites if s.get("principal")]
+             + [s for s in sites if not s.get("principal")])
+    # Un client sans site expose quand meme ses biens : on finit par une passe
+    # « tous sites confondus » plutot que de renoncer au ticket.
+    ordre = ordre or [None]
+    for site in ordre:
+        sid = (site or {}).get("id")
+        for modele in MODELES_BIEN:
+            for b in biens:
+                if (b.get("modele") or {}).get("code", "").strip().upper() != modele:
+                    continue
+                if sid is not None and (b.get("site") or {}).get("id") != sid:
+                    continue
+                return (b.get("identifiantFabricant"),
+                        (b.get("site") or {}).get("code"),
+                        (b.get("orgInt") or {}).get("code"))
+    return (None, None, None)
+
+
+def _bien_du_client(E, code, valide=None):
+    """Le seul identifiant du bien — voir `_bien_et_site`."""
+    return _bien_et_site(E, code, valide=valide)[0]
 
 
 def _prop_depuis_mail(M, m, **extra):
@@ -735,16 +885,7 @@ def _executer(nom, args, ctx, M, E, J):
             liste = rb.json() if rb.status_code == 200 else []
         except Exception:
             liste = []
-        bien = None
-        for motif in ("INFOGERANCE", "BAL EXCHANGE 365", "EXCHANGE"):
-            for b in liste:
-                texte = "%s %s" % (b.get("identifiantFabricant") or "",
-                                   b.get("libelle") or "")
-                if motif in texte.upper():
-                    bien = b.get("identifiantFabricant")
-                    break
-            if bien:
-                break
+        bien = _bien_du_client(E, code)
         inters = []
         try:
             inters = [{"id": i.get("id"),
@@ -764,7 +905,17 @@ def _executer(nom, args, ctx, M, E, J):
                                    or fiche.get("libelle")),
                 "bien_pour_la_dit": bien,
                 "contrat_info": bool(bien),
-                "biens": [b.get("libelle") for b in liste][:40],
+                # On rend l'IDENTIFIANT, pas le libelle. Le libelle nu
+                # (« INFOGERANCE ») est un identifiant valide chez un AUTRE
+                # client : `identifiantFabricant` est une cle GLOBALE dans
+                # Artis. La DIT 100176726 (MYMOBILITY 9599) est partie avec le
+                # bien « INFOGERANCE » du client 14630 XILAM, et Artis lui a
+                # colle le site de XILAM — releve par Elliot le 2026-10-09 :
+                # « comment il a fait pour mettre XILAM ? c'est meme pas un
+                # site du client ».
+                "biens": ["%s | %s" % (b.get("identifiantFabricant") or "",
+                                       b.get("libelle") or "")
+                          for b in liste][:40],
                 "nb_biens": len(liste),
                 "interlocuteurs": inters[:40]}
 
@@ -820,21 +971,103 @@ def _executer(nom, args, ctx, M, E, J):
                              "Laisse le mail en boite et dis-le dans le "
                              "rapport." % MAX_CREATIONS}
         m = _message(M, args["mail_id"])
+        # Le Bien ne se rattrape pas apres coup : il n'est ni dans
+        # `GET /dit/{n}` ni dans aucune route d'ecriture hors creation. Et
+        # sans lui la DIT part avec le seul site, donc « Pas de bien » a
+        # l'ecran (DIT 100176820, NMCG 30706, relevee par Elliot le
+        # 2026-10-08). On va donc le chercher quand l'appelant ne l'a pas
+        # passe, au lieu de compter sur sa vigilance.
+        bien = (args.get("bien") or "").strip()
+        bien_cherche = False
+        bien_rejete = None
+        site = org = None
+        trace_bien = {}
+        if not bien:
+            bien, site, org = _bien_et_site(E, args["client"],
+                                            trace=trace_bien)
+            bien = bien or ""
+            bien_cherche = True
+        else:
+            # Le bien passe par l'appelant n'est JAMAIS cru sur parole :
+            # `identifiantFabricant` est une cle GLOBALE dans Artis, pas une
+            # cle du client. Un libelle nu (« INFOGERANCE ») designe donc le
+            # bien d'un autre client -- et Artis attache alors a la DIT le
+            # SITE de cet autre client, en ignorant le codeSite qu'on envoie.
+            # C'est ce qui a mis le site « XILAM » (client 14630) sur la DIT
+            # 100176726 de MYMOBILITY (9599) le 2026-10-07. Le champ ne se
+            # rattrape pas apres coup : on verifie AVANT.
+            bien, site, org = _bien_et_site(E, args["client"], valide=bien,
+                                            trace=trace_bien)
+            if not bien:
+                bien_rejete = args["bien"]
+                bien, site, org = _bien_et_site(E, args["client"],
+                                                trace=trace_bien)
+                bien = bien or ""
+                bien_cherche = True
         prop = _prop_depuis_mail(
             M, m,
             client=str(args["client"]).strip(),
-            bien=args.get("bien") or "",
+            bien=bien,
+            site=site,
+            # L'organisation interne vient du BIEN : tous nos clients ne sont
+            # pas chez DFM (GALYO 12579 est chez AVBU), et une DIT creee dans
+            # la mauvaise organisation ne peut pas porter leur bien.
+            org_int=org or "DFM",
             objet=args.get("objet") or m.get("subject"),
             priorite=args["priorite"],
             symptome=args["symptome"],
             uo=args["uo"],
             commentaire=args["commentaire"])
-        if args.get("pid_interlocuteur"):
-            prop["pid_interlocuteur"] = int(args["pid_interlocuteur"])
         # Garde-fou que la consigne ne peut pas tenir seule : un expediteur
-        # interne n'est jamais le demandeur, il est le facteur.
+        # interne n'est jamais le demandeur, il est le facteur. On jette donc
+        # le demandeur DEDUIT DE L'EXPEDITEUR -- mais pas celui que l'appelant
+        # a trouve dans l'historique du fil : c'est un interlocuteur de la
+        # fiche client, donc jamais un collegue. Elliot, 2026-10-05, sur la
+        # DIT 100176368 (HYLA, relayee par service.client) : « le ticket cree
+        # mais le contact n'a pas ete mis, il aurait fallu mettre le mail
+        # compta@, c'est ce mail qui signale le mail frauduleux a DFM ».
         if prop["de"].lower().endswith("@dfm.fr"):
             prop.pop("pid_interlocuteur", None)
+        if args.get("pid_interlocuteur"):
+            prop["pid_interlocuteur"] = int(args["pid_interlocuteur"])
+
+        # Le demandeur ne se rattrape PAS apres coup : aucune route REST ne
+        # l'ecrit hors creation. Donc quand l'expediteur est une vraie personne
+        # du client et qu'elle n'est pas encore dans la fiche, on CREE le
+        # contact ici plutot que de laisser partir une DIT anonyme — Elliot,
+        # 2026-10-06 : « juste tu l'ajoutes, et s'il existe pas tu le crees ».
+        # Sans ce garde-fou, la 100176991 (JEAN-LOUIS DENIOT, Piraveena
+        # YOGANATHAN) et la 100176990 (NMCG, Charlotte SOUCI-GUEDJ) sont
+        # parties sans demandeur le 2026-10-08, et il a fallu corriger a la
+        # main dans Artis. Elliot, le 2026-10-09 : « Aucun demandeur, pourquoi ? »
+        contact_cree = None
+        # CHERCHER AVANT DE CREER. `E.creer_dit` resout le demandeur tout seul,
+        # mais plus loin : si on cree ici sans avoir cherche, on fabrique un
+        # doublon a chaque mail d'un contact deja connu. C'est arrive le
+        # 2026-10-09 chez FREITAS LEVAGE (12390) : « Stephanie FREITAS » pid
+        # 225069 cree alors que « STEPHANIE FREITAS » pid 118627 portait deja
+        # la meme adresse. Une fiche client polluee ne se nettoie qu'a la main.
+        if ctx.actif and not prop.get("pid_interlocuteur"):
+            try:
+                deja = E.trouver_demandeur(prop["client"],
+                                           prop.get("de_nom") or "",
+                                           prop.get("de") or "")
+            except Exception:                     # noqa: BLE001
+                deja = None
+            if deja and deja.get("id"):
+                prop["pid_interlocuteur"] = int(deja["id"])
+        if ctx.actif and not prop.get("pid_interlocuteur"):
+            nom, prenom = _nom_prenom_expediteur(m, prop["de"])
+            if nom and prenom:
+                try:
+                    c = E.creer_interlocuteur(prop["client"], nom, prenom,
+                                              prop["de"], titre="M.",
+                                              confirmer=True)
+                except Exception:                 # noqa: BLE001
+                    c = {}
+                if c.get("id"):
+                    prop["pid_interlocuteur"] = int(c["id"])
+                    contact_cree = "%s %s (%s)" % (prenom, nom, prop["de"])
 
         if not ctx.actif:
             r = E.creer_dit(prop, confirmer=False)
@@ -845,6 +1078,20 @@ def _executer(nom, args, ctx, M, E, J):
                     "corps": {k: v for k, v in (r.get("corps") or {}).items()
                               if k != "commentaire"}}
 
+        # L'adresse du demandeur ne vient PAS du message : Artis la lit
+        # dans la fiche du contact. Si elle y manque, on l'y pose avant
+        # de creer, pour que la DIT la porte (Elliot, 2026-10-06, sur la
+        # DIT 100176656 : « juste tu l'ajoutes, et s'il existe pas tu le
+        # crees »). Une fiche qui a deja une adresse garde la sienne.
+        mail_pose = None
+        if prop.get("pid_interlocuteur"):
+            try:
+                a = E.assurer_mail_interlocuteur(
+                    prop["client"], prop["pid_interlocuteur"],
+                    prop.get("de") or "", confirmer=True)
+                mail_pose = a.get("pose")
+            except Exception:            # noqa: BLE001
+                mail_pose = None
         ctx.cadencer(prop["client"])
         r = E.creer_dit(prop, confirmer=True)
         if r.get("erreur") == "doublon evite":
@@ -856,6 +1103,45 @@ def _executer(nom, args, ctx, M, E, J):
                     "bloquants": r.get("bloquants")}
         numero = str(r["numero"])
         faits = ["DIT %s creee" % numero]
+        if bien_rejete:
+            faits.append("bien « %s » REFUSE : il n'appartient pas au client "
+                         "%s. `identifiantFabricant` est une cle globale chez "
+                         "Artis et la DIT serait partie avec le site de son "
+                         "vrai proprietaire — a signaler dans le rapport"
+                         % (bien_rejete, prop["client"]))
+        if bien_cherche and bien:
+            faits.append("bien %s pose (non fourni par l'appelant), site %s, "
+                         "organisation interne %s" % (bien, site, org or "DFM"))
+        if trace_bien.get("porteur") and bien:
+            faits.append("CONTRAT PORTE : le bien vient de la fiche du client "
+                         "%s, qui porte l'infogerance de celui-ci. La DIT "
+                         "s'affichera au nom de %s — choix d'Elliot du "
+                         "2026-10-12. A dire dans le rapport."
+                         % (trace_bien["porteur"], trace_bien["porteur"]))
+            if (trace_bien.get("candidats") or 0) > 1:
+                faits.append("VILLE A VERIFIER : ce code porte %d biens « %s » "
+                             "chez %s (plusieurs villes sous le meme code). "
+                             "Retenu : %s%s. Rien ne se corrige apres creation."
+                             % (trace_bien["candidats"],
+                                trace_bien.get("modele") or "",
+                                trace_bien["porteur"], bien,
+                                (" (ville %s)" % trace_bien["ville"])
+                                if trace_bien.get("ville") else
+                                " — AUCUNE ville reconnue dans la raison sociale"))
+        elif not bien:
+            faits.append("SANS BIEN : le client n'a ni INFOGERANCE ni BAL "
+                         "EXCHANGE 365 — a signaler dans le rapport")
+        if contact_cree:
+            faits.append("contact CREE dans la fiche client et pose comme "
+                         "demandeur : %s — a signaler dans le rapport"
+                         % contact_cree)
+        elif not prop.get("pid_interlocuteur"):
+            faits.append("SANS DEMANDEUR : aucun contact resolu et l'expediteur "
+                         "n'est pas une personne inscriptible — a signaler, le "
+                         "champ ne se rattrape pas apres coup")
+        if mail_pose:
+            faits.append("adresse %s posee sur la fiche du demandeur"
+                         % mail_pose)
         try:
             J.ajouter("creation", mail_de=prop["de"], mail_objet=prop["objet"],
                       mail_recu=prop.get("date_dit"), client_code=prop["client"],
@@ -880,11 +1166,67 @@ def _executer(nom, args, ctx, M, E, J):
         pj = E.joindre_pieces(numero, prop, True)
         if pj.get("envoye"):
             faits.append("%d piece(s) jointe(s)" % len(pj.get("pieces") or []))
+        # Relecture : le SITE que `POST /dit` a reellement pose. Artis suit le
+        # bien, pas le `codeClient` — un bien etranger emmene son site avec
+        # lui, en silence. Le champ ne se rattrape pas apres coup, donc la
+        # seule chose utile est de le DIRE tout de suite (DIT 100176726,
+        # site « XILAM » sur un ticket MYMOBILITY, 2026-10-07).
+        try:
+            import requests
+            base, tok = E._artis()
+            d = requests.get("%s/dit/%s" % (base, numero),
+                             params={"token": tok},
+                             headers={"accept": "application/json"},
+                             timeout=30).json()
+            it0 = (d.get("inter") or [{}])[0]
+            sid = (it0.get("site") or {}).get("id")
+            snom = (it0.get("site") or {}).get("nom") or ""
+            # On compare a la LISTE des sites du client, pas a son libelle :
+            # un client a souvent des sites qui portent un autre nom
+            # (ARCOTEL 13392 a « HOTEL MAGDA » et « HOTEL ACACIAS »), et un
+            # rapprochement sur les mots crierait au loup pour rien.
+            # Un client dont le contrat est porte par une autre societe du
+            # groupe recoit forcement le site du PORTEUR : c'est le choix
+            # d'Elliot du 2026-10-12, pas une anomalie. On compare donc a la
+            # liste de sites de celui qui porte reellement le bien.
+            code_sites = (E.CONTRAT_PORTE_PAR.get(prop["client"])
+                          or prop["client"])
+            sl = requests.get("%s/client/%s/site" % (base, code_sites),
+                              params={"token": tok},
+                              headers={"accept": "application/json"},
+                              timeout=30).json()
+            siens = {x.get("id") for x in (sl or [])}
+            if sid and siens and sid not in siens:
+                faits.append("SITE ETRANGER : la DIT porte le site « %s » "
+                             "(id %s), qui n'est pas un site du client %s. "
+                             "A signaler : ni le site ni le bien ne se "
+                             "corrigent par l'API."
+                             % (snom, sid, code_sites))
+        except Exception:                    # noqa: BLE001
+            pass
         rg = E.ranger_mail(prop, "traite", confirmer=True)
         if rg.get("envoye"):
             faits.append("mail range en 01 - DIT ARTIS SUPPORT")
+        # Circuit de validation client : chez un client qui l'exige, une
+        # demande de droits part « En attente de validation client ». Le Tag
+        # n'est pas dans l'API — il se pose par le formulaire web, donc dans
+        # la session unique de fin de passage, avec le type de travail.
+        tag = None
+        try:
+            tag = E.tag_a_la_creation(
+                prop["client"], prop.get("de") or "",
+                (prop.get("objet") or "") + chr(10) + (prop.get("commentaire") or ""))
+        except Exception:                    # noqa: BLE001
+            tag = None
+        if tag == "attente":
+            faits.append("tag « En attente de validation client » a poser")
+        elif tag == "validee":
+            faits.append("tag « Demande validee » a poser : la demande vient "
+                         "du valideur du client lui-meme")
         ctx.crees.append({"numero": numero, "client": prop["client"],
-                          "uo": prop["uo"], "objet": prop["objet"]})
+                          "uo": prop["uo"], "objet": prop["objet"],
+                          "de": prop.get("de"),
+                          "a_valider": tag == "attente", "tag": tag})
         log("DIT %s creee (%s)" % (numero, prop["client"]))
         return {"numero": numero, "faits": faits}
 
@@ -892,35 +1234,71 @@ def _executer(nom, args, ctx, M, E, J):
         numero = str(args["numero"]).strip()
         m = _message(M, args["mail_id"])
         prop = _prop_depuis_mail(M, m, commentaire=args["commentaire"])
+        # UNE DIT CLOSE NE SE ROUVRE JAMAIS ICI. Deux reprises d'Elliot le
+        # 2026-10-05, sur 04216844 (VILLA NOAILLES) puis sur 100176087
+        # (DENIOT, ou la cliente demandait un droit d'ecriture en plus de
+        # l'acces deja ouvert) : « il ne faut pas rouvrir tous les tickets dont
+        # on a une reponse » et « dans ces cas la transfert juste le mail au
+        # dernier intervenant, ne reouvre pas ». Y compris quand le mail
+        # ressemble a une demande de travail : c'est le technicien qui decide
+        # de rouvrir ou d'ouvrir un ticket neuf, pas nous. On pose le
+        # commentaire -- la trace reste sur le ticket -- et on lui transfere le
+        # mail. `completer_dit_direct` fait les deux.
         if not ctx.actif:
             etat = (E.relire_dit(numero) or {}).get("etat")
             return {"simulation": True, "mode": "observation",
                     "etat_actuel": etat,
-                    "reouverture_necessaire": etat == "Cloturee",
+                    "close": etat == "Cloturee",
+                    "reouverture": "jamais, par construction",
                     "intervenant": E.dernier_intervenant(numero)}
-        # Une DIT close se ROUVRE, elle ne se double pas. L'etat ne change rien
-        # a l'appartenance du mail : c'est son numero qui decide.
-        etat = (E.relire_dit(numero) or {}).get("etat")
         reouvert = None
-        if etat == "Cloturee":
-            import requests
-            base, tok = E._artis()
-            rr = requests.patch("%s/dit/%s/reouvrir" % (base, numero),
-                                params={"token": tok}, json={},
-                                headers={"accept": "application/json"},
-                                timeout=60)
-            reouvert = rr.status_code in (200, 204)
-        r = E.completer_dit_direct(numero, prop, log=log)
+        # La reponse du valideur ne se range PAS avec les suites de
+        # ticket ordinaires : elle va dans « 14 - VALIDATION CLIENT »,
+        # la ou l'equipe va chercher les accords (Elliot, 2026-10-06).
+        # La decision se prend AVANT, parce que c'est
+        # `completer_dit_direct` qui range le mail.
+        validation = False
+        try:
+            validation = bool(E.validation_recue(
+                E.client_du_dit(numero), prop.get("de") or "",
+                (prop.get("objet") or "") + chr(10) + (prop.get("commentaire") or "")))
+        except Exception:                # noqa: BLE001
+            validation = False
+        r = E.completer_dit_direct(
+            numero, prop, log=log,
+            dossier="validation" if validation else "traite")
         if r.get("ok"):
-            ctx.completes.append({"numero": numero, "objet": prop["objet"]})
+            ctx.completes.append({"numero": numero, "objet": prop["objet"],
+                                  "prevenu": r.get("prevenu") or ""})
+            # Le valideur du client repond : le Tag passe a « Demande validee ».
+            # Jamais sur un ticket cloture — c'est fini, on n'y revient pas
+            # (Elliot, 2026-10-06). Le tag se pose dans la session de fin de
+            # passage, avec le type de travail.
             try:
+                fiche = E.relire_dit(numero) or {}
+                if validation and fiche.get("etat") != "Cloturee":
+                    ctx.tags_validation.append(numero)
+                    out_tag = "tag « Demande validee » a poser"
+                    r["resume"] = (r.get("resume") or "") + " ; " + out_tag
+            except Exception:                # noqa: BLE001
+                pass
+            try:
+                # `prevenu` est journalise a part : un complement qui n'a
+                # prevenu personne doit se voir dans l'onglet, pas se deviner
+                # en relisant un resume (DIT 100175793, 2026-10-02).
                 J.ajouter("complement", mail_de=prop["de"],
                           mail_objet=prop["objet"], dit=numero,
-                          par="agent-azure", detail=r.get("resume") or "")
+                          par="agent-azure", destinataire=r.get("prevenu") or "",
+                          detail=r.get("resume") or "")
             except Exception:
                 pass
-        return {"ok": r.get("ok"), "resume": r.get("resume"),
-                "reouverte": reouvert}
+        out = {"ok": r.get("ok"), "resume": r.get("resume"),
+               "reouverte": reouvert, "prevenu": r.get("prevenu") or ""}
+        if not r.get("prevenu"):
+            out["alerte"] = ("PERSONNE N'A ETE PREVENU de cet ajout. Dis-le "
+                             "dans le rapport : l'intervenant ne saura pas que "
+                             "le client a ecrit.")
+        return out
 
     if nom == "ranger":
         dossier = args["dossier"]
@@ -1002,6 +1380,12 @@ def _transferer(args, ctx, M, E, J):
         if not args.get("client"):
             return {"refus": "motif sans_contrat : le code client est "
                              "obligatoire, c'est lui qui donne le commercial"}
+        porteur = E.CONTRAT_PORTE_PAR.get(str(args["client"]).strip())
+        if porteur:
+            return {"refus": "le client %s EST sous contrat : il est porte par "
+                             "le client %s. Creer la DIT normalement, chez le "
+                             "client qui ecrit." % (str(args["client"]).strip(),
+                                                    porteur)}
         com = E.commercial_informatique(str(args["client"]).strip())
         if com.get("principal"):
             a = com["principal"]["mail"]
@@ -1201,6 +1585,21 @@ def passage():
     return resume
 
 
+def _journaliser_confirmation(ctx, numero, resultat):
+    """Trace l'accuse de reception : c'est la preuve qu'il est parti UNE fois."""
+    fiche = next((c for c in ctx.crees if c["numero"] == numero), {})
+    apercu = resultat.get("apercu") or {}
+    try:
+        import mail_dit_journal as J
+        J.ajouter("confirmation", dit=numero,
+                  mail_de=fiche.get("de"), mail_objet=fiche.get("objet"),
+                  client_code=fiche.get("client"),
+                  destinataire=" ; ".join(apercu.get("a") or []),
+                  detail="accuse de reception Artis au demandeur")
+    except Exception as exc:                 # noqa: BLE001
+        log("journal confirmation impossible :", str(exc)[:120])
+
+
 def _poser_type_travail(ctx):
     """Hotline / Non facturable sur toutes les DIT creees, UNE seule session.
 
@@ -1210,10 +1609,20 @@ def _poser_type_travail(ctx):
     laisse les tickets en Terrain / Automatique, et un dispatcher les planifie.
     """
     numeros = [c["numero"] for c in ctx.crees]
-    if not numeros or not ctx.actif:
-        return {"a_poser": numeros, "fait": False,
-                "raison": "aucune creation" if not numeros else "observation"}
-    out = {"a_poser": numeros, "poses": [], "echecs": []}
+    a_taguer = [c["numero"] for c in ctx.crees
+                if c.get("tag") == "attente" or
+                (c.get("tag") is None and c.get("a_valider"))]
+    # « Demande validee » des la creation : le valideur du client a fait la
+    # demande lui-meme, il n'a personne a qui la soumettre (Elliot, 2026-10-09).
+    a_valider_apres = ([c["numero"] for c in ctx.crees if c.get("tag") == "validee"]
+                       + list(getattr(ctx, "tags_validation", []) or []))
+    if not numeros and not a_valider_apres:
+        return {"a_poser": numeros, "fait": False, "raison": "aucune creation"}
+    if not ctx.actif:
+        return {"a_poser": numeros, "fait": False, "raison": "observation"}
+    out = {"a_poser": numeros, "poses": [], "echecs": [],
+           "tags": {"attente": [], "validee": [], "echecs": []},
+           "confirmations": [], "confirmations_echecs": []}
     try:
         import artis_type_travail as T
         with T.session_dediee() as w:
@@ -1225,9 +1634,50 @@ def _poser_type_travail(ctx):
                     (out["poses"] if r.get("ok") else out["echecs"]).append(n)
                 except Exception as exc:     # noqa: BLE001
                     out["echecs"].append("%s : %s" % (n, str(exc)[:100]))
+            # Les Tags du circuit de validation, dans la MEME session.
+            for n, ajout, retrait, ou in (
+                    [(n, T.TAG_ATTENTE_VALIDATION, None, "attente")
+                     for n in a_taguer]
+                    + [(n, T.TAG_DEMANDE_VALIDEE, T.TAG_ATTENTE_VALIDATION,
+                        "validee") for n in a_valider_apres]):
+                try:
+                    r = T.poser_tag(n, ajouter=ajout, retirer=retrait,
+                                    confirmer=True, web=w)
+                    if r.get("ok"):
+                        out["tags"][ou].append(n)
+                    else:
+                        out["tags"]["echecs"].append(
+                            "%s : %s" % (n, str(r.get("erreur"))[:100]))
+                except Exception as exc:     # noqa: BLE001
+                    out["tags"]["echecs"].append("%s : %s" % (n, str(exc)[:100]))
+            # L'accuse de reception au client, dans la MEME session.
+            # Demande par Elliot le 2026-10-13 : « j'ai beaucoup de clients qui
+            # demandent si leur demande a bien ete prise en compte ». Sur
+            # TOUTES les creations (son choix), jamais sur un complement.
+            for n in numeros:
+                try:
+                    fiche = next((c for c in ctx.crees
+                                  if c["numero"] == n), {})
+                    r = T.envoyer_confirmation_reception(
+                        n, confirmer=True, web=w,
+                        destinataire_si_absent=fiche.get("de"))
+                    if r.get("ok"):
+                        out["confirmations"].append(n)
+                        _journaliser_confirmation(ctx, n, r)
+                    else:
+                        out["confirmations_echecs"].append(
+                            "%s : %s" % (n, str(r.get("erreur"))[:100]))
+                except Exception as exc:     # noqa: BLE001
+                    out["confirmations_echecs"].append(
+                        "%s : %s" % (n, str(exc)[:100]))
         out["fait"] = True
-        log("type de travail : %d pose(s), %d echec(s)"
-            % (len(out["poses"]), len(out["echecs"])))
+        log("type de travail : %d pose(s), %d echec(s) ; tags : %d attente, "
+            "%d validee, %d echec(s)"
+            % (len(out["poses"]), len(out["echecs"]),
+               len(out["tags"]["attente"]), len(out["tags"]["validee"]),
+               len(out["tags"]["echecs"])))
+        log("confirmations client : %d envoyee(s), %d echec(s)"
+            % (len(out["confirmations"]), len(out["confirmations_echecs"])))
     except Exception as exc:                 # noqa: BLE001
         out["fait"] = False
         out["erreur"] = str(exc)[:200]

@@ -33,6 +33,7 @@ ACTIONS = (
     "annulation",   # une DIT a ete annulee
     "laisse",       # le mail reste en boite, avec la raison
     "piece",        # une piece jointe a ete versee sur une DIT
+    "confirmation", # l'accuse de reception Artis est parti au client
 )
 
 

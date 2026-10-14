@@ -119,9 +119,20 @@ UO_HOTLINE = "HLI"
 
 
 def uo_pour(symptome):
-    """UO d'apres le symptome. Les codes ADM-* sont des taches d'administration
-    (Exchange, comptes 365, on/offboarding) : niveau 3."""
-    return UO_ADMIN if (symptome or "").upper().startswith("ADM") else UO_HOTLINE
+    """UO d'apres le symptome.
+
+    - `ADM-*` : taches d'administration (Exchange, comptes 365, on/offboarding).
+    - `SRV-*` : tout ce qui touche un SERVEUR. Un incident de poste se
+      diagnostique en N1/N2, mais un serveur n'est pas un poste : relancer une
+      VM de production, regarder l'espace disque d'un hote Hyper-V ou toucher a
+      l'hyperviseur n'est pas ce qu'un N1 fait seul. Elliot, le 2026-10-14, sur
+      la DIT 100177554 (ETTB / HOLDING HBL, VM injoignable) : « pour ce ticket
+      il aurait du etre cree en Niveau 3 ». Et l'UO ne se rattrape pas apres
+      coup : `PATCH /it/{n}/uo/HLN3` rend HTTP 500 (« L'intervenant n'a pas de
+      role pour l'UO de l'IT »).
+    """
+    s = (symptome or "").upper()
+    return UO_ADMIN if s.startswith(("ADM", "SRV")) else UO_HOTLINE
 
 
 # Defauts arretes avec Elliot (cf. MAIL_TO_DIT.md). Le type et la nature
@@ -3562,6 +3573,15 @@ def bien_informatique(code_client):
     try:
         import requests as _rq
         import mail_dit_ecriture as _E          # import tardif : evite le cycle
+        # Le contrat peut etre porte par une AUTRE societe du groupe : la fiche
+        # du client ne montre alors aucun bien d'infogerance sans qu'il soit
+        # hors contrat pour autant (les CLINIQUE DES CHAMPS-ELYSEES, chez
+        # ELITE CENTER). La table fait foi, et le bien retenu est celui du
+        # porteur — choix d'Elliot du 2026-10-12.
+        if str(code_client).strip() in _E.CONTRAT_PORTE_PAR:
+            trouve = _E.bien_porte(code_client)[0]
+            _CACHE_BIENS[code_client] = trouve
+            return trouve
         base, tok = _E._artis()
         # `maxResults` est INDISPENSABLE : sans lui l'API ne rend que les 20
         # premiers biens. Le client 29667 en a 72, le 9599 en a 166 — et leur
@@ -3572,24 +3592,33 @@ def bien_informatique(code_client):
                     headers={"accept": "application/json"}, timeout=90)
         if r.status_code == 200:
             biens = r.json() or []
-            for b in biens:
-                texte = "%s %s" % (b.get("identifiantFabricant") or "",
-                                   b.get("libelle") or "")
-                if "INFOG" in texte.upper():
-                    trouve = b.get("identifiantFabricant")
-                    break
-            # Pas d'infogerance : le client n'est pas forcement sans bien
-            # informatique pour autant. Elliot, 2026-09-17 (DIT 100174308 et
-            # 100173884, client 30802) : « Infogerance — si pas infogerance,
-            # prendre BAL EXCHANGE 365 ». Sans ce repli, ses tickets partaient
-            # sans aucun bien.
-            if not trouve:
-                for b in biens:
-                    texte = "%s %s" % (b.get("identifiantFabricant") or "",
-                                       b.get("libelle") or "")
-                    if "BAL EXCHANGE 365" in texte.upper():
+            # Site principal d'abord, puis les autres ; dans chaque site,
+            # INFOGERANCE, a defaut BAL EXCHANGE 365, a defaut PROTECT.
+            # Regle d'Elliot, 2026-10-09. Le tri porte sur `modele.code`
+            # EXACTEMENT : « INFOGERANCE AUDIO » (Constantia Jeanne d'Arc
+            # 17661, qui n'a que de la securite) n'est pas de l'infogerance
+            # informatique, et l'ancien « contient INFOG » le prenait pour tel.
+            rs = _rq.get("%s/client/%s/site" % (base, code_client),
+                         params={"token": tok},
+                         headers={"accept": "application/json"}, timeout=60)
+            sites = rs.json() if rs.status_code == 200 else []
+            ordre = ([x for x in sites if x.get("principal")]
+                     + [x for x in sites if not x.get("principal")]) or [None]
+            for site in ordre:
+                sid = (site or {}).get("id")
+                for modele in ("INFOGERANCE", "BAL EXCHANGE 365", "PROTECT"):
+                    for b in biens:
+                        if ((b.get("modele") or {}).get("code") or ""
+                                ).strip().upper() != modele:
+                            continue
+                        if sid is not None and (b.get("site") or {}).get("id") != sid:
+                            continue
                         trouve = b.get("identifiantFabricant")
                         break
+                    if trouve:
+                        break
+                if trouve:
+                    break
     except Exception:
         trouve = None
     _CACHE_BIENS[code_client] = trouve
@@ -5568,6 +5597,16 @@ def _suivis_de_ticket(tok, msgs, log=None):
                     # parti : sinon la reponse du client disparaitrait de la
                     # boite sans que personne ne l'ait recue.
                     if ligne["execute"]:
+                        # Une COPIE dans « 16 - REPONSE DIT » avant de
+                        # ranger : l'equipe y suit les reponses des clients
+                        # sans ouvrir Artis (Elliot, le 2026-10-13). Le move
+                        # qui suit change l'identifiant du message, donc la
+                        # copie se prend d'abord.
+                        try:
+                            E.copier_mail(m["id"], "reponse_dit",
+                                          confirmer=True)
+                        except Exception:            # noqa: BLE001
+                            pass
                         dest = E.id_dossier(tok, E.DOSSIERS["traite"])
                         if dest:
                             requests.patch(

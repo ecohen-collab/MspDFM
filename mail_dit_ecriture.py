@@ -21,7 +21,7 @@ derrière et plus personne ne le retrouverait.
 Cf. MAIL_TO_DIT.md et les mémoires feedback_bal_support_dfm /
 feedback_artis_pas_decriture_sans_accord.
 """
-import io, os, re, json, datetime, pathlib, unicodedata, requests
+import io, os, re, json, time, datetime, pathlib, unicodedata, requests
 
 import mail_dit as M
 
@@ -526,7 +526,23 @@ def dit_jumelle(prop, heures=24):
 
     En cas de doute technique — Artis muet, reponse illisible — on renvoie ""
     plutot que de bloquer : ce garde-fou evite un doublon, il ne doit jamais
-    empecher un ticket legitime.
+    empecher un ticket legitime. Mais ce "" la est INDISCERNABLE d'un "aucun
+    jumeau", et c'est ce qui a laisse passer le doublon GREENWICH du
+    2026-09-29 : 100175707 a 11h18, 100175713 a 11h28, textes identiques, et
+    aucune trace de la raison. `dit_jumelle_detail` dit desormais si la
+    verification a REELLEMENT eu lieu ; `creer_dit` le porte dans ses
+    avertissements et dans le registre.
+    """
+    d = dit_jumelle_detail(prop, heures)
+    return d["numero"]
+
+
+def dit_jumelle_detail(prop, heures=24):
+    """Comme `dit_jumelle`, mais rend {numero, verifie, raison}.
+
+    `verifie` a False veut dire : on n'a PAS pu regarder. Creer dans ce cas
+    reste le bon choix — perdre la demande d'un client coute plus cher qu'un
+    doublon — mais il faut que ca se voie.
     """
     code = prop.get("client")
     # Le texte BRUT du mail, pas le commentaire mis en forme : selon qui saisit,
@@ -535,22 +551,40 @@ def dit_jumelle(prop, heures=24):
     # contient l'autre des que c'est le meme incident.
     nous = _empreinte(prop.get("commentaire") or "")
     ref = nous[:60]
-    if not code or len(ref) < 25:
-        return ""
-    try:
-        base, tok = _artis()
-        jour = datetime.datetime.now()
-        r = requests.get("%s/client/%s/dit" % (base, code), params={
-            "token": tok,
-            "dateDebut": (jour - datetime.timedelta(hours=heures)).strftime("%Y-%m-%d"),
-            "dateFin": (jour + datetime.timedelta(days=1)).strftime("%Y-%m-%d"),
-            "maxResults": 50}, headers={"accept": "application/json"}, timeout=45)
-        if r.status_code != 200:
-            return ""
-        j = r.json()
-        lst = j if isinstance(j, list) else (j.get("items") or j.get("dit") or [])
-    except Exception:
-        return ""
+    if not code:
+        return {"numero": "", "verifie": False, "raison": "client inconnu"}
+    if len(ref) < 25:
+        return {"numero": "", "verifie": False,
+                "raison": "commentaire trop court pour une empreinte fiable"}
+    # DEUX tentatives : un hoquet d'Artis ne doit pas desarmer le garde-fou
+    # sans bruit. C'est le seul endroit du passage ou une panne reseau se
+    # traduit par un ticket en trop.
+    lst, souci = None, ""
+    for essai in range(2):
+        try:
+            base, tok = _artis()
+            jour = datetime.datetime.now()
+            r = requests.get("%s/client/%s/dit" % (base, code), params={
+                "token": tok,
+                "dateDebut": (jour - datetime.timedelta(hours=heures)).strftime("%Y-%m-%d"),
+                "dateFin": (jour + datetime.timedelta(days=1)).strftime("%Y-%m-%d"),
+                "maxResults": 50}, headers={"accept": "application/json"},
+                timeout=45)
+            if r.status_code != 200:
+                souci = "Artis a repondu HTTP %s" % r.status_code
+            else:
+                j = r.json()
+                lst = j if isinstance(j, list) else (j.get("items")
+                                                    or j.get("dit") or [])
+                souci = ""
+                break
+        except Exception as exc:                   # noqa: BLE001
+            souci = "appel Artis en echec : %s" % str(exc)[:120]
+        if essai == 0:
+            time.sleep(3)
+    if lst is None:
+        return {"numero": "", "verifie": False,
+                "raison": souci or "liste des DIT du client illisible"}
     limite = datetime.datetime.now() - datetime.timedelta(hours=heures)
     for d in lst:
         try:
@@ -570,8 +604,9 @@ def dit_jumelle(prop, heures=24):
         if len(autre) < 25:
             continue
         if ref in autre or autre[:60] in nous:
-            return str(d.get("numero") or "")
-    return ""
+            return {"numero": str(d.get("numero") or ""), "verifie": True,
+                    "raison": ""}
+    return {"numero": "", "verifie": True, "raison": ""}
 
 
 
@@ -584,15 +619,467 @@ def dit_jumelle(prop, heures=24):
 #                           demandeur de la DIT ;
 #   contact_personne_du_mail  la personne reellement concernee — celle qui ecrit,
 #                           ou celle POUR QUI la demande est faite — va dans le
-#                           champ « personne a contacter » d'Artis.
+#                           champ « personne a contacter » d'Artis ;
+#   valideur                le circuit de validation client — voir plus bas.
 #
 # 13401 Me STEPHANE BONIFASSI — demande d'Elliot du 2026-09-25 : toutes les
 # demandes passent par Delphine PRIGENT, l'assistante ; la personne concernee
 # reste jointe en personne a contacter pour que l'intervenant sache qui appeler.
+#
+# 9599 / 9600 MYMOBILITY (JL INTERNATIONAL et ST2S) — sa fiche Artis porte :
+# « Pour demande de droits, ouverture de sites - Validation par M. DUCLAUX ou
+# M. JIMENEZ, email : dsi@mymobility.fr ». Ce commentaire de fiche n'est PAS
+# expose par l'API : la regle est donc recopiee ici.
+# ───────────────────────────────────────────────────────────────────────────
+# Le contrat d'infogerance porte par une AUTRE societe du groupe
+# ───────────────────────────────────────────────────────────────────────────
+# `bien_dit` a None ne prouve pas l'absence de contrat : il prouve l'absence de
+# contrat DANS CETTE FICHE. Un groupe peut faire porter l'infogerance de toutes
+# ses filiales par une seule entite, et c'est alors chez elle que vivent les
+# biens.
+#
+# Toutes les CLINIQUE DES CHAMPS-ELYSEES sont dans ce cas : ELITE CENTER
+# (12930) porte un trio INFOGERANCE / BAL EXCHANGE 365 / PROTECT par ville,
+# chacun sur son propre site et PREFIXE du code client de la filiale
+# (« 14288 - INFOGERANCE RENNES », site 006). Elliot, le 2026-10-12, apres que
+# le mail de la clinique de Rennes est parti au commercial : « c'est faux car
+# toutes les cliniques des champs elysees sont couvertes par ELITE CENTER qui
+# lui a bien un contrat ».
+#
+# Verifie dans Artis le 2026-10-12 sur les 474 biens de 12930.
+CONTRAT_PORTE_PAR = {
+    "5535": "12930",    # CLINIQUE DU ROND POINT DES CHAMPS ELYSEES (PARIS)
+    "10721": "12930",   # LILLE - BORDEAUX ; porte aussi DIJON, MARSEILLE,
+                        # STRASBOURG, TOULOUSE, AIX, REIMS, CANNES, REUILLY
+    "12769": "12930",   # NICE ; porte aussi CAEN et LEVALLOIS
+    "13573": "12930",   # BORDEAUX
+    "14232": "12930",   # LYON
+    "14287": "12930",   # TOURS
+    "14288": "12930",   # RENNES
+    "14323": "12930",   # LA BAULE
+    "15327": "12930",   # PARIS 08 (site SEBASTOPOL)
+    "19002": "12930",   # MONTPELLIER
+}
+
+# Les trois modeles qui valent « contrat d'infogerance informatique », dans
+# l'ordre de preference pose par Elliot le 2026-10-09.
+MODELES_CONTRAT = ("INFOGERANCE", "BAL EXCHANGE 365", "PROTECT")
+
+# Mots d'une raison sociale qui ne designent jamais une ville.
+_MOTS_NEUTRES = {"CLINIQUE", "CLINIQUES", "CENTRE", "CABINET", "SARL", "SAS",
+                 "SASU", "SCI", "SA", "GROUPE", "DES", "DU", "LES", "LE",
+                 "LA", "CHAMPS", "ELYSEES", "ELYSEE", "ROND", "POINT"}
+
+
+def _sans_accent(txt):
+    s = unicodedata.normalize("NFD", (txt or "").upper())
+    return "".join(c for c in s if unicodedata.category(c) != "Mn")
+
+
+def _mots_de_ville(raison_sociale):
+    """Les mots d'une raison sociale susceptibles de nommer une ville."""
+    mots = [m for m in re.split(r"[^A-Z0-9]+", _sans_accent(raison_sociale))
+            if len(m) >= 3 and not m.isdigit()]
+    return [m for m in mots if m not in _MOTS_NEUTRES]
+
+
+def biens_portes(code, biens_du_porteur=None):
+    """Les biens que le porteur detient POUR cette filiale, ou [].
+
+    Chez le porteur, chaque bien de filiale est prefixe du code client de
+    celle-ci. On ne garde que ceux-la : sans ce filtre on poserait le bien
+    d'une autre clinique, et `identifiantFabricant` etant une cle GLOBALE,
+    Artis collerait a la DIT le site de cette autre ville.
+    """
+    cible = str(code or "").strip()
+    porteur = CONTRAT_PORTE_PAR.get(cible)
+    if not porteur:
+        return []
+    liste = biens_du_porteur
+    if liste is None:
+        base, tok = _artis()
+        try:
+            r = requests.get("%s/client/%s/bien" % (base, porteur),
+                             params={"token": tok, "maxResults": 5000},
+                             headers={"accept": "application/json"}, timeout=120)
+            liste = r.json() if r.status_code == 200 else []
+        except Exception:                      # noqa: BLE001
+            liste = []
+    pref = re.compile(r"^\s*%s\s*-" % re.escape(cible))
+    return [b for b in (liste or [])
+            if pref.match((b.get("identifiantFabricant") or ""))]
+
+
+def bien_porte(code, trace=None):
+    """(identifiantFabricant, codeSite, codeOrgInt) du bien pris chez le porteur.
+
+    Elliot a tranche le 2026-10-12, entre trois options : « DIT avec le bien
+    d'ELITE CENTER » — bien et site exacts, contrat juste pour la facturation,
+    au prix d'un ticket qui s'affiche au nom du porteur et non de la clinique.
+
+    Les sites du porteur n'ont rien a voir avec ceux de la filiale : la regle
+    « site principal d'abord » n'a donc pas de sens ici. Le seul repere est la
+    VILLE, que la raison sociale de la filiale nomme presque toujours. Deux
+    codes en portent plusieurs — 10721 (LILLE, BORDEAUX, DIJON, MARSEILLE,
+    STRASBOURG, TOULOUSE, AIX, REIMS, CANNES, REUILLY) et 12769 (NICE, CAEN,
+    LEVALLOIS) : sans ville reconnue, le premier du modele gagne, et `trace`
+    le signale pour qu'on corrige AVANT de creer. Apres, rien ne se repare.
+    """
+    cible = str(code or "").strip()
+    porteur = CONTRAT_PORTE_PAR.get(cible)
+    if not porteur:
+        return (None, None, None)
+    biens = biens_portes(cible)
+    if trace is not None:
+        trace["porteur"] = porteur
+    if not biens:
+        return (None, None, None)
+
+    base, tok = _artis()
+    raison = ""
+    try:
+        r = requests.get("%s/client/%s" % (base, cible), params={"token": tok},
+                         headers={"accept": "application/json"}, timeout=40)
+        if r.status_code == 200:
+            f = r.json() or {}
+            raison = f.get("raisonSociale") or f.get("libelle") or ""
+    except Exception:                          # noqa: BLE001
+        raison = ""
+    villes = _mots_de_ville(raison)
+
+    def _triplet(b):
+        return (b.get("identifiantFabricant"),
+                (b.get("site") or {}).get("code"),
+                (b.get("orgInt") or {}).get("code"))
+
+    for modele in MODELES_CONTRAT:
+        lot = [b for b in biens
+               if ((b.get("modele") or {}).get("code") or "").strip().upper()
+               == modele]
+        if not lot:
+            continue
+        if trace is not None:
+            trace["modele"] = modele
+            trace["candidats"] = len(lot)
+        for v in villes:
+            motif = re.compile(r"\b%s\b" % re.escape(v))
+            for b in lot:
+                txt = _sans_accent("%s %s" % (b.get("identifiantFabricant") or "",
+                                              b.get("libelle") or ""))
+                if motif.search(txt):
+                    if trace is not None:
+                        trace["ville"] = v
+                    return _triplet(b)
+        if trace is not None and len(lot) > 1:
+            trace["ambigu"] = True
+        return _triplet(lot[0])
+    return (None, None, None)
+
+
 REGLES_CLIENT = {
     "13401": {"demandeur_impose": "d.prigent@bonifassi-avocats.com",
               "contact_personne_du_mail": True},
+    "9599": {"valideur": "mymobility"},
+    "9600": {"valideur": "mymobility"},
+    "8280": {"valideur": "sfaf"},
+    "12390": {"valideur": "freitas"},
+    # RUNIMMO — les quatre societes du groupe qui ont un contrat Info et dont
+    # la fiche porte Elodie CORJON. 20226 (« runimmo gestion ») est une fiche
+    # sans contrat et sans elle : elle n'est pas du circuit.
+    "14329": {"valideur": "runimmo"},
+    "15042": {"valideur": "runimmo"},
+    "15043": {"valideur": "runimmo"},
+    "17038": {"valideur": "runimmo"},
 }
+
+
+# ═══════════════════════════════════════════════ le circuit de validation
+# Certains clients exigent qu'un tiers de chez eux valide avant qu'on touche a
+# quoi que ce soit — des droits, un acces, l'ouverture d'un site. Artis le
+# materialise par un Tag sur la DIT, pose a la main jusqu'ici. Demande
+# d'Elliot le 2026-10-06, sur la DIT 100176480 (acces SAGE PAIE chez
+# MYMOBILITY) : poser le Tag « En attente de validation client » a la
+# CREATION, et le passer a « Demande validee » quand le valideur repond.
+#
+# Trois garde-fous, poses par Elliot le meme jour :
+#   - on ne touche PAS aux anciens tickets : la regle ne vaut que pour les
+#     DIT creees a partir de maintenant, jamais retroactivement ;
+#   - on ne touche PAS a un ticket cloture — ni pour poser le tag, ni pour le
+#     changer ; c'est fini, on laisse ;
+#   - le mail du valideur se transfere a l'intervenant et se pose mot pour mot
+#     en commentaire : AUCUNE phrase de nous entre parentheses pour expliquer
+#     qui a valide quoi et quand. Le mail transfere suffit.
+VALIDEURS = {
+    "mymobility": {
+        # qui valide — on reconnait sa reponse a son adresse
+        "adresses": ("dsi@mymobility.fr", "lm.jimenez@orange.fr"),
+        "qui": "M. DUCLAUX ou M. JIMENEZ (dsi@mymobility.fr)",
+        # ce qui doit etre valide : une demande de droits, d'acces, ou
+        # l'ouverture d'un site. Une creation ou un depart de compte que le
+        # valideur envoie LUI-MEME n'a pas a etre valide par lui.
+        "motifs": ("droit", "droits", "acces", "accès", "habilitation",
+                   "ouverture de site", "ouverture de sites", "autorisation"),
+    },
+    # SFAF — ajoute le 2026-10-09. Le circuit existait deja dans les faits :
+    # Clifford envoie la demande de validation a Karine DOGNIN SAUZE, qui
+    # repond. Mais le client n'etait pas dans la table, donc
+    # `valideur_du_client("8280")` rendait None et AUCUN tag n'etait pose — ni
+    # « En attente », ni « Demande validee ». Elliot, sur la DIT 100177064 :
+    # « ta pas mis le tag demande validée (ca devrait etre automatique quand
+    # c'est validé pourquoi tu la pas fait) ». La cause n'etait pas un oubli
+    # de geste, c'etait une table incomplete : un client absent d'ici est
+    # invisible pour tout le circuit.
+    "sfaf": {
+        "adresses": ("kdognin-sauze.ext@sfaf.com",),
+        "qui": "Mme Karine DOGNIN SAUZE (kdognin-sauze.ext@sfaf.com)",
+        "motifs": ("droit", "droits", "acces", "accès", "habilitation",
+                   "ouverture de site", "ouverture de sites", "autorisation",
+                   "boite mail", "boîte mail", "drive", "onedrive",
+                   "sharepoint"),
+    },
+    # FREITAS LEVAGE — ajoute le 2026-10-13. Stephanie FREITAS est la DG :
+    # quand c'est ELLE qui demande une creation de compte et des
+    # sous-delegations, il n'y a personne a qui soumettre la demande, elle
+    # autorise. La DIT 100177181 (arrivee de Mme ANTUNES) est pourtant partie
+    # en « En attente de validation client » faute d'entree ici — Elliot,
+    # le 2026-10-13 : « il aurait du arriver en valide c'est le dg qui fait la
+    # demande ».
+    # RUNIMMO — ajoute le 2026-10-14. Elodie CORJON ecrit pour les quatre
+    # societes du groupe et c'est elle qui autorise : sa demande n'a personne a
+    # qui etre soumise. La DIT 100177533 (mise en boite partagee de
+    # m.schuller@runimmo.re sur celle de c.cassar@runimmo.re, plus changement
+    # de mot de passe) est pourtant partie « En attente de validation client »,
+    # faute d'entree ici — Elliot, le 2026-10-14 : « ce ticket doit etre valide
+    # a la creation 100177533, le ticket a ete fait directement par le
+    # valideur ». Le tag a ete repasse en « Demande validee » a la main.
+    "runimmo": {
+        "adresses": ("e.corjon@runimmo.fr",),
+        "qui": "Mme Elodie CORJON (e.corjon@runimmo.fr)",
+        "motifs": ("droit", "droits", "acces", "accès", "habilitation",
+                   "autorisation", "delegation", "délégation", "partage",
+                   "boite mail", "boîte mail", "boite partagee",
+                   "boîte partagée", "drive", "onedrive", "sharepoint",
+                   "licence", "licences"),
+    },
+    "freitas": {
+        "adresses": ("stephanie_freitas@freitas.fr",),
+        "qui": "Mme Stephanie FREITAS, DG (stephanie_freitas@freitas.fr)",
+        "motifs": ("droit", "droits", "acces", "accès", "habilitation",
+                   "autorisation", "delegation", "délégation",
+                   "sous delegation", "sous-delegation", "boite mail",
+                   "boîte mail", "drive", "onedrive", "sharepoint"),
+    },
+}
+
+
+def valideur_du_client(code):
+    """Rend la fiche du valideur du client, ou None s'il n'en a pas."""
+    nom = (REGLES_CLIENT.get(str(code or "")) or {}).get("valideur")
+    return VALIDEURS.get(nom) if nom else None
+
+
+# Les motifs qui demandent une validation, pour TOUS les clients — Elliot,
+# le 2026-10-09 : « tout ce qui est demande de droit, delegation, acces
+# sharepoint etc. doit faire l'objet d'une validation, donc faut mettre le tag
+# en attente de validation comme pour JLI (pour tous les clients) ».
+#
+# Avant, le circuit ne valait que pour les clients inscrits dans REGLES_CLIENT
+# (MYMOBILITY, puis SFAF) : un client absent de la table etait invisible pour
+# tout le circuit, et sa demande de droits partait sans tag. C'est ce qui est
+# arrive a la DIT 100177064 (SFAF). Desormais, c'est le MOTIF qui declenche,
+# pas l'appartenance a une table ; la table ne sert plus qu'a nommer QUI
+# valide chez les clients qui ont designe quelqu'un.
+MOTIFS_A_VALIDER = (
+    "droit", "droits", "acces", "accès", "habilitation", "autorisation",
+    "ouverture de site", "ouverture de sites", "delegation", "délégation",
+    "sharepoint", "onedrive", "drive", "boite mail", "boîte mail",
+    "boite aux lettres", "boîte aux lettres", "partage", "privilege",
+    "privilège", "administrateur", "admin ", "mfa",
+    # Une licence se paye : l'ajouter engage le client, donc elle se valide
+    # comme un droit. Elliot, le 2026-10-13, sur la DIT 100177444 (5 licences
+    # Kiosk sur le tenant mymob.fr) : « demande d'ajout de licence : faut une
+    # validation ». Et comme le motif rejoint ceux du valideur, la demande
+    # faite par le valideur LUI-MEME part en « Demande validee » tout de
+    # suite — c'etait le cas ici, Luis JIMENEZ etant le valideur de JLI.
+    "licence", "licences",
+)
+
+# Ce qui, dans la reponse d'un client, vaut accord. Volontairement etroit :
+# une question ou une relance ne doit pas faire passer le tag en « validee ».
+# Des ACTES DE PAROLE, compares avec des frontieres de mot — jamais des
+# sous-chaines. L'ancienne liste contenait « ok. » et « valide » nus : le
+# 2026-10-09, un mail de BOUMA qui transmettait une procedure technique
+# (« Installer le complement Out*look.* », « le certificat SSL est valide »,
+# « les autorisations Microsoft Graph ») a ete lu comme une validation du
+# client, range en 14 - VALIDATION CLIENT et allait faire passer la DIT
+# 100175418 en « Demande validee ».
+#
+# Un faux positif ici fait lancer a l'equipe un travail que personne n'a
+# autorise : en cas de doute, on ne valide pas — le tag reste « en attente »
+# et un humain tranche.
+MARQUES_ACCORD = (
+    r"\bje valide\b", r"\bnous validons\b", r"\bje la valide\b",
+    r"\bc'?est valid[ée]e?\b", r"\bdemande valid[ée]e\b",
+    r"\bvalid[ée]e? par\b", r"\bbon pour accord\b",
+    r"\bje vous confirme\b", r"\bje confirme\b", r"\bnous confirmons\b",
+    r"\bd'?accord\b", r"\b(mon|notre|votre) accord\b",
+    r"\bdonne[zs]? (mon|notre) accord\b",
+    r"\bfeu vert\b",
+    # « Vous pouvez … » : la liste des verbes etait trop courte. Mohammed
+    # KASSAINI (ALIGN AERO) a repondu « Vous pouvez traiter cette demande » sur
+    # le fil de validation de la DIT 100176803, le 2026-10-14 : aucune marque
+    # ne l'a reconnu, le ticket est reste « En attente de validation client »
+    # et le mail est parti en 01 au lieu de 14. Le tag a ete repasse a la main.
+    r"\bvous pouvez (proc[ée]der|y aller|le faire|traiter|lancer|"
+    r"continuer|intervenir|effectuer|realiser|r[ée]aliser|faire le "
+    r"n[ée]cessaire)\b",
+    r"\bvous avez (mon|notre) (feu vert|accord)\b",
+    r"\bj'?autorise\b", r"\bnous autorisons\b",
+    r"\bok pour\b", r"\bc'?est ok\b", r"\bc est ok\b",
+)
+
+# « Ok » tout seul vaut accord — mais seulement dans un message court, pas
+# perdu au milieu d'une procedure. « Oui » compte pareil, et seulement
+# en TETE du message : la DIT 100177359 (PRESENCE CONSEIL) est restee en
+# « En attente de validation client » alors que M. Neuville avait repondu
+# « Oui, merci » le 12/10 — un accord qu'aucune marque ne reconnaissait,
+# et qu'Elliot a du signaler a la main le 13/10.
+_OK_SEUL = re.compile(r"\bok\b", re.I)
+_OUI_SEUL = re.compile(r"^\W*oui\b", re.I)
+_ACCORDS = tuple(re.compile(m, re.I) for m in MARQUES_ACCORD)
+
+
+def demande_a_valider(code, de, texte):
+    """La demande doit-elle partir en « En attente de validation client » ?
+
+    Vrai des que la demande porte sur des droits, une delegation ou un acces —
+    pour TOUS les clients, pas seulement ceux qui ont un valideur nomme.
+
+    Une exception : quand le client a designe un valideur et que c'est LUI qui
+    ecrit, il n'y a rien a valider, il decide.
+    """
+    v = valideur_du_client(code)
+    if v and (de or "").strip().lower() in [a.lower() for a in v["adresses"]]:
+        return False
+    motifs = ((v or {}).get("motifs") or ()) + MOTIFS_A_VALIDER
+    return _motif_de_validation(texte, motifs)
+
+
+# « acces » est le mot le plus large de MOTIFS_A_VALIDER, et il attrape des
+# demandes qui n'ont rien a voir avec des droits : la migration d'un lien
+# d'ACCES INTERNET, un POINT D'ACCES wifi. Constate le 2026-10-09 sur la DIT
+# 100177089 (FACE B, « migration du lien d'acces internet »), qui est partie
+# avec un tag « En attente de validation client » absurde — personne n'a a
+# valider le remplacement d'une fibre. Ces tournures annulent le motif.
+_ACCES_INFRA = ("acces internet", "accès internet", "lien d'acces",
+                "lien d'accès", "point d'acces", "point d'accès",
+                "acces ftth", "accès ftth", "acces fibre", "accès fibre",
+                "acces adsl", "accès adsl", "acces wan", "accès wan")
+
+
+# Un SIGNALEMENT de mail frauduleux n'est pas une demande de droits, meme
+# quand il parle d'acces et de mot de passe. Le 2026-10-14, la DIT 100177663
+# (FACTORHY, « pourriez-vous m'indiquer s'il s'agit d'un mail frauduleux ? »,
+# avec « Votre adresse IP doit etre autorisee avant l'acces » recopie du faux
+# site) est partie « En attente de validation client ». Elliot : « phishing
+# potentiel, il n'y avait pas besoin de demande de validation ». Le client ne
+# demande rien a autoriser : il demande une analyse. Ces mots-la coupent le
+# circuit avant tout motif.
+_SIGNALEMENT_FRAUDE = (
+    "frauduleux", "frauduleuse", "phishing", "hameconnage", "hameçonnage",
+    "faux mail", "mail suspect", "mail douteux", "courriel suspect",
+    "tentative d'arnaque", "arnaque", "usurpation", "usurpe", "usurpé",
+    "spam suspect", "mail de phishing", "escroquerie",
+)
+
+
+def _motif_de_validation(texte, motifs):
+    """Le texte porte-t-il un motif de validation, hors faux amis ?"""
+    bas = (texte or "").lower()
+    if any(f in bas for f in _SIGNALEMENT_FRAUDE):
+        return False
+    for infra in _ACCES_INFRA:                # on neutralise les faux amis
+        bas = bas.replace(infra, " ")
+    return any(m in bas for m in motifs)
+
+
+def tag_a_la_creation(code, de, texte):
+    """Quel Tag poser a la creation : "attente", "validee", ou None.
+
+    - La demande porte sur des droits / un acces / une delegation, et c'est un
+      tiers qui la fait    -> « En attente de validation client ».
+    - La meme demande faite par le VALIDEUR LUI-MEME -> « Demande validee »
+      tout de suite : il n'a personne a qui demander, c'est lui qui autorise.
+      Elliot, le 2026-10-09 : « pour JLI si jamais le demandeur c'est LUIS mets
+      directement le tag demande validee ». Avant, ce cas ne posait aucun tag,
+      et le ticket partait nu — l'equipe ne pouvait pas distinguer « autorise »
+      de « pas encore demande ».
+    - Rien a valider -> None.
+    """
+    v = valideur_du_client(code)
+    motifs = ((v or {}).get("motifs") or ()) + MOTIFS_A_VALIDER
+    if not _motif_de_validation(texte, motifs):
+        return None
+    if v and (de or "").strip().lower() in [a.lower() for a in v["adresses"]]:
+        return "validee"
+    return "attente"
+
+
+def validation_recue(code, de, texte=None):
+    """Ce mail vaut-il validation du client ?
+
+    Deux cas, dans cet ordre :
+
+    - le client a **designe un valideur** et c'est lui qui ecrit : sa reponse
+      vaut accord, quel qu'en soit le texte — c'est le cas MYMOBILITY, ou la
+      reponse de `dsi@mymobility.fr` sur le fil est l'accord lui-meme ;
+    - le client n'a designe personne : n'importe lequel de ses interlocuteurs
+      peut confirmer, mais alors le TEXTE doit porter un accord. Sans cette
+      seconde condition, une simple question du client ferait passer le tag en
+      « Demande validee », et l'equipe lancerait un travail non autorise.
+
+    `texte` est optionnel pour rester compatible avec les appels existants ;
+    sans lui, seul le premier cas peut repondre vrai.
+    """
+    adr = (de or "").strip().lower()
+    if not adr:
+        return False
+    # Un REFUS ne vaut jamais validation, meme ecrit par le valideur designe.
+    # Sans ce test, la reponse de Karine DOGNIN SAUZE « je vous confirme que
+    # cette demande est refusee » aurait fait passer le tag de la DIT 100175753
+    # a « Demande validee » — et l'equipe aurait lance un travail que la
+    # cliente venait d'interdire.
+    bas = (texte or "").lower()
+    if texte is not None and any(n in bas for n in (
+            "refus", "refuse", "refusé", "pas d'accord", "je n'autorise",
+            "ne valide pas", "non valide", "nous n'autorisons pas")):
+        return False
+    v = valideur_du_client(code)
+    if v and adr in [a.lower() for a in v["adresses"]]:
+        return True
+    if texte is None:
+        return False
+    if M.est_interne(adr) or _est_expediteur_automatique(adr):
+        return False
+    if any(r.search(bas) for r in _ACCORDS):
+        return True
+    # « Ok », « OK pour moi », « Ok merci » : un accord tient en une ligne.
+    corps = bas.split(chr(10), 1)[-1].strip() if chr(10) in bas else bas.strip()
+    return len(corps) <= 60 and bool(_OK_SEUL.search(corps) or _OUI_SEUL.search(corps))
+
+
+def client_du_dit(numero):
+    """Code client d'une DIT. `relire_dit` ne le rend pas, l'API si."""
+    try:
+        base, tok = _artis()
+        r = requests.get("%s/dit/%s" % (base, numero), params={"token": tok},
+                         headers={"accept": "application/json"}, timeout=30)
+        if r.status_code != 200:
+            return ""
+        c = (r.json() or {}).get("client") or {}
+        return str(c.get("code") or c.get("codeClient") or "")
+    except Exception:                        # noqa: BLE001
+        return ""
 
 
 def appliquer_regles_client(prop):
@@ -680,7 +1167,13 @@ def creer_dit(prop, confirmer=False, numero_externe=True, identification="tout",
     # pourtant toujours au moins un site dans Artis — on va le chercher plutôt
     # que de renoncer à la demande (2026-09-17, clients 13075 et 29211 bloqués
     # ainsi, l'un après l'autre).
-    if prop.get("client") and not (prop.get("site") or prop.get("bien")):
+    # On cherche le site meme quand un BIEN est deja connu. Artis documente
+    # « codeClient+codeSite OU identifiantFabricantBien », mais chez certains
+    # clients le bien seul ne suffit pas : `POST /dit` repond « le site
+    # n'existe pas ». JACQUESON AUTOCARS (30703) a bloque 12 passages de suite
+    # le 2026-10-09 pour cette raison — tous ses biens sont pourtant valides.
+    # Envoyer les deux est sans risque et leve le blocage.
+    if prop.get("client") and not prop.get("site"):
         try:
             base, tok = _artis()
             r = requests.get("%s/client/%s/site" % (base, prop["client"]),
@@ -757,12 +1250,20 @@ def creer_dit(prop, confirmer=False, numero_externe=True, identification="tout",
     # produit un second ticket sur le meme incident. On interroge donc Artis
     # lui-meme, qui voit TOUT le monde : meme client, meme jour, meme debut de
     # texte -> c'est le meme incident, on ne recree pas.
-    jumelle = dit_jumelle(prop)
-    if jumelle:
+    garde = dit_jumelle_detail(prop)
+    if garde["numero"]:
         out["erreur"] = "doublon evite"
-        out["doublon_de"] = jumelle
-        out["numero"] = jumelle
+        out["doublon_de"] = garde["numero"]
+        out["numero"] = garde["numero"]
         return out
+    if not garde["verifie"]:
+        # On cree quand meme — perdre la demande d'un client coute plus cher
+        # qu'un doublon — mais ca ne part plus en silence.
+        out.setdefault("avertissements", [])
+        out["avertissements"] = list(out.get("avertissements") or []) + [
+            "ANTI-DOUBLON NON VERIFIE : %s. Le ticket est cree sans ce "
+            "controle." % garde["raison"]]
+        out["doublon_non_verifie"] = garde["raison"]
 
     base, tok = _artis()
     r = requests.post("%s/dit" % base, params={"token": tok},
@@ -806,6 +1307,10 @@ def creer_dit(prop, confirmer=False, numero_externe=True, identification="tout",
                 # creation doit se voir dans l'historique, sinon le filet de
                 # securite devient un tapis sous lequel on balaie.
                 "symptome_par_defaut": not prop.get("symptome"),
+                # Quand le garde-fou n'a pas pu regarder, l'historique doit le
+                # dire : c'est la seule facon de retrouver, trois jours plus
+                # tard, pourquoi un doublon est passe (GREENWICH, 2026-09-29).
+                "doublon_non_verifie": out.get("doublon_non_verifie") or "",
                 "sans_demandeur": not prop.get("pid_interlocuteur"),
                 "uo_voulue": prop.get("uo"),
                 # Demande d'Elliot : un DIT cree pour un client SANS contrat
@@ -1008,6 +1513,18 @@ DOSSIERS = {
     "securite":     "BAL SECURITE",
     "devis":        "BAL INFO/03 - DEVIS",
     "terrain":      "BAL INFO/02 - DIT ARTIS TERRAIN",
+    # La reponse du valideur du client a sa place a elle : le dossier ou
+    # l'equipe va chercher les accords (Elliot, 2026-10-06, « range les
+    # mails de validation client dans 14 - Validation clients au lieu de
+    # ARTIS DIT SUPPORT »).
+    "validation":   "BAL INFO/14 - VALIDATION CLIENT",
+    # Une COPIE de chaque reponse de client a une DIT, pour que l'equipe
+    # suive ces echanges sans ouvrir Artis (Elliot, le 2026-10-13 : «
+    # lorsque le client repond a une DIT et que tu transfere au dernier
+    # intervenant faudrait aussi que tu transfere une copie du mail dans le
+    # dossier 16 - REPONSE DIT pour qu'on puisse le suivre »). L'original
+    # continue sa route vers 01 ou 14 : c'est une copie, pas un detour.
+    "reponse_dit":  "BAL INFO/16 - REPONSE DIT",
 }
 
 _CACHE_DOSSIER = {}
@@ -1075,6 +1592,42 @@ def ranger_mail(prop, cle_ou_chemin, confirmer=False, marquer_lu=True):
             out["marque_lu"] = False
             out["erreur_lu"] = str(e)[:120]
     r = requests.post("%s/me/messages/%s/move" % (GRAPH, mail_id),
+                      headers={"Authorization": "Bearer " + tok,
+                               "Content-Type": "application/json"},
+                      data=json.dumps({"destinationId": fid}), timeout=40)
+    out["http"] = r.status_code
+    out["envoye"] = r.status_code in (200, 201)
+    if not out["envoye"]:
+        out["erreur"] = r.text[:300]
+    return out
+
+
+def copier_mail(mail_id, cle_ou_chemin, confirmer=False):
+    """Depose une COPIE du mail dans un dossier, sans toucher a l'original.
+
+    `ranger_mail` DEPLACE : apres lui le message a change d'identifiant et
+    n'est plus la ou on l'attend. Pour qu'un mail vive a deux endroits — sa
+    place de rangement et un dossier de suivi — il faut copier AVANT de
+    deplacer. Graph expose `/copy` exactement pour ca.
+    """
+    out = {"envoye": False, "arme": ecriture_armee()}
+    chemin = DOSSIERS.get(cle_ou_chemin, cle_ou_chemin)
+    out["destination"] = chemin
+    if not mail_id:
+        out["erreur"] = "pas d'identifiant de mail"
+        return out
+    tok = M.access_token()
+    if not tok:
+        out["erreur"] = "pas de jeton mail"
+        return out
+    fid = id_dossier(tok, chemin)
+    if not fid:
+        out["erreur"] = "dossier " + " %s " % chemin + "introuvable"
+        return out
+    if not _autorise(confirmer):
+        out["simulation"] = "POST copy vers %s" % chemin
+        return out
+    r = requests.post("%s/me/messages/%s/copy" % (GRAPH, mail_id),
                       headers={"Authorization": "Bearer " + tok,
                                "Content-Type": "application/json"},
                       data=json.dumps({"destinationId": fid}), timeout=40)
@@ -1461,6 +2014,81 @@ def creer_interlocuteur(code_client, nom, prenom="", mail="", titre="M.",
         if m:
             ident = int(m.group(0))
     return {"id": ident, "cree": True, "reponse": j if j is not None else r.text[:200]}
+
+
+_ROBOTS = ("no-reply", "noreply", "donotreply", "ne-pas-repondre", "nepasrepondre",
+           "alerts@", "alert@", "alerte@", "notification", "notifications@",
+           "mailer@", "mailauto@", "jira@", "postmaster@", "bounce", "automat",
+           "@rmm.", "@notifications.", "scanbcs", "no.reply")
+
+
+def _est_expediteur_automatique(adr):
+    """L'adresse est-elle celle d'un robot plutot que d'une personne ?
+
+    Garde-fou pose le 2026-10-09 : la DIT 100177035 (UNILET 12124) est partie
+    avec `alerts@rmm.datto.com` ecrit sur la fiche de Benedicte LESUEUR. Le
+    ticket venait d'une notification Datto RMM qui PORTAIT la demande de la
+    cliente, donc le demandeur etait bien elle — mais `creer_dit` pose
+    l'adresse de l'EXPEDITEUR, et l'expediteur etait le robot. Une fiche client
+    polluee de la sorte ne se voit pas : Artis affiche simplement un mauvais
+    mail de demandeur sur toutes les DIT suivantes.
+
+    On refuse donc d'ecrire une adresse qui porte une marque de robot, comme on
+    refuse deja les adresses internes. Quand le demandeur est une vraie personne
+    dont on n'a pas l'adresse, mieux vaut une fiche sans mail qu'une fiche
+    fausse.
+    """
+    a = (adr or "").strip().lower()
+    return any(m in a for m in _ROBOTS)
+
+
+def assurer_mail_interlocuteur(code_client, pid, mail, confirmer=False):
+    """Pose l'adresse du mail sur la fiche du contact quand elle est VIDE.
+
+    Artis n'affiche pas l'adresse du demandeur depuis le message : il la lit
+    dans la fiche de l'interlocuteur. Un contact saisi a la main sans adresse
+    donne donc une DIT sans mail de demandeur — constate le 2026-10-06 sur la
+    DIT 100176656 (Alexandre Therrouin, CAB'S INDUSTRIES, fiche avec le seul
+    telephone). Elliot : « il y a un mail avec une demande et le mail du
+    demandeur, juste tu l'ajoutes, et s'il existe pas tu le crees ».
+
+    On COMPLETE, on ne remplace jamais : une fiche qui porte deja une adresse
+    garde la sienne, meme differente de celle du message — c'est peut-etre
+    l'adresse nominative, et le message peut venir d'une boite collective.
+    Jamais d'adresse interne @dfm.fr dans la fiche d'un client.
+
+    Rend {deja, pose, erreur} ; `pose` porte l'adresse ecrite.
+    """
+    adr = (mail or "").strip()
+    if not adr or "@" not in adr:
+        return {"erreur": "adresse absente ou invalide"}
+    if M.est_interne(adr):
+        return {"erreur": "adresse interne, jamais dans la fiche d'un client"}
+    if _est_expediteur_automatique(adr):
+        return {"erreur": "expediteur automatique, jamais dans la fiche d'un"
+                          " client : %s" % adr}
+    base, tok = _artis()
+    url = "%s/client/%s/interlocuteur/%s" % (base, code_client, pid)
+    r = requests.get(url, params={"token": tok}, timeout=60)
+    if r.status_code != 200:
+        return {"erreur": "lecture HTTP %s" % r.status_code}
+    fiche = r.json() or {}
+    deja = ((fiche.get("adresse") or {}).get("mail1") or "").strip()
+    if deja:
+        return {"deja": deja}
+    if not confirmer or not _autorise(confirmer):
+        return {"erreur": "ecriture non armee : %s" % DRAPEAU}
+    # Le PUT remplace la fiche : on renvoie TOUT ce qu'on a lu, sinon le
+    # telephone et la fonction disparaissent.
+    corps = {k: v for k, v in fiche.items() if k != "links"}
+    corps["adresse"] = dict(corps.get("adresse") or {}, mail1=_stockable(adr))
+    w = requests.put(url, params={"token": tok},
+                     headers={"Content-Type": "application/json;charset=UTF-8"},
+                     data=json.dumps(corps, ensure_ascii=False).encode("utf-8"),
+                     timeout=60)
+    if w.status_code not in (200, 201, 204):
+        return {"erreur": "HTTP %s : %s" % (w.status_code, w.text[:200])}
+    return {"pose": adr}
 
 
 def _adresse_nominative(iv):
@@ -1983,7 +2611,7 @@ def entete_ajout(quand):
             + (quand or "date inconnue") + chr(10) + barre)
 
 
-def completer_dit_direct(numero, prop, log=None):
+def completer_dit_direct(numero, prop, log=None, dossier="traite"):
     """Ajoute à un DIT le texte et les pièces d'un mail SANS proposition.
 
     `completer_dit` travaille sur une proposition enregistrée ; le pont du
@@ -1993,7 +2621,19 @@ def completer_dit_direct(numero, prop, log=None):
     """
     dire = log or (lambda *_a: None)
     faits = []
-    ancien = (relire_dit(numero) or {}).get("commentaire") or ""
+    fiche = relire_dit(numero) or {}
+    ancien = fiche.get("commentaire") or ""
+    # UN COMMENTAIRE VIDE SUR UN TICKET QUI EXISTE, C'EST UNE LECTURE RATEE.
+    # Le commentaire est le SEUL champ obligatoire d'Artis : une DIT en a
+    # toujours un. S'il revient vide, c'est qu'Artis n'a pas repondu — et
+    # ecrire par-dessus EFFACE la demande du client. C'est ce qui est arrive
+    # a la DIT 100176099 le 2026-10-02 : le texte de Mme Sun a disparu,
+    # remplace par le seul ajout. On refuse d'ecrire plutot que de perdre.
+    if fiche and not ancien.strip():
+        return {"ok": False, "prevenu": "",
+                "resume": "DIT %s : commentaire relu VIDE alors que le ticket "
+                          "existe — lecture Artis douteuse, rien n'a ete ecrit "
+                          "pour ne pas effacer la demande du client" % numero}
     ajout = _stockable((prop.get("commentaire") or "").strip())
     if ajout and ajout[:120] not in ancien:
         import artis_type_travail as W
@@ -2010,10 +2650,16 @@ def completer_dit_direct(numero, prop, log=None):
         # mail appartient bien à ce ticket. Il se range quand même : sinon il
         # reste en boîte à chaque passage, refusé par une porte et attendu par
         # personne (« Sanaz Courdkhalag Laptop Set-up », 2026-09-18).
-        res = ranger_mail(prop["mail_id"], "traite", confirmer=True)
-        return {"ok": bool(res.get("envoye")),
+        res = ranger_mail(prop["mail_id"], dossier, confirmer=True)
+        return {"ok": bool(res.get("envoye")), "prevenu": "",
                 "resume": "rien à ajouter au DIT %s ; mail rangé" % numero}
 
+    # QUI a ete prevenu : c'est la partie qu'on oublie, et son oubli est
+    # silencieux. Elliot, le 2026-10-02, sur la DIT 100175793 : « tu as
+    # ajoute le commentaire du client et tu l'as rouverte, mais tu as
+    # prevenu personne, comment Shannon est censee le savoir ? ». Le
+    # retour porte desormais `prevenu` : vide veut dire que personne ne sait.
+    prevenu = ""
     iv = dernier_intervenant(numero)
     if iv.get("mail") and M.est_interne(iv["mail"]) \
             and iv["mail"].lower() != (prop.get("de") or "").lower():
@@ -2039,11 +2685,31 @@ def completer_dit_direct(numero, prop, log=None):
                          headers={"Authorization": "Bearer " + tok}, timeout=60)
             if e.status_code in (200, 202, 204):
                 faits.append("transmis à %s" % iv["mail"])
-    res = ranger_mail(prop["mail_id"], "traite", confirmer=True)
+                prevenu = iv["mail"]
+    if not prevenu:
+        faits.append("PERSONNE N'A ETE PREVENU (%s)"
+                     % (iv.get("raison") or iv.get("erreur")
+                        or "intervenant injoignable"))
+    # Une COPIE dans « 16 - REPONSE DIT », pour que l'equipe suive les
+    # reponses des clients sans ouvrir Artis (Elliot, le 2026-10-13). Elle se
+    # prend AVANT le rangement : `ranger_mail` deplace le message, et apres
+    # lui l'identifiant d'origine ne designe plus rien. Posee aussi quand le
+    # transfert a echoue — c'est justement la que le suivi manque le plus.
+    try:
+        cp = copier_mail(prop["mail_id"], "reponse_dit", confirmer=True)
+        if cp.get("envoye"):
+            faits.append("copie en %s" % DOSSIERS["reponse_dit"])
+        else:
+            faits.append("COPIE EN 16 - REPONSE DIT MANQUEE (%s)"
+                         % (cp.get("erreur") or cp.get("http") or "?"))
+    except Exception as exc:                 # noqa: BLE001
+        faits.append("COPIE EN 16 - REPONSE DIT MANQUEE (%s)" % str(exc)[:80])
+    res = ranger_mail(prop["mail_id"], dossier, confirmer=True)
     if res.get("envoye"):
-        faits.append("rangé")
+        faits.append("rangé en %s" % DOSSIERS.get(dossier, dossier))
     dire("[mail-dit] DIT %s : %s" % (numero, ", ".join(faits)))
-    return {"ok": True, "resume": "DIT %s — %s" % (numero, ", ".join(faits))}
+    return {"ok": True, "prevenu": prevenu, "intervenant": iv,
+            "resume": "DIT %s — %s" % (numero, ", ".join(faits))}
 
 
 def completer_dit(pid, numero, texte="", confirmer=False, deplacer=True):
