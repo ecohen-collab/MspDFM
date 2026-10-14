@@ -803,6 +803,43 @@ l'expose. Cette manœuvre est manuelle, sur demande d'Elliot.
 - `bin/artis.py` — helpers REST (auth, GET, biens, anti-doublon, interlocuteurs)
 - `bin/creer_dit.py` — crée une ou plusieurs DIT depuis un JSON de propriétés
 
+## Le même passage depuis une session distante (routine Cloud)
+
+**Rien du raisonnement ne change** : c'est ce skill, les mêmes outils, les
+mêmes garde-fous. Ce qui change, c'est qu'il n'y a ni `/data` monté, ni
+`az login`, ni `.env` — une session distante n'a que des **variables
+d'environnement** et le dépôt git.
+
+Trois choses vivaient sur le disque et ont donc appris à vivre sur Azure
+Files, par **SAS** (`azure_files.py`, trois appels REST, aucune dépendance
+nouvelle) :
+
+| Quoi | Avant | En distant |
+|---|---|---|
+| jeton Graph | `data/mail_tokens.json` | `mail_tokens.json` sur le share, lu **et réécrit** — le refresh token tourne à chaque rafraîchissement, le déposer en variable ne suffirait pas |
+| journal | `az storage file upload` | `journal_sync.synchroniser()` — même fusion, même garde-fou « aucune ligne de prod perdue » |
+| drapeau d'écriture | `data/mail_dit_ecriture.txt` | `MAIL_DIT_ECRITURE=OUI`, **ou** le même fichier sur le share — c'est le bouton d'arrêt : remplacer « OUI » par autre chose sur `/data` désarme la chaîne distante en moins d'une minute, sans toucher à la routine |
+
+Les six variables à poser sur la routine :
+
+```
+ARTIS_AUTH_URL  ARTIS_USERNAME  ARTIS_PASSWORD  ARTIS_BASE_URL
+AZ_FILES_ACCOUNT=dfmmspdashboardstor   AZ_FILES_SHARE=msp-data
+AZ_FILES_SAS=sv=...&sp=rcwl&sig=...    MAIL_DIT_ECRITURE=OUI
+```
+
+La SAS doit porter **lecture, création, écriture et liste** sur le share
+`msp-data`. Elle se génère depuis le portail (le compte d'Elliot est
+*Storage data contributor*, il ne peut pas lister les clés du compte, donc
+`az storage share generate-sas` lui est refusé).
+
+Contrôle avant le premier passage : `python azure_files.py` doit afficher
+`aller-retour : OK`. S'il échoue, inutile d'aller plus loin — le jeton ne
+sera pas lisible et rien ne s'écrira.
+
+**Ne pas poser `DATA_DIR` en distant** : il ferait chercher les fichiers sur
+un disque qui ne survit pas à la session.
+
 ## L'agent sur Azure — quand ce n'est plus moi qui passe
 
 `agent_mail_dit.py` (racine du repo) fait ce passage **tout seul, dans le

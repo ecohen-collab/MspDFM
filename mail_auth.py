@@ -42,7 +42,32 @@ TOKENS     = DATA / "mail_tokens.json"
 AUTH       = f"https://login.microsoftonline.com/{TENANT}/oauth2/v2.0"
 
 
+# Le jeton ne vit pas toujours sur un disque. Dans une session distante
+# (routine Cloud) il n'y a ni `/data` monte, ni `az login` : le fichier est
+# alors lu et ecrit sur Azure Files par SAS. Le refresh token tourne —
+# Microsoft en rend un nouveau a chaque rafraichissement — donc il ne suffit
+# pas de le deposer en variable d'environnement : il faut un endroit ou le
+# REECRIRE, sinon la session distante perd l'acces des la premiere rotation.
+#
+# Sur le poste d'Elliot aucune de ces variables n'est posee : `_distant()` est
+# faux et tout se passe comme avant, dans ./data.
+_CACHE = {"jeton": None}
+
+
+def _distant():
+    try:
+        import azure_files
+        return azure_files.disponible()
+    except Exception:                    # noqa: BLE001
+        return False
+
+
 def _save(d):
+    _CACHE["jeton"] = d
+    if _distant():
+        import azure_files
+        azure_files.ecrire("mail_tokens.json", json.dumps(d))
+        return
     DATA.mkdir(parents=True, exist_ok=True)
     tmp = str(TOKENS) + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
@@ -51,6 +76,17 @@ def _save(d):
 
 
 def _load():
+    if _distant():
+        # Un seul aller-retour par processus : `access_token()` est appele a
+        # chaque requete Graph, et le jeton ne bouge qu'ici.
+        if _CACHE["jeton"] is None:
+            import azure_files
+            brut = azure_files.lire("mail_tokens.json")
+            try:
+                _CACHE["jeton"] = json.loads(brut.decode("utf-8")) if brut else {}
+            except Exception:            # noqa: BLE001
+                _CACHE["jeton"] = {}
+        return _CACHE["jeton"]
     try:
         return json.loads(TOKENS.read_text(encoding="utf-8")) if TOKENS.exists() else {}
     except Exception:

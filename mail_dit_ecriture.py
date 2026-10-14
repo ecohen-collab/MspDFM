@@ -34,13 +34,52 @@ ETAT_CREATION = "EnCours"
 
 
 # ═══════════════════════════════════════════════════════ garde-fou
-def ecriture_armee():
-    """Le drapeau d'autorisation est-il posé ? (fichier contenant OUI)"""
+# Le drapeau d'ecriture a trois sources, dans cet ordre. Le fichier local est
+# l'original : sur le poste d'Elliot et dans le conteneur, `DATA_DIR` est
+# monte et `mail_dit_ecriture.txt` y vit. Une session distante n'a ni l'un ni
+# l'autre — d'ou les deux autres :
+#
+#   - `MAIL_DIT_ECRITURE=OUI` en variable d'environnement : ce qu'on pose dans
+#     une routine Cloud pour l'armer ;
+#   - le meme fichier sur Azure Files, lu par SAS : c'est le bouton d'arret.
+#     Elliot peut desarmer la chaine distante en remplacant « OUI » par autre
+#     chose sur `/data`, sans toucher a la routine ni attendre un deploiement.
+#     Relu au plus une fois par minute pour ne pas marteler l'API.
+_DRAPEAU_DISTANT = {"vu": 0.0, "valeur": False}
+_DRAPEAU_FRAIS = 60                      # secondes
+
+
+def _arme_texte(t):
+    return bool(t) and t.strip().upper().startswith("OUI")
+
+
+def _drapeau_distant():
     try:
-        return DRAPEAU.exists() and \
-            DRAPEAU.read_text(encoding="utf-8").strip().upper().startswith("OUI")
-    except Exception:
+        import azure_files
+        if not azure_files.disponible():
+            return False
+        if time.time() - _DRAPEAU_DISTANT["vu"] < _DRAPEAU_FRAIS:
+            return _DRAPEAU_DISTANT["valeur"]
+        brut = azure_files.lire("mail_dit_ecriture.txt")
+        _DRAPEAU_DISTANT["valeur"] = _arme_texte(
+            brut.decode("utf-8", "replace") if brut else "")
+        _DRAPEAU_DISTANT["vu"] = time.time()
+        return _DRAPEAU_DISTANT["valeur"]
+    except Exception:                    # noqa: BLE001
         return False
+
+
+def ecriture_armee():
+    """Le drapeau d'autorisation est-il pose ? (fichier ou variable, « OUI »)"""
+    try:
+        if DRAPEAU.exists() and _arme_texte(
+                DRAPEAU.read_text(encoding="utf-8")):
+            return True
+    except Exception:
+        pass
+    if _arme_texte(os.environ.get("MAIL_DIT_ECRITURE")):
+        return True
+    return _drapeau_distant()
 
 
 def _autorise(confirmer):
