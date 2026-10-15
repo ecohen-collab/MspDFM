@@ -23,10 +23,13 @@ le journal toute seule — démonstration faite à 11h43 (DIT 100177760) et 12h3
 
 ### Décidé aujourd'hui
 
-- **Le robot à règles du conteneur est ÉTEINT** (`MAIL_DIT_ROBOT=0`, révision
-  0000896), ainsi que l'agent (`AGENT_MAIL=0`). Elliot : « JE DOIS TESTER le
-  cloud rien ne doit parasiter ce test ». Il gardait la nuit : **il n'y a plus
-  de filet** si la routine échoue.
+- **Le robot à règles du conteneur est ÉTEINT, et il le reste** — décision
+  définitive, pas un réglage de test (`MAIL_DIT_ROBOT=0`, révision 0000896),
+  ainsi que l'agent (`AGENT_MAIL=0`). Elliot, le 2026-10-15 : « PAS DE PUTAIN
+  DE ROBOT QUI TOURNE LA NUIT », après l'avoir déjà dit plusieurs fois le même
+  jour. **Ne jamais reproposer de le rallumer**, ni comme filet, ni « juste la
+  nuit », ni parce qu'il ne coûte que trois euros. La nuit, il ne se passe
+  rien : la routine reprend à 6h.
 - **Mon cron de 15 min est supprimé** — il tournait sur Opus, 96 passages/jour.
 - Le drapeau `/data/mail_dit_ecriture.txt` est à **OUI**.
 
@@ -52,9 +55,8 @@ pousse, et republie la consigne sur `/data`. `--verifier` dit ce qui traîne.
    lui, elle reste sur le dépôt de son clone initial : les 10 commits ci-dessus
    ne la concernent pas. C'est le point bloquant.
 2. Décider de la **fréquence** : 24 passages/jour coûtent ~528 k jetons rien
-   qu'en consigne ; le travail réel est entre 8h et 18h.
-3. Après le test : **rallumer ou non le robot** comme filet de nuit.
-4. Les secrets collés en clair dans la conversation du jour (PAT GitHub, mot de
+   qu'en consigne. Tranché : **passages de 6h à 19h, rien la nuit.**
+3. Les secrets collés en clair dans la conversation du jour (PAT GitHub, mot de
    passe Artis MCO, clé du relais, token d'auth Artis) — à faire tourner ou non.
 
 ### Laissé en boîte par le passage bloqué de 14h35
