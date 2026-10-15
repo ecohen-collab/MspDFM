@@ -15069,7 +15069,17 @@ def main():
                 log("mail→DIT : authentification applicative (app-only) active")
         except Exception as _e:
             log(f"mail→DIT : mode applicatif indisponible ({str(_e)[:160]})")
-        if MAILDIT.access_token():
+        # INTERRUPTEUR DU ROBOT A REGLES, comme AGENT_MAIL pour l'agent.
+        # Elliot, le 2026-10-15, pendant les essais de la routine Cloud :
+        # « JE DOIS TESTER le cloud rien ne doit parasiter ce test ». Deux
+        # chaines sur la meme boite rendent tout resultat illisible — on ne
+        # sait plus qui a range quoi. MAIL_DIT_ROBOT=0 eteint la surveillance
+        # sans toucher au dashboard ni au relais /api/relais, dont la routine
+        # Cloud a besoin pour lire le jeton et remonter le journal.
+        if (os.environ.get("MAIL_DIT_ROBOT") or "1").strip().lower() in (
+                "0", "non", "off", "false"):
+            log("mail→DIT : robot a regles DESACTIVE (MAIL_DIT_ROBOT=0)")
+        elif MAILDIT.access_token():
             threading.Thread(target=lambda: MAILDIT.boucle(log), daemon=True).start()
         else:
             log("mail→DIT : pas de jeton mail, surveillance non demarree "

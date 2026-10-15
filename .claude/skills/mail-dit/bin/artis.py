@@ -20,7 +20,15 @@ import sys
 
 import requests
 
-sys.path.insert(0, r"C:\Users\ecohen\OneDrive - DFM\Bureau\Dashboard IA")
+# La racine du repo, deduite de l'emplacement de CE fichier :
+# <repo>/.claude/skills/mail-dit/bin/<ce fichier>. Le chemin etait code en
+# dur sur le poste d'Elliot, donc ces helpers ne servaient a rien ailleurs --
+# constate le 2026-10-15, une routine Cloud a du s'en passer et s'est
+# arretee faute de pouvoir importer la chaine. `parents[4]` remonte
+# bin -> mail-dit -> skills -> .claude -> racine du repo.
+import pathlib
+_RACINE = pathlib.Path(__file__).resolve().parents[4]
+sys.path.insert(0, str(_RACINE))
 import mail_dit as M                      # noqa: E402
 import mail_dit_ecriture as E             # noqa: E402
 
