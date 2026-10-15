@@ -960,6 +960,34 @@ Contrôle avant le premier passage : `python azure_files.py` doit afficher
 `stockage par relais : OK`. S'il échoue, inutile d'aller plus loin — le jeton
 ne sera pas lisible et rien ne s'écrira.
 
+### Ne JAMAIS conclure du disque que le jeton manque
+
+**`mail_tokens.json` n'est pas sur le disque d'une session distante, et il n'y
+sera jamais.** C'est le principe même du relais : le fichier vit sur `/data`.
+Un `ls`, un `Path.exists()` ou un « le fichier est absent » ne prouvent donc
+**rien** — sinon que tu as regardé au mauvais endroit.
+
+Le seul test qui vaut est **l'appel** :
+
+```python
+import mail_auth
+tok = mail_auth.access_token()      # lit par le relais si RELAIS_* sont posees
+print("jeton Graph :", "OK" if tok else "ABSENT")
+```
+
+`mail_auth._load()` bascule tout seul : `azure_files.disponible()` vrai — donc
+`RELAIS_URL` **et** `RELAIS_CLE` posées — et il lit `/data` ; sinon il lit le
+disque. Si `access_token()` rend `None` alors que le relais répond, le problème
+est la **variable d'environnement vue par le processus Python**, pas le fichier :
+vérifie que ton `python -c` hérite bien de `RELAIS_URL` et `RELAIS_CLE`.
+
+Ce piège a coûté deux passages entiers le 2026-10-15. Dans le second, la
+chaîne a correctement lu le drapeau par le relais, puis a déclaré le jeton
+« absent » parce que le fichier n'était pas sur le disque — et s'est interdit
+tout transfert, donc tout complément, donc toute création. **Six mails sont
+restés en boîte, dont trois réponses clients urgentes**, alors que le jeton
+était accessible depuis le début.
+
 **Ne pas poser `DATA_DIR`** : il ferait chercher les fichiers sur un disque
 qui ne survit pas à la session.
 
