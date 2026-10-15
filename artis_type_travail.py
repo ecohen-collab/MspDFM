@@ -95,6 +95,49 @@ def _fichier_session_mco():
     return pathlib.Path(os.environ.get("DATA_DIR", "./data")) / "artis_mco_session.json"
 
 
+# La session MCO vit sur /data, pas seulement sur le disque. Une session
+# distante n'a pas de DATA_DIR : sans ces deux fonctions elle ouvrait une
+# session NEUVE a chaque passage, et comme Artis n'a pas de deconnexion
+# utilisable, les sieges s'accumulaient jusqu'au refus « nombre de sessions
+# simultanees global atteint » — constate trois fois le 2026-10-15, chaque
+# fois au prix du passage entier. Le fichier est dans la liste blanche du
+# relais depuis, encore fallait-il aller l'y chercher.
+def _session_lire():
+    """La session MCO : /data par le relais si possible, sinon le disque."""
+    try:
+        import azure_files
+        if azure_files.disponible():
+            brut = azure_files.lire("artis_mco_session.json")
+            if brut:
+                return json.loads(brut.decode("utf-8", "replace"))
+            return None
+    except Exception:                        # noqa: BLE001
+        pass
+    f = _fichier_session_mco()
+    if f.exists():
+        try:
+            return json.loads(f.read_text(encoding="utf-8"))
+        except Exception:                    # noqa: BLE001
+            return None
+    return None
+
+
+def _session_ecrire(conf):
+    """Repose la session la ou on l'a lue, pour que le passage suivant la
+    retrouve vivante au lieu d'en ouvrir une de plus."""
+    texte = json.dumps(conf, ensure_ascii=False, indent=1)
+    try:
+        import azure_files
+        if azure_files.disponible():
+            azure_files.ecrire("artis_mco_session.json", texte)
+            return
+    except Exception:                        # noqa: BLE001
+        pass
+    f = _fichier_session_mco()
+    f.parent.mkdir(parents=True, exist_ok=True)
+    f.write_text(texte, encoding="utf-8")
+
+
 class SessionAbsente(Exception):
     pass
 
@@ -251,23 +294,21 @@ class Web(object):
         répond 200 et laisse la session vivante (constaté le 2026-09-10).
         """
         dire = trace or (lambda *_a: None)
-        f = _fichier_session_mco()
-        if f.exists():
+        conf = _session_lire()
+        if conf:
             try:
-                w = cls(conf=json.loads(f.read_text(encoding="utf-8")))
+                w = cls(conf=conf)
                 if w.vivante():
                     dire("session MCO réutilisée")
                     return w
             except Exception:
                 pass
         w = cls.connecter()
-        f.parent.mkdir(parents=True, exist_ok=True)
-        f.write_text(json.dumps({"cookies": w.s.cookies.get_dict(),
-                                 "session": w.p["session"],
-                                 "cKey": w.p["cKey"], "cStatus": w.p["cStatus"],
-                                 "typeLicence": w.p["typeLicence"],
-                                 "login": getattr(w, "login", "")},
-                                ensure_ascii=False, indent=1), encoding="utf-8")
+        _session_ecrire({"cookies": w.s.cookies.get_dict(),
+                         "session": w.p["session"],
+                         "cKey": w.p["cKey"], "cStatus": w.p["cStatus"],
+                         "typeLicence": w.p["typeLicence"],
+                         "login": getattr(w, "login", "")})
         dire("nouvelle session %s (1 siège de licence)" % getattr(w, "login", "?"))
         return w
 
