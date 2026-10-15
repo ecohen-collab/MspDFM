@@ -948,6 +948,36 @@ les enchaîner toi-même. Et `transferer` prend un **motif**
 (`intervenant` · `sans_contrat` · `relais_humain`), jamais une adresse : c'est
 lui qui résout le destinataire et signe.
 
+**Ne reconstruis JAMAIS un envoi Graph à la main.** Pas de `createForward`,
+pas de `/send`, pas de jeton recopié dans un script. Non seulement
+`transferer` le fait déjà en signant et en vérifiant le destinataire, mais un
+script qui rebâtit ces appels **se fait refuser par le classifieur
+d'actions** — c'est ce qui a coupé le passage du 2026-10-15 en deux, laissant
+trois DIT en `Terrain` / `Automatique` et sept mails en boîte. Le classifieur
+a raison de bloquer : un script qui fabrique des envois de mail avec un jeton
+en clair ressemble exactement à un contournement de garde-fou.
+
+### Finir le passage : `finir_passage.py`
+
+Type de travail, tags et accusés de réception, en **une** session web, par un
+script versionné du dépôt :
+
+```bash
+cat > /tmp/fin.json <<'EOF'
+[{"numero": "100177822", "de": "a.duvivier@sodes-sa.com"},
+ {"numero": "100177824", "de": "lm.jimenez@orange.fr", "tag": "attente"}]
+EOF
+python3 finir_passage.py /tmp/fin.json
+```
+
+`tag` vaut `"attente"`, `"validee"`, ou s'omet. `de` sert de destinataire de
+secours quand Artis n'a pas encore indexé le demandeur. Le script sort en
+code 1 si une seule pose a échoué — une DIT restée en `Terrain` part en
+facturation chez un dispatcher qui la planifie.
+
+C'est la **seule** façon de finir un passage. `_poser_type_travail` est privée
+et exige un `ctx` interne : n'essaie pas de la reconstruire.
+
 Le 2026-10-15, un passage a lu `E.transferer_mail(pid)`, conclu « les
 propositions ne contiennent pas ces mails, donc ça ne marche pas ici », et
 laissé six mails en boîte — dont une urgence client. Les quatre outils
