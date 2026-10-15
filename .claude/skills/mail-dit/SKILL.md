@@ -266,13 +266,23 @@ l'annule pas et on ne transfère pas son fil.
 
 Domaine INFO uniquement. Les autres métiers de DFM se rangent sans ticket :
 
-| Sujet | Destination |
-|---|---|
-| Sécurité, alarme, télésurveillance, contrôle d'accès, badgeuse, vidéo | BAL SECURITE |
-| Téléphonie, standard, DECT, portabilité, fibre, 4G de secours | BAL TELECOM |
-| Copieur, bourrage papier, nettoyage machine | BAL IMPRESSION |
-| SOC, alerte automatique, rapport de sauvegarde, journal d'équipement, newsletter, facture | 04 - INFORMATIONS |
-| Mail traité (DIT créée ou complétée), suivi de ticket | 01 - DIT ARTIS SUPPORT |
+| Sujet | Destination | `dossier` à passer |
+|---|---|---|
+| Sécurité, alarme, télésurveillance, contrôle d'accès, badgeuse, vidéo | BAL SECURITE | `securite` |
+| Téléphonie, standard, DECT, portabilité, fibre, 4G de secours | BAL TELECOM | `telecom` |
+| Copieur, bourrage papier, nettoyage machine | BAL IMPRESSION | `impression` |
+| SOC, alerte automatique, rapport de sauvegarde, journal d'équipement, newsletter, facture | 04 - INFORMATIONS | `informations` |
+| Mail traité (DIT créée ou complétée), suivi de ticket | 01 - DIT ARTIS SUPPORT | `traite` |
+
+**L'outil `ranger` attend la CLÉ de la troisième colonne, pas le libellé du
+dossier.** Passer `04 - INFORMATIONS` ou `BAL SECURITE` rend
+`{"refus": "dossier ... non autorise"}` — un refus propre, mais qui coûte un
+aller-retour (payé le 2026-10-15 sur trois rangements d'affilée). La liste
+complète est `DOSSIERS_PERMIS` dans `agent_mail_dit.py` : `traite`,
+`informations`, `sauvegarde`, `firewall`, `antispam`, `rmm`, `antivirus`,
+`telecom`, `impression`, `securite`, `devis`, `terrain`, `validation`. C'est
+l'outil qui traduit la clé en chemin de dossier, et sa réponse donne la
+`destination` réellement utilisée.
 
 « Imprimante » n'est pas un mot-clé de filtrage : un problème de pilote ou de
 file d'impression sur un poste reste de l'informatique. C'est l'intervention
