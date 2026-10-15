@@ -2522,10 +2522,17 @@ def transferer_mail(pid, a="", mot="", confirmer=False, deplacer=True):
     un membre de l'équipe interne, Valentin, tu peux ajouter un bouton pour
     transférer ? »
 
-    Deux temps, imposés par les permissions : `createForward` prépare le
-    message (permission `Mail.ReadWrite`, que nous avons), `send` l'envoie
-    (permission `Mail.Send`, que nous n'avons PAS). Tant qu'elle n'est pas
-    accordée, on laisse un brouillon prêt dans la boîte et on le dit — on
+    Deux temps : `createForward` prépare le message, `send` l'envoie. Les
+    deux permissions sont accordées — `Mail.ReadWrite` ET **`Mail.Send`**,
+    vérifié dans les scopes du jeton le 2026-10-15. **Le transfert part donc
+    vraiment.**
+
+    Cette docstring a longtemps dit l'inverse (« Mail.Send, que nous n'avons
+    PAS »), bien après que la permission a été accordée. Des passages entiers
+    s'y sont arrêtés : la chaîne lisait le commentaire, en concluait
+    « aucun outil ne peut envoyer de mail ici », renonçait aux transferts —
+    donc aux compléments — et laissait la boîte pleine. Si `send` échoue
+    malgré tout, le brouillon reste dans « Brouillons » et on le dit : on
     n'annonce jamais un envoi qui n'a pas eu lieu.
     """
     prop = M.par_id(pid)
@@ -2565,8 +2572,9 @@ def transferer_mail(pid, a="", mot="", confirmer=False, deplacer=True):
         out["envoye"] = True
     else:
         out["erreur_envoi"] = "send HTTP %s" % e.status_code
-        out["remarque"] = ("brouillon prêt dans « Brouillons » : l'envoi exige "
-                           "la permission Mail.Send, absente de notre jeton")
+        out["remarque"] = ("brouillon prêt dans « Brouillons » : l'envoi a "
+                           "échoué alors que Mail.Send est bien accordé — "
+                           "regarder le code HTTP, pas les permissions")
 
     M.statuer(pid, "ecarte", "outil",
               "transféré à %s : le mail lui était adressé%s"
