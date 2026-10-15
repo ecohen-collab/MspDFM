@@ -44,11 +44,16 @@ pour rattraper une erreur — pas toi, en t'abstenant.
 
 ## Déroulé d'un passage
 
-1. **Lire l'Inbox** : `outlook_email_search`, `folderName: Inbox`, `order: newest`,
-   `limit: 25`. Vide → « RAS », fin.
-2. **Pour chaque mail, lire le corps complet.** Le `summary` de la recherche est
-   tronqué : il ne sert qu'à trier grossièrement. Le corps se récupère par Graph
-   (voir `bin/lire_mail.py`).
+1. **Lire l'Inbox** : `A.executer('boite', {}, ctx, M, E, J)`. Vide → « RAS »,
+   fin. **Jamais `outlook_email_search` ni aucun outil `outlook_*` du
+   connecteur** : ils passent par l'application de Claude, dont le quota Graph
+   est serré et partagé, et ils te laissent ensuite sans transfert ni journal.
+   Cette étape a longtemps dit le contraire, et c'est ce qui a fait dérailler
+   le passage du 2026-10-15 — lecture en MCP, puis rangements en MCP, puis
+   plus aucun moyen de compléter : 16 mails laissés.
+2. **Pour chaque mail, lire le corps complet** :
+   `A.executer('lire_mail', {'mail_id': ...}, ctx, M, E, J)`. Le `summary` de
+   la boîte est tronqué, il ne sert qu'à trier grossièrement.
 3. **Raisonner sur LE FIL**, pas sur le message isolé. Voir « Réponse à un
    ticket » ci-dessous : un numéro dans l'objet décide à lui seul.
 4. **Décider** : créer une DIT · compléter un ticket existant · ranger sans DIT ·
