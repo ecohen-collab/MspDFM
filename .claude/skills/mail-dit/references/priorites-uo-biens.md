@@ -19,6 +19,22 @@ traduire, jamais l'inverse.
 par le formulaire. Une erreur de priorité se répare en annulant et recréant —
 donc réfléchir avant.
 
+### Un incident de sécurité est URGENT, quel que soit le nombre de bloqués
+
+**Hameçonnage, arnaque au président, compte compromis, rançongiciel, fuite de
+données : Niveau 3 Urgent, code `01`.** La grille « combien de personnes sont
+bloquées » ne s'y applique pas — personne n'est bloqué pendant qu'un attaquant
+travaille, et c'est précisément le problème : le temps joue contre le client.
+
+Elliot, le 2026-10-13, sur la DIT **100176790** (DUONEXT, tentative d'arnaque
+au président reçue par la RAF, que j'avais posée en Niveau 1 parce que personne
+n'était empêché de travailler) : « 100176790 niveau 1 par l'IA au lieu de 3 ».
+
+Le signal est le **sujet**, pas la gêne constatée : un mail d'hameçonnage
+signalé par le client, un `SEC-INC-*`, un compte dont on soupçonne qu'il est
+utilisé par un tiers. Le ticket déjà parti ne se corrige pas — la règle vaut
+pour les créations suivantes.
+
 ## UO
 
 **Ce n'est pas le préfixe du symptôme qui décide, c'est le niveau d'expertise
@@ -37,8 +53,35 @@ de mot de passe (100176005 SRP, 100176090 PARC ESPACE), corrigés depuis.
 
 - Dans le doute, demander : *est-ce qu'un N1 peut le faire avec ses droits ?*
   Oui → HLI. Non → HLN3.
-- Onboarding (`ADM-ON`) → **HLN3** : il faut créer le compte, les licences et
-  les accès.
+- **Un INCIDENT se diagnostique en N1/N2, même s'il faut ouvrir la console.**
+  La console d'administration est un outil, pas un niveau : un N1 qui regarde un
+  suivi de messages ou l'état d'une boîte reste un N1. Ce qui fait le N3, c'est
+  le **geste d'administration** (créer, supprimer, licencier, déléguer), pas le
+  fait de se connecter quelque part. Elliot, le 2026-10-05, sur la DIT
+  **100176481** (NEURAXPHARM, deux boîtes qui n'envoient ni ne reçoivent, que
+  j'avais mise en HLN3) : « N1/N2, pas N3 ». Corrigée en HLI, comme **100176485**
+  (session TSE chez UFER) et **04216938** (session « Qualité » chez MONDIAL
+  FRUITS SECS), partis en HLN3 pour la même raison le même jour — alors que la
+  table ci-dessus range explicitement « session Windows » en HLI. Un dispatcheur
+  avait déjà corrigé **100176463** (NMCG) avant moi.
+  Autrement dit : `PC-INC-*` et `PC-DEM-*` vont en **HLI** par défaut, et il
+  faut une raison nommée pour les envoyer en HLN3 — par exemple le collègue qui
+  écrit « pour le N3 » (DIT 100176473), ou un précédent identique déjà classé
+  HLN3 (DIT 100176480, calquée sur 100176022).
+- **Un incident SERVEUR est l'exception : `SRV-*` part en HLN3.** La phrase
+  précédente parle des postes ; un serveur, lui, n'est pas un poste. Elliot, le
+  2026-10-14, sur la DIT **100177554** (ETTB / HOLDING HBL, VM Hyper-V
+  injoignable, ping et RDP muets, que j'avais mise en HLI parce que c'était un
+  incident) : « pour ce ticket il aurait dû être créé en Niveau 3 ». Relancer
+  une machine virtuelle de production, regarder l'espace disque d'un hôte,
+  toucher à l'hyperviseur : ce n'est pas ce qu'un N1 fait seul, même quand le
+  mail décrit une panne et non une demande.
+  **Et ça ne se rattrape pas par l'API** : `PATCH /it/{n}/uo/HLN3` rend
+  `HTTP 500 — « L'intervenant n'a pas de rôle pour l'UO de l'IT »`, le compte
+  de service n'ayant pas ce rôle. Comme le bien et le demandeur, l'UO N3 se
+  pose **à la création**, sinon c'est une correction à l'écran.
+- Onboarding (`ADM-ON`) et offboarding (`ADM-OFF`) → **HLN3** : il faut créer ou
+  retirer le compte, les licences et les accès.
 - Posée par `poser_uo(numero_dit + "01", code)`, avec reprise sur 404
   (le ticket met parfois quelques secondes à être indexé).
 - **L'UO peut être changée après coup par un dispatcheur** : c'est normal, et

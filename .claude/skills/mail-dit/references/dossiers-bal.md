@@ -14,6 +14,8 @@ AAMkAGRiODcwNTUyLTM1MWQtNGNmMS04YjY4LTVmOTlkZGE3MGU5ZQAuAAAAAAAh7Ne3QcqlSZzTxG2b
 | `BAL IMPRESSION` | `AAF-fqRbAAA=` | copieurs, consommables, interventions machine |
 | `BAL SECURITE` | `AAF-fqRcAAA=` | alarme, télésurveillance, contrôle d'accès, badgeuse, vidéo, incendie |
 | `BAL TELECOM` | `AAF-fqRaAAA=` | téléphonie, standard, DECT, portabilité, lignes, fibre, 4G |
+| `14 - VALIDATION CLIENT` | — | la réponse du valideur du client (clé `validation`) |
+| `16 - REPONSE DIT` | — | une **copie** de chaque réponse de client sur une DIT (clé `reponse_dit`) |
 
 **Le préfixe ci-dessus vaut pour les DOSSIERS, jamais pour les MESSAGES.**
 Un identifiant de message se reprend en entier depuis la recherche, jamais
