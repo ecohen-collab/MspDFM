@@ -825,6 +825,17 @@ saturée arrête toute l'équipe.
   le **faire circuler** : pas de mot de passe dans un transfert, pas de
   secret recopié dans un mail.
 
+  **« Signaler » ne veut JAMAIS dire « laisser en boîte ».** Un mail jugé
+  sensible suit le circuit normal — le client est identifié, la demande est
+  lisible, donc **la DIT se crée** avec le texte du client et rien d'autre.
+  Ce qui t'inquiète se dit à Elliot **dans le rapport**, pas en laissant le
+  mail sur place et surtout pas dans le ticket. Le 2026-10-15, un passage a
+  laissé le mail de Mister IA / GCI en boîte avec la mention « sensible, à
+  examiner par Elliot » : il demandait un consentement administrateur Entra,
+  c'est-à-dire une demande d'administration ordinaire, qui devait donner une
+  DIT comme les autres. Elliot : « on s'en fout, tu crées juste la demande
+  avec le texte ».
+
   **« Ne pas agir » veut dire ne rien envoyer, pas ne rien tracer.** Une
   demande de mot de passe venant d'un client identifié est une demande
   ordinaire : **on crée la DIT**, et le technicien vérifie l'identité du
@@ -908,7 +919,31 @@ print(json.dumps(A.executer('boite', {}, ctx, M, E, J), ensure_ascii=False))
 
 Puis `lire_mail`, `resoudre_client`, `client`, `dit`, `creer_dit`,
 `completer_dit`, `ranger`, `transferer`, `signaler` — **17 outils**, tous par
-le même `A.executer(nom, args, ctx, M, E, J)`. Et en fin de passage
+le même `A.executer(nom, args, ctx, M, E, J)`.
+
+**N'appelle JAMAIS `mail_dit_ecriture` ni `mail_dit` en direct.** Leurs
+fonctions prennent un `pid` de *proposition* — l'identifiant d'une analyse
+faite par le robot à règles, qui n'existe pas pour toi. En les lisant tu
+conclurais, à tort, que rien n'est possible. Les outils, eux, prennent un
+**`mail_id`** :
+
+| Ce que tu cherches dans le code | L'outil qui le fait |
+|---|---|
+| `E.completer_dit(pid, …)` | `completer_dit` · `mail_id`, `numero`, `commentaire` |
+| `E.transferer_mail(pid, a=…)` | `transferer` · `mail_id`, `motif`, `mot` |
+| `E.ranger_mail(prop, …)` | `ranger` · `mail_id`, `dossier`, `raison` |
+| `E.creer_dit(prop, …)` | `creer_dit` · `mail_id`, `client`, `objet`, … |
+
+`completer_dit` fait **à lui seul** le commentaire, le transfert au dernier
+intervenant, la copie en `16 - REPONSE DIT` et le rangement — tu n'as pas à
+les enchaîner toi-même. Et `transferer` prend un **motif**
+(`intervenant` · `sans_contrat` · `relais_humain`), jamais une adresse : c'est
+lui qui résout le destinataire et signe.
+
+Le 2026-10-15, un passage a lu `E.transferer_mail(pid)`, conclu « les
+propositions ne contiennent pas ces mails, donc ça ne marche pas ici », et
+laissé six mails en boîte — dont une urgence client. Les quatre outils
+ci-dessus étaient disponibles et attendaient un `mail_id`. Et en fin de passage
 `A._poser_type_travail(ctx)` puis `python journal_sync.py`.
 
 Trois raisons, et chacune a coûté un passage le 2026-10-15 :
