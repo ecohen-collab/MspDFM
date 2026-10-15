@@ -37,8 +37,37 @@ ACTIONS = (
 )
 
 
+def _offset_paris(utc):
+    """+2 en heure d'ete, +1 sinon — la regle europeenne, sans tzdata.
+
+    `zoneinfo` ne sert a rien ici : ni le poste d'Elliot ni l'image du
+    conteneur ne portent la base tzdata (verifie le 2026-10-15,
+    ZoneInfoNotFoundError sur Europe/Paris). L'Europe bascule le dernier
+    dimanche de mars a 01:00 UTC et revient le dernier dimanche d'octobre.
+    """
+    def dernier_dimanche(an, mois):
+        veille = (datetime.datetime(an, mois + 1, 1)
+                  - datetime.timedelta(days=1))
+        return veille - datetime.timedelta(days=(veille.weekday() + 1) % 7)
+    nu = utc.replace(tzinfo=None)
+    debut = dernier_dimanche(nu.year, 3).replace(hour=1)
+    fin = dernier_dimanche(nu.year, 10).replace(hour=1)
+    return 2 if debut <= nu < fin else 1
+
+
 def _maintenant():
-    return datetime.datetime.now().astimezone().isoformat(timespec="seconds")
+    """L'heure de PARIS, quelle que soit la machine qui ecrit.
+
+    `now().astimezone()` suivait le fuseau de l'hote : +02:00 sur le poste
+    d'Elliot, +00:00 dans un conteneur ou une routine Cloud. Or le dashboard
+    trie le journal sur la CHAINE du `ts` : une ligne ecrite en UTC se range
+    deux heures trop tot et sort du haut de la liste. Constate le 2026-10-15,
+    ou les quatre lignes de la routine Cloud etaient invisibles a l'ecran
+    alors qu'elles etaient bien dans le fichier.
+    """
+    utc = datetime.datetime.now(datetime.timezone.utc)
+    paris = datetime.timezone(datetime.timedelta(hours=_offset_paris(utc)))
+    return utc.astimezone(paris).isoformat(timespec="seconds")
 
 
 def ajouter(action, **champs):
