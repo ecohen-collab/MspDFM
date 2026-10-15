@@ -8,6 +8,40 @@ description: Trier la boîte support@dfm.fr et créer les DIT Artis. À utiliser
 Chaîne mail → DIT Artis. Un passage = lire l'Inbox, décider pour chaque mail,
 créer ou compléter dans Artis, ranger le mail, rendre un rapport court.
 
+## Commence ici — le passage en six commandes
+
+**Ne relis pas ce document parce qu'il a changé. Commence.** Tout ce qui suit
+cette section est de la **référence** : on la consulte quand un cas résiste,
+jamais avant d'avoir ouvert la boîte. Le 2026-10-15, un passage entier s'est
+perdu à relire le skill et à vérifier les outils — zéro mail traité, dix-sept
+laissés. Lire n'est pas travailler.
+
+```bash
+# 1. le préambule, une seule fois
+python3 - <<'EOF'
+import json, agent_mail_dit as A, mail_dit_ecriture as E
+import mail_dit_journal as J, mail_dit as M
+ctx = A.Contexte(actif=True)
+print(json.dumps(A.executer('boite', {}, ctx, M, E, J), ensure_ascii=False))
+EOF
+```
+
+2. **Pour chaque mail** : `A.executer('lire_mail', {'mail_id': ...}, ctx, M, E, J)`
+   — le corps complet, jamais le `summary`.
+3. **Décider**, puis agir avec **un seul** appel par mail :
+   `creer_dit` · `completer_dit` · `ranger` · `transferer`. Chacun fait tout ce
+   qui va avec — rangement, transfert, copie en 16, journal.
+4. **Finir** : `python3 finir_passage.py --retard`
+5. **Remonter le journal** : `python3 journal_sync.py`
+6. **Rapport** : créé / complété / rangé / laissé, une ligne chacun.
+
+Si un import manque : `python3 -m pip install -r requirements.txt`, une fois.
+
+**Rien ne reste en boîte.** Un mail dont tu ne sais que faire se range quand
+même, avec sa raison dans le rapport. Et un doute se tranche en agissant :
+l'anti-doublon, le plafond de 10 créations et le drapeau d'écriture sont là
+pour rattraper une erreur — pas toi, en t'abstenant.
+
 ## Déroulé d'un passage
 
 1. **Lire l'Inbox** : `outlook_email_search`, `folderName: Inbox`, `order: newest`,
