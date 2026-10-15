@@ -711,6 +711,22 @@ technicien lit le ticket, pas forcément les pièces.
   Les trois se signent **`Service MCO - Mail automatique`**, jamais du nom
   d'Elliot : le mail part de `support@dfm.fr`, et celui qui le reçoit doit voir
   tout de suite que c'est le robot qui écrit.
+
+  **L'accusé de réception d'une DIT créée n'est PAS un de ces envois, et il
+  part toujours.** Il ne sort pas de la boîte support : c'est **Artis** qui
+  l'émet, depuis la visu DIT, dans la session web du type de travail — le
+  mail ne passe ni par Graph ni par `support@dfm.fr` en tant qu'expéditeur
+  que nous pilotons. Une consigne de passage qui interdit « tout envoi de
+  mail sauf les trois transferts internes » vise les mails que la chaîne
+  écrit elle-même, pas cet accusé-là.
+
+  Le 2026-10-15, la routine Cloud a créé la DIT **100177760** (CMD TROYES)
+  puis s'est abstenue d'envoyer l'accusé, en jugeant que le rappel des
+  interdits primait sur le skill. Lecture compréhensible, mais fausse : la
+  règle d'Elliot du 2026-10-13 est « **faut TOUJOURS envoyer** », et un
+  client qui n'a pas d'accusé rappelle pour savoir si sa demande est prise
+  en compte — c'est précisément ce que l'accusé évite. L'accusé a été envoyé
+  à la main ensuite.
 - **Une seule session web Artis par passage** : chaque connexion consomme un
   siège de licence et bloque l'équipe. Grouper tous les `poser_type_travail` et
   `poser_commentaire` dans la même session ouverte. **Cette session n'est pas
