@@ -2667,6 +2667,15 @@ def completer_dit_direct(numero, prop, log=None, dossier="traite"):
     intervenant — la suite d'une demande doit arriver chez celui qui la traite.
     """
     dire = log or (lambda *_a: None)
+    # Le veto vaut pour TOUT ce qui suit, pas seulement pour le rangement.
+    # Le transfert au dernier intervenant est un POST direct a Graph, plus bas,
+    # qui ne passe pas par `_autorise` : il partait donc sous veto. Constate le
+    # 2026-10-15 sur la DIT 100177620 (Pompes Funebres Treportaises), commentee
+    # et transmise a Samir HIRECHE alors que /data disait NON.
+    if not ecriture_armee():
+        return {"ok": False, "prevenu": "", "resume":
+                "DIT %s : ecriture non armee (%s), ni commentaire ni transfert"
+                % (numero, DRAPEAU)}
     faits = []
     fiche = relire_dit(numero) or {}
     ancien = fiche.get("commentaire") or ""

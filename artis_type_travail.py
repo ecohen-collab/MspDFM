@@ -685,6 +685,21 @@ def poser_commentaire(numero_dit, texte, confirmer=False, web=None, trace=None):
     texte = (texte or "").strip()
     if not texte:
         return {"ok": False, "erreur": "commentaire vide"}
+    # LE DRAPEAU D'ECRITURE VAUT AUSSI ICI. Ce module ne passe pas par
+    # `mail_dit_ecriture._autorise` : `confirmer=True` suffisait donc a ecrire
+    # dans Artis alors que /data disait NON. Le 2026-10-15, la routine Cloud a
+    # ainsi commente la DIT 100177620 sous veto, puis s'est arretee au
+    # rangement -- laissant un dossier a moitie fait. On verifie AVANT
+    # d'ouvrir la session web : une connexion coute un siege de licence.
+    if confirmer:
+        try:
+            import mail_dit_ecriture as _E   # differe : cycle a l'import sinon
+            if not _E.ecriture_armee():
+                return {"ok": False, "arme": False, "erreur":
+                        "ecriture non armee : le drapeau mail_dit_ecriture.txt "
+                        "ne dit pas OUI"}
+        except ImportError:                  # module seul, hors chaine
+            pass
     w = web or Web.ouvrir(trace=trace)
     etapes = []
 
