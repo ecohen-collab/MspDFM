@@ -9,6 +9,7 @@ d'actions, parce qu'il rebatissait `createForward`/`send` avec le jeton Graph
 en clair. Trois DIT sont restees en Terrain / Automatique, sans accuse.
 
     python finir_passage.py lot_fin.json
+    python finir_passage.py --retard        # rattrape ce qui traine
 
 Le JSON est une liste. `numero` est le seul champ obligatoire :
 
@@ -46,11 +47,80 @@ class _Ctx(object):
         self.actif = True
 
 
+def _journal():
+    """Le journal de PROD quand le relais est la, le local sinon.
+
+    Les creations d'une routine Cloud ne sont pas dans le journal du poste :
+    c'est pour ca qu'on lit /data en priorite. Sans cette lecture, le
+    rattrapage ne verrait que ses propres DIT.
+    """
+    try:
+        import azure_files
+        if azure_files.disponible():
+            brut = azure_files.lire("mail_dit_journal.jsonl")
+            if brut:
+                return brut.decode("utf-8", "replace").splitlines()
+    except Exception:                      # noqa: BLE001
+        pass
+    f = RACINE / "mail_dit_journal.jsonl"
+    return io.open(f, encoding="utf-8").read().splitlines() if f.exists() else []
+
+
+def retard(jours=1):
+    """Les DIT creees recemment qui sont restees en Terrain / Automatique.
+
+    Une DIT non finie ne se signale pas toute seule : elle part en
+    facturation, et un dispatcher la planifie comme une intervention terrain.
+    Le passage suivant ne la voit pas non plus — son `ctx.crees` est vide.
+    D'ou ce rattrapage, qui relit le journal plutot que la memoire du passage.
+    """
+    import datetime
+    import mail_dit_ecriture as E
+    limite = (datetime.date.today()
+              - datetime.timedelta(days=max(0, jours - 1))).isoformat()
+    nums = []
+    for l in _journal():
+        l = l.strip()
+        if not l:
+            continue
+        try:
+            d = json.loads(l)
+        except ValueError:
+            continue
+        if d.get("action") != "creation":
+            continue
+        if (d.get("ts") or "")[:10] < limite:
+            continue
+        n = d.get("dit")
+        if n and n not in nums:
+            nums.append({"numero": n, "de": d.get("mail_de") or ""})
+    a_finir = []
+    for d in nums:
+        f = E.relire_dit(d["numero"]) or {}
+        if f.get("erreur"):
+            print("  %s : illisible (%s)" % (d["numero"], str(f["erreur"])[:60]))
+            continue
+        if f.get("type_travail") != "Hotline" or f.get("facturation") != "NonFacturable":
+            print("  %s : %s / %s — a finir"
+                  % (d["numero"], f.get("type_travail"), f.get("facturation")))
+            a_finir.append(d)
+    return a_finir
+
+
 def main():
     if len(sys.argv) < 2:
         print(__doc__.strip())
         return 2
-    lot = json.loads(io.open(sys.argv[1], encoding="utf-8").read())
+    if sys.argv[1] == "--retard":
+        jours = int(sys.argv[2]) if len(sys.argv) > 2 else 1
+        print("recherche des DIT non finies sur %d jour(s)..." % jours)
+        lot = retard(jours)
+        if not lot:
+            print("rien a rattraper : toutes les DIT sont en Hotline / Non facturable")
+            return 0
+        print("%d DIT a finir" % len(lot))
+    else:
+        lot = json.loads(io.open(sys.argv[1], encoding="utf-8").read())
     if isinstance(lot, dict):
         lot = [lot]
     crees = []
