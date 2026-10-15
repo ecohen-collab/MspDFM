@@ -42,6 +42,29 @@ même, avec sa raison dans le rapport. Et un doute se tranche en agissant :
 l'anti-doublon, le plafond de 10 créations et le drapeau d'écriture sont là
 pour rattraper une erreur — pas toi, en t'abstenant.
 
+### Ce qu'Elliot a déjà tranché : `memoire/`
+
+**Avant de renoncer faute de règle ou d'autorisation, cherche dans
+`.claude/skills/mail-dit/memoire/`.** Ce sont les 49 fiches de ce qu'Elliot a
+décidé au fil des mois — ses autorisations permanentes, ses corrections, les
+pièges déjà payés. `memory.md` en est l'index.
+
+```bash
+grep -ril "doublon\|valideur\|annuler" .claude/skills/mail-dit/memoire/ | head
+```
+
+Elles ne sont **pas** chargées avec la consigne — 139 Ko s'ajouteraient aux
+100 Ko du skill. On les consulte, à la demande, sur le mot qui manque.
+
+Quelques exemples de ce qui s'y trouve, et qu'on ne redemande donc jamais :
+annuler un doublon est **autorisé en permanence** ; le circuit de validation
+se déclenche sur le **motif** et non sur une table de clients ; un client sans
+contrat Info **ne donne pas de DIT**, son mail part au commercial.
+
+Le 2026-10-15, un passage a laissé 20 mails en boîte en écrivant « client non
+identifiable » et « accord requis » — les deux étaient tranchés dans ces
+fiches, qui n'étaient alors pas dans le dépôt.
+
 ## Déroulé d'un passage
 
 1. **Lire l'Inbox** : `A.executer('boite', {}, ctx, M, E, J)`. Vide → « RAS »,

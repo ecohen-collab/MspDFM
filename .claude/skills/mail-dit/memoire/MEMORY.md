@@ -1,0 +1,97 @@
+- [Déploiement DFM — user elliot pas msp](feedback_deploiement_dfm.md) — pas d'user système ni /opt sur la VM ialiot
+- [État du déploiement](project_deploiement_etat.md) — où en est-on côté infra Docker/Caddy
+- [Profil Elliot](user_elliot.md) — rôle et préférences
+- [Artis — pas d'écriture sans accord](feedback_artis_pas_decriture_sans_accord.md) — POST/PATCH Artis prod = OK explicite requis (incident DIT 2026-05-05)
+- [Commercial = classification COMINF](reference_artis_classifications.md) — pas le vendeur de la dernière affaire ; matricule → personne via les affaires
+- [Swagger Artis v2](reference_artis_swagger.md) — URL OpenAPI pour découvrir endpoints sans probe destructif
+- [MAJ manuelle prod](reference_maj_manuelle_prod.md) — endpoint /api/maj/run + pièges az exec (restart, cp1252)
+- [VEEAM = abonnement au quota](feedback_veeam_abonnement.md) — sous le quota ≠ écart ; volume = somme de TOUTES les companies (rev 0880/0882)
+- [VEEAM migration 2 serveurs](project_veeam_migration_2serveurs.md) — dashboard interroge old+new VSPC ; plugin Pulse à configurer sur bckgwfr01
+- [TDSynnex — jeton rotatif à usage unique](reference_tdsynnex_auth_rotatif.md) — ne jamais tester l'auth en l'exécutant ; /oauth/validateAccess ; 502 ≠ jeton mort (incident 2026-09-22)
+- [TDSynnex orders / changement d'offre](reference_tdsynnex_orders_changement_offre.md) — /subscriptions cache les abos issus d'un changement d'offre → utiliser /orders
+- [TDSynnex — commander des licences](reference_tdsynnex_order_api.md) — POST orders v3 action=UPDATE (notre jeton v3 only ; v2/AEE = 401) ; outil dashboard rev 0345
+- [Passer DIT en NonFacturable](reference_artis_dit_non_facturable.md) — workflow reouvrir + saisirCrit (validé 2026-05-06)
+- [Format CRIT obligatoire](feedback_crit_format.md) — Bonjour / N'hésitez pas... + NonFacturable par défaut (2026-05-20)
+- [POC dashboard mailboxes GDAP](project_gdap_mailbox_dashboard.md) — ticket envoyé à Benjamin 2026-05-25, en attente app Entra ID
+- [Outil saisie factures TD SYNNEX → Yooz](project_yooz_factures_tdsynnex.md) — outil CONSTRUIT 2026-05-29 (aperçu/dry-run) ; vrai envoi à câbler (secret + refresh /data)
+- [Yooz — valider une facture via API](reference_yooz_validation_api.md) — documentTimeline + fullyProcessed ; dimensions = YZ_DIMENSION_CODE ; swagger.json dans le repo
+- [Yooz — reconnexion (jeton expiré)](reference_yooz_reconnexion.md) — 400 Bad Request = refresh offline mort ; regénérer dans l'UI Yooz + bouton Reconnecter (password/device grants désactivés)
+- [Yooz — résolution client (End User→Artis)](reference_yooz_resolution_client.md) — code préfixe + champ 'nom' + org fallback ; résiliés = /client 404 (fix 2026-09-24, 73/97 factures récupérées)
+- [Sophos = antivirus uniquement](feedback_sophos_firewall_exclu.md) — ne JAMAIS compter les firewalls Sophos comme du Sophos (audit 2026-05-07)
+- [Sophos déployé = machines actives 90j](reference_sophos_deploye_actif_90j.md) — pas le billing mensuel (mauvais proxy) ; recompute_sophos_active
+- [Sophos — pas d'écriture sans accord](feedback_sophos_pas_decriture_sans_accord.md) — POST/PATCH/PUT Sophos prod = OK explicite requis (incident 2026-05-07)
+- [Datto — pas d'écriture sans accord](feedback_datto_pas_decriture_sans_accord.md) — scope write confirmé 2026-05-19, quickjob/UDF/déploiement = OK explicite requis
+- [Datto au forfait = pas d’écart](reference_datto_forfait.md) — datto_forfait.json sur /data ; ne JAMAIS elargir _is_pack_infog par mots-cles
+- [Datto component match strict](feedback_datto_component_match_strict.md) — incident 2026-05-19 : match lâche a lancé 'Monitor' au lieu de 'V6 Fonctionnel'
+- [Features dashboard 2026-05-11](project_dashboard_features_2026-05-11.md) — chef projet via UO INFO-PROJ + cas particuliers + prix RFC + M365 start date + commercial
+- [RBAC ACR + Container App secrets bloqués](project_rbac_acr_bloque.md) — gaps post-migration : `az acr build` (Tasks Contributor) et `az containerapp secret set` (managedEnv/join)
+- [Deploy direct Azure par défaut](feedback_deploy_direct_azure.md) — pas de détour test local Docker pour chaque modif, sauf logique métier risquée
+- [Deploys silencieux via deploy.ps1](feedback_deploys_silencieux.md) — `.\deploy.ps1` pour toute modif texte, output minimal, ~200 token cible
+- [Workflow eco-token](feedback_workflow_token_eco.md) — MAJ auto 20h (jamais manuelle), demandes précises/groupées, modifs triviales user-side
+- [Historique actions ADV/MCO](project_historique_actions_adv_mco.md) — import Excel mensuel « COMMENTAIRE SELON CONSOLE » + 3 états par action (rev 0132)
+- [Migration Sophos→SentinelOne](project_migration_sophos_s1.md) — wizard guidé dry-run + flag double-fac AV+SOC (rev 0147, écritures à brancher)
+- [Mise en service VADE](project_vade_mise_en_service.md) — wizard 11 étapes, écritures Vade branchées (rev 0159+), région auto via org Artis, tenant via domaine→GUID
+- [TDSynnex → tenant GUID M365](reference_tdsynnex_tenant_guid.md) — récupérable via activityLogs du détail souscription imbriqué (customers/{cid}/subscriptions/{id}), auto zéro-saisie (rev 0170)
+- [Refonte UI 2026-07-23](project_refonte_ui_2026-07-23.md) — coquille index.html, thème graphite, rail d'outils, pièges du harvest d'onglets
+- [Assistant + Tickets](project_assistant_tickets.md) — moteur local gratuit, Claude en veille, tickets T-0001 avec fil de discussion
+- [Chatbot : coût zéro](feedback_chatbot_cout_zero.md) — pas d'API payante, pas d'IA tierce gratuite avec les données clients
+- [Infogérance M365](reference_m365_infogerance.md) — tickets création/départ M365, toolkit C:\ClaudeCode\exo-toolkit, méthode dans BRIEFING.md
+- [Règles clés M365](feedback_m365_regles_cles.md) — licence avant groupes, sortie=partagée puis licence, délégations jamais recopiées, CA whitelist/blacklist, SKU trap
+- [Délégation boîtes M365 (Exchange)](reference_m365_exchange_delegation.md) — FullAccess/SendAs via Exchange adminapi (client_id fb78d390, scope .default, X-AnchorMailbox) ; auto à la création si client connecté Exchange (rev 0380)
+- [Moteur de tickets 365](project_moteur_tickets_365.md) — Claude Haiku lit un ticket → plan → exécution validée ; clé+workspace Anthropic sur /data ; garde-fous coût (rev 0384+)
+- Restauration Claude (sauvegarde) — doc complet `RESTAURATION_CLAUDE.md` à la racine du repo `C:\Users\ecohen\Desktop\Dashboard IA\` : recharger le contexte après migration DFM
+- [Mail support → DIT Artis](project_mail_to_dit_artis.md) — en production : surveillance active, validation humaine avant chaque création
+- [BAL support@dfm.fr = prod](feedback_bal_support_dfm.md) — lecture seule, aucune action mail sans accord explicite
+- [Artis — les connexions web coûtent une licence](feedback_artis_licence_sieges.md) — enchaîner des logins bloque toute l'équipe ; l'API REST, elle, est gratuite
+- [Artis — piloter le formulaire web](reference_artis_formulaire_web.md) — userEvent en minuscule, lien générique, select disabled : les 3 pièges
+- [Tags d'une DIT : hors API](reference_artis_tags_dit.md) — `dt_tagsIt` sur l'écran ccDit ; `poser_tag()` ; VALIDATION / VALIDATION CLIENT
+- [Validation client → Tag](feedback_validation_client_tag.md) — attente à la création, validée à la réponse ; jamais rétroactif ni sur un ticket clos
+- [DIT sans intervenant → Clifford](feedback_dit_sans_intervenant_clifford.md) — transférer + ranger, jamais laisser en BAL
+- [Newsletter → jamais de DIT](feedback_newsletter_jamais_de_dit.md) — le domaine d'un client sur une pub ne fait pas foi
+- [Bien d'une DIT + onboarding en N3](feedback_dit_bien_et_onboarding.md) — INFOGERANCE sinon BAL EXCHANGE 365 ; ADM-ON → HLN3
+- [Moteur mail — lecture par Claude Haiku](project_mail_modele_lecture.md) — 0,002 €/mail, plafond 10 €/mois, repli auto sur les règles
+- [Le métier se lit dans le corps](feedback_metier_lire_le_corps.md) — vidéosurveillance, client multi-métier, historique TEL → déplacer
+- [Pièces jointes : le texte décide](feedback_pieces_jointes_jugement.md) — signature vs photo annoncée ; des pièces sans phrase répondent, elles ne demandent pas
+- [Alerte SOC sans MCO](feedback_soc_sans_mco.md) — transférer à MCO puis classer en 04 INFORMATIONS
+- [Alerte d'équipement réseau → jamais de DIT](feedback_alerte_equipement_jamais_dit.md) — journal Vigor/firewall = 04 INFORMATIONS (DIT 100175024, 2026-09-24)
+- [Règles DIT par client (BONIFASSI)](reference_regles_client_dit.md) — demandeur imposé + personne à contacter ; table REGLES_CLIENT
+- [Transfert Clifford sans intervenant](feedback_transfert_clifford_sans_intervenant.md) — dire « aucun intervenant, redispatche », pas « tu es le dernier »
+- [Un métier qui demande de l'aide](feedback_metier_qui_demande_de_laide.md) — expéditeur = le métier visé → le mail est pour nous (BSA 4048, 2026-09-24)
+- [Téléphonie → jamais de DIT](feedback_telecom_jamais_de_dit.md) — on range en BAL TELECOM, l'équipe crée ses propres affaires (2026-09-25)
+- [Nouveau poste DFM](project_poste_2026-09-28.md) — pas d'admin local ; Python/Git/az réinstallés en portée utilisateur, az = version pip, Docker absent
+- [Commentaire de DIT sans avis](feedback_commentaire_dit_sans_avis.md) — la demande du client et rien d'autre ; le sensible se dit à Elliot, pas dans le ticket
+- [Commentaire = le texte du client](feedback_commentaire_texte_du_client.md) — objet du mail + corps mot pour mot, jamais reformulé ; signature exclue, historique gardé, ISO
+- [Joindre les pièces à la DIT](feedback_joindre_les_pieces.md) — `POST /documents/DIT/{n}` en multipart ; annoncer une PJ ne suffit pas (DIT 100175612, 2026-09-28)
+- [Index client figé au 10/09](reference_index_client_fige.md) — construit depuis le corpus DIT, jamais reconstruit ; 2 clients sur 17 invisibles (MASTER FINANCE, SPL ATTRACTIVITE)
+- [TD SYNNEX — rapports & conso Azure](reference_tdsynnex_rapports_api.md) — pas d'endpoint conso : passer par /reports → /reportDataCsv
+- [Widget Consommation Azure](project_azure_conso_widget.md) — conso TD SYNNEX × facturation Artis, livré 2026-09-28
+- [Vérifier avant de dire non](feedback_verifier_avant_de_dire_non.md) — incident Haiku 5.5 ; skill « arrete-de-croire-que-t-es-le-main-character »
+- [MSC hors filtre = infogérance invisible](reference_artis_msc_info_seulement.md) — SEGETEX facturé 313 €/mois sous « Services 1/2 journées » ; correctif rev 0870
+- [Filtre is_relevant_msc (Artis)](reference_artis_is_relevant_msc.md) — une MSC hors filtre est invisible partout, sans erreur
+- [Poste Elliot : outils hors PATH](project_poste_local_sans_outils.md) — python/git/az existent, appeler par chemin complet
+- [Jamais git add . dans ce repo](feedback_git_add_dangereux.md) — deploy.ps1 -Commit publierait yooz_refresh.txt et des données clients
+- [Tenir les skills à jour](feedback_actualiser_les_skills.md) — piège découvert ou convention changée → modifier la skill dans le même mouvement
+- [Robot la nuit, moi le jour](project_robot_jour_nuit.md) — robot armé en permanence + battement à chaque passage ; pièges az exec (espaces, BOM, 429)
+- [Client : jamais par le libellé](feedback_client_jamais_par_libelle.md) — passer par index['domaines'] pondéré, vérifier interlocuteurs et biens (piège 9600/9599)
+- [Biens Artis : pagination à 20](reference_artis_bien_pagination.md) — /client/{code}/bien?maxResults=5000, sinon on croit à tort qu'il n'y a pas d'infogérance
+- [Annuler un doublon sans demander](feedback_annuler_doublons_sans_demander.md) — autorisation permanente ; annuler_intervention sur le n° DIT + 01, et le dire dans le rapport
+- [Priorités Artis inversées](feedback_priorite_artis_inversee.md) — 01 = Niveau 3 Urgent, 03 = Niveau 1 Standard ; raisonner en libellé, et la priorité ne se corrige pas après coup
+- [Réponse à un ticket ≠ nouveau ticket](feedback_reponse_ticket_jamais_nouveau.md) — objet `[IT …]` / `[DIT …]` → on complète ; clôturé → PATCH /dit/{n}/reouvrir, jamais recréer
+- [Prévenir l'intervenant après un ajout](feedback_prevenir_intervenant_apres_ajout.md) — compléter la DIT ne notifie personne : transférer le mail au dernier intervenant
+- [Pas de contrat Info → pas de DIT](feedback_pas_de_contrat_info_pas_de_dit.md) — `bien_dit()` à None → transfert à cdamato + Clifford en copie, puis 01 DIT
+- [Demande client ≠ escalade](feedback_demande_client_pas_une_escalade.md) — élévation de droits chez le client = DIT ordinaire, Benjamin c'est pour nos ressources à nous
+- [Skill mail-dit](project_skill_mail_dit.md) — `.claude/skills/mail-dit/` : procédure, références, bin/ (artis, lire_mail, creer_dit)
+- [Agent mail sur Azure](project_agent_mail_azure.md) — Claude lui-même traite la BAL depuis le conteneur ; consigne à republier sur /data
+- [Logs az illisibles (cp1252)](feedback_az_logs_cp1252.md) — un composant de fond écrit son état sur /data, pas dans les logs
+- [Clients dont on ne touche pas au Datto](feedback_jdiffusion_pas_touche.md) — JDIFFUSION (litige) + GROUPE SHIVA (clients liés) ; clients_proteges.json fait foi
+- [Vade migré chez Hornetsecurity](reference_vade_migration_hornetsecurity.md) — création via POST /partner/v3/customers (domain+country+reseller obligatoires) ; v2 = 403
+- [Cause puis garde-fou](feedback_cause_puis_garde_fou.md) — réparer ne suffit pas : prouver la cause, puis empêcher la récidive par le code ou l'ordonnanceur
+- [Un mail, plusieurs demandes](feedback_un_mail_plusieurs_demandes.md) — le numéro place la réponse, pas tout le mail ; un refus clôt, les demandes neuves prennent leur propre DIT
+- [Validation : tous les clients](feedback_validation_tous_les_clients.md) — le motif déclenche le tag, pas la table ; un refus ne vaut jamais validation
+- [Bien Artis = clé globale](reference_artis_bien_cle_globale.md) — POST /dit suit le site du BIEN ; un libellé nu met la DIT chez un autre client (7 DIT chez XILAM, 2026-10-07)
+- [Bien = site principal d'abord](feedback_bien_site_principal.md) — INFOGERANCE > BAL EXCHANGE > PROTECT, sur modele.code exact, site suivant sinon ; le site du bien est celui qu'on pose
+- [Cliniques Champs-Elysées → contrat ELITE CENTER](feedback_cliniques_champs_elysees_elite_center.md) — bien_dit rend None mais 12930 porte le contrat de chaque ville ; créer la DIT, jamais de transfert commercial
+- [Ménage console Sophos — 3 garde-fous](reference_sophos_menage_console.md) — « absente de Datto » seul est faux ; sur-console + muette 30j + arrêt à la parité
+- [Routine Cloud = Claude, pas Azure](project_routine_cloud_claude.md) — coût ; le proxy de la session bloque le réseau (403) et le connecteur M365 contourne le drapeau d'arrêt
+- [Pas de robot la nuit](feedback_pas_de_robot_la_nuit.md) — robot et agent du conteneur eteints DEFINITIVEMENT ; ne jamais proposer de les rallumer
+- [Journal quotidien du dashboard](project_journal_quotidien.md) — JOURNAL.md : lire au démarrage, écrire le soir ; le journal raconte, la mémoire prescrit
