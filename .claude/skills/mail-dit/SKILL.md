@@ -20,10 +20,18 @@ créer ou compléter dans Artis, ranger le mail, rendre un rapport court.
 4. **Décider** : créer une DIT · compléter un ticket existant · ranger sans DIT ·
    laisser en boîte si le client n'est pas identifiable.
 5. **Ranger** le mail — et seulement après le succès de l'action Artis.
-6. **Rapport** : créé / complété / rangé / laissé, une ligne de raison chacun.
+6. **Finir le passage** : `python3 finir_passage.py --retard`. Une **seule**
+   session web pour tout — le type de travail Hotline / Non facturable, les
+   tags de validation et les accusés de réception. Le mode `--retard` prend
+   les créations **du passage en cours ET celles qui traînent**, en relisant
+   le journal de prod et le journal local : une DIT laissée en
+   `Terrain` / `Automatique` ne se signale nulle part et part en facturation,
+   où un dispatcher la planifie comme une intervention terrain. Trois DIT y
+   ont échappé le 2026-10-15.
+7. **Rapport** : créé / complété / rangé / laissé, une ligne de raison chacun.
    Rien d'autre : pas de synthèse, pas de tendance, pas de recommandation.
-7. **Journaliser chaque action** — voir ci-dessous.
-8. **Si une règle a changé pendant le passage, la publier** — depuis le poste
+8. **Journaliser chaque action** — voir ci-dessous.
+9. **Si une règle a changé pendant le passage, la publier** — depuis le poste
    d'Elliot seulement : `python publier.py --verifier` dit ce qui est écrit ici
    et que le Cloud n'a pas. Une règle qui reste sur le disque ne vaut que pour
    moi : la routine Cloud lit le **dépôt**, pas ce poste. Le 2026-10-15, deux
@@ -975,8 +983,24 @@ secours quand Artis n'a pas encore indexé le demandeur. Le script sort en
 code 1 si une seule pose a échoué — une DIT restée en `Terrain` part en
 facturation chez un dispatcher qui la planifie.
 
+**En pratique, utilise `--retard` plutôt que le JSON** :
+
+```bash
+python3 finir_passage.py --retard        # le passage en cours + ce qui traîne
+python3 finir_passage.py --retard 3      # en remontant trois jours
+```
+
+Il relit le journal — celui de `/data` **et** le local, car les créations du
+passage en cours n'arrivent en prod qu'à la fusion finale — reprend les
+créations récentes, relit chaque DIT dans Artis, et ne finit que celles qui
+ne sont pas déjà en `Hotline` / `Non facturable`. Le tag se déduit du motif
+par `tag_a_la_creation`, exactement comme à la création. Le JSON reste utile
+pour un lot précis, hors passage.
+
 C'est la **seule** façon de finir un passage. `_poser_type_travail` est privée
-et exige un `ctx` interne : n'essaie pas de la reconstruire.
+et exige un `ctx` interne : n'essaie pas de la reconstruire. Et une seule
+session : ne lance pas `--retard` au début **et** à la fin, chaque connexion
+prend un siège de licence.
 
 Le 2026-10-15, un passage a lu `E.transferer_mail(pid)`, conclu « les
 propositions ne contiennent pas ces mails, donc ça ne marche pas ici », et

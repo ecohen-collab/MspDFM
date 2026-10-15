@@ -54,16 +54,23 @@ def _journal():
     c'est pour ca qu'on lit /data en priorite. Sans cette lecture, le
     rattrapage ne verrait que ses propres DIT.
     """
+    lignes = []
     try:
         import azure_files
         if azure_files.disponible():
             brut = azure_files.lire("mail_dit_journal.jsonl")
             if brut:
-                return brut.decode("utf-8", "replace").splitlines()
+                lignes += brut.decode("utf-8", "replace").splitlines()
     except Exception:                      # noqa: BLE001
         pass
+    # ET le local : les creations du passage EN COURS y sont deja, alors
+    # qu'elles n'arriveront en prod qu'a la fusion de fin. Sans cette seconde
+    # source, `--retard` finirait les retardataires mais pas le passage du
+    # jour -- et il faudrait une seconde session web, donc un siege de plus.
     f = RACINE / "mail_dit_journal.jsonl"
-    return io.open(f, encoding="utf-8").read().splitlines() if f.exists() else []
+    if f.exists():
+        lignes += io.open(f, encoding="utf-8").read().splitlines()
+    return lignes
 
 
 def retard(jours=1):
@@ -92,8 +99,9 @@ def retard(jours=1):
         if (d.get("ts") or "")[:10] < limite:
             continue
         n = d.get("dit")
-        if n and n not in nums:
-            nums.append({"numero": n, "de": d.get("mail_de") or ""})
+        if n and n not in [x["numero"] for x in nums]:
+            nums.append({"numero": n, "de": d.get("mail_de") or "",
+                         "client": d.get("client_code") or ""})
     a_finir = []
     for d in nums:
         f = E.relire_dit(d["numero"]) or {}
@@ -101,8 +109,18 @@ def retard(jours=1):
             print("  %s : illisible (%s)" % (d["numero"], str(f["erreur"])[:60]))
             continue
         if f.get("type_travail") != "Hotline" or f.get("facturation") != "NonFacturable":
-            print("  %s : %s / %s — a finir"
-                  % (d["numero"], f.get("type_travail"), f.get("facturation")))
+            # Le tag se DEDUIT du motif, comme a la creation : le rattrapage
+            # ne doit pas poser un tag different de celui qu'on aurait mis.
+            try:
+                d["tag"] = E.tag_a_la_creation(d.get("client") or "",
+                                               d.get("de") or "",
+                                               f.get("commentaire") or "")
+            except Exception:              # noqa: BLE001
+                d["tag"] = None
+            d["a_valider"] = d["tag"] == "attente"
+            print("  %s : %s / %s — a finir (tag %s)"
+                  % (d["numero"], f.get("type_travail"), f.get("facturation"),
+                     d["tag"] or "aucun"))
             a_finir.append(d)
     return a_finir
 
