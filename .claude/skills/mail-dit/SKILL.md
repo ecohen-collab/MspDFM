@@ -666,17 +666,25 @@ session — les écrans suivants répondent des erreurs qui n'ont aucun rapport.
 Une session qui « ne répond plus » après une écriture réussie est presque
 toujours une saisie non refermée, pas une session morte.
 
-### Depuis une routine Cloud, la session ne se réutilise pas
+### La session se réutilise — par le relais, depuis le 2026-10-15
 
 `Web.ouvrir()` relit la session du compte MCO dans
 `<DATA_DIR>/artis_mco_session.json` et ne se reconnecte que si elle est morte.
-Ce fichier **n'existe pas** pour toi : `DATA_DIR` ne doit pas être posé dans
-une routine, et ce nom ne fait pas partie des trois fichiers de la liste
-blanche du relais. Chaque passage distant ouvre donc une session **neuve**.
+Ce fichier est désormais le **quatrième du relais**, en lecture et en
+écriture : tu reprends donc la session déjà ouverte au lieu d'en créer une, et
+tu peux la renouveler quand elle meurt. `azure_files` s'en charge dès que
+`RELAIS_URL` et `RELAIS_CLE` sont posées — tu n'as rien à faire de plus.
 
-Ce n'est pas un défaut à contourner, c'est une raison de plus de n'en ouvrir
-qu'une : un passage, une session, un siège. Le conteneur, lui, a `/data` monté
-et réutilise la sienne — c'est pour cela qu'il peut travailler sans compter.
+**Pourquoi ça compte.** Artis n'a pas de déconnexion utilisable : chaque siège
+reste pris jusqu'à expiration. Tant que chaque passage ouvrait une session
+neuve, les sièges s'accumulaient — et le 2026-10-15 un passage s'est vu
+refuser la sienne, « nombre de sessions simultanées global atteint », laissant
+deux DIT en `Terrain` / `Automatique`, sans tag ni accusé de réception. Une
+licence saturée n'arrête pas que la chaîne : elle bloque toute l'équipe DFM.
+
+La règle ne change pas pour autant : **une seule session par passage**, à la
+fin, par `_poser_type_travail`. La différence est qu'elle ne coûte désormais
+plus un siège de plus.
 
 ### Si la session échoue quand même
 

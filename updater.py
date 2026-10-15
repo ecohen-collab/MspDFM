@@ -5160,6 +5160,15 @@ RELAIS_FICHIERS = {
     "mail_tokens.json":       {"ecriture": True},
     "mail_dit_journal.jsonl": {"ecriture": True},
     "mail_dit_ecriture.txt":  {"ecriture": False},
+    # La session web Artis du compte MCO. Sans elle, une routine Cloud ouvre
+    # une session NEUVE a chaque passage — et Artis n'a pas de deconnexion
+    # utilisable (disconnect.action repond 200 et laisse la session vivante),
+    # donc chaque siege reste pris jusqu'a expiration. Le 2026-10-15, un
+    # passage s'est vu refuser la session : « nombre de sessions simultanees
+    # global atteint », laissant deux DIT sans type de travail ni accuse.
+    # Une licence saturee bloque toute l'equipe DFM, pas seulement la chaine.
+    # En ECRITURE : la session doit pouvoir etre renouvelee quand elle meurt.
+    "artis_mco_session.json": {"ecriture": True},
 }
 RELAIS_TAILLE_MAX = 32 * 1024 * 1024      # le journal, large
 
