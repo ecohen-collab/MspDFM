@@ -893,6 +893,47 @@ l'expose. Cette manœuvre est manuelle, sur demande d'Elliot.
 
 ## Le même passage depuis une session distante (routine Cloud)
 
+### La voie : `agent_mail_dit`, jamais les outils Outlook du connecteur
+
+**Tout le passage se fait par `agent_mail_dit.executer()`. N'utilise PAS les
+outils `outlook_*` du connecteur Microsoft 365, ni `read_resource` pour lire
+les mails.** Préambule, une fois, en tête de passage :
+
+```python
+import json, agent_mail_dit as A, mail_dit_ecriture as E
+import mail_dit_journal as J, mail_dit as M
+ctx = A.Contexte(actif=True)
+print(json.dumps(A.executer('boite', {}, ctx, M, E, J), ensure_ascii=False))
+```
+
+Puis `lire_mail`, `resoudre_client`, `client`, `dit`, `creer_dit`,
+`completer_dit`, `ranger`, `transferer`, `signaler` — **17 outils**, tous par
+le même `A.executer(nom, args, ctx, M, E, J)`. Et en fin de passage
+`A._poser_type_travail(ctx)` puis `python journal_sync.py`.
+
+Trois raisons, et chacune a coûté un passage le 2026-10-15 :
+
+- **le quota Graph.** Les outils du connecteur passent par l'application de
+  Claude (`07c030f6-…`), dont le quota est serré et partagé : huit rangements
+  ont suffi à déclencher un `429 TooManyRequests` avec 62 s d'attente, et le
+  passage s'est arrêté là. La chaîne Python, elle, passe par l'application
+  **DFM** (`14d82eec-…`), quota distinct — aucun 429 en des centaines
+  d'actions depuis le poste ;
+- **les transferts.** « Pas d'outil d'envoi dans cette session » est faux :
+  `transferer` existe, prend un **motif** et jamais une adresse, signe
+  « Service MCO - Mail automatique » et refuse tout destinataire hors des
+  trois autorisés. Sans lui, aucun complément n'est possible — et un passage
+  entier s'est soldé par 0 création pour cette seule raison ;
+- **le coût.** Un appel `boite` rend les 25 mails d'un coup ; un `lire_mail`
+  rend le corps, les pièces et la date convertie. Lire la boîte mail par mail
+  avec le connecteur, c'est une trentaine de tours d'outils au lieu de quatre,
+  et chaque tour recharge tout le contexte.
+
+Si un import manque : `python3 -m pip install -r requirements.txt` à la racine
+du dépôt — avec `python3 -m pip`, car `/usr/bin/pip` installe pour un autre
+interpréteur et le module reste introuvable (constaté le 2026-10-15).
+L'environnement étant persistant, une seule fois suffit.
+
 **Rien du raisonnement ne change** : c'est ce skill, les mêmes outils, les
 mêmes garde-fous. Ce qui change, c'est qu'il n'y a ni `/data` monté, ni
 `az login`, ni `.env` — une session distante n'a que des **variables
