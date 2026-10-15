@@ -18,6 +18,7 @@ et ne le rafraichit pas tout seul -- constate le 2026-10-15, cinq correctifs
 pousses entre 11h04 et 12h36 et toujours pas pris a 12h36.
 
     python publier.py "message de commit" fichier1 [fichier2 ...]
+    python publier.py --verifier     # qu'ai-je ecrit que le Cloud n'a pas ?
 
 Jamais `git add .` : ce depot porte des jetons en clair et des donnees
 clients que `.gitignore` ne couvre pas (cf. feedback_git_add_dangereux).
@@ -38,7 +39,41 @@ def _run(args, **kw):
                           text=True, **kw)
 
 
+# Les fichiers qui portent la chaine. Une modification non poussee ici est
+# une regle qui ne vaut que sur ce poste : moi je l'applique, la routine
+# Cloud ne la voit pas. Le 2026-10-15, deux references dormaient ainsi depuis
+# des jours -- la priorite 01 sur les incidents de securite et les PC-INC-*
+# en HLI -- pendant que la routine creait des DIT sans elles.
+SURVEILLES = (".claude/skills/mail-dit/", "mail_dit.py", "mail_dit_ecriture.py",
+              "mail_dit_journal.py", "mail_regles.py", "agent_mail_dit.py",
+              "artis_type_travail.py", "azure_files.py", "journal_sync.py")
+
+
+def verifier():
+    """Qu'est-ce qui est ecrit sur ce poste et que le Cloud n'a pas ?"""
+    r = _run([GIT, "status", "--porcelain", "--"] + list(SURVEILLES))
+    lignes = [l.strip() for l in r.stdout.splitlines() if l.strip()]
+    if lignes:
+        print("EN ATTENTE DE PUBLICATION — la routine Cloud ne les a pas :")
+        for l in lignes:
+            print("   " + l)
+        print("")
+        print('   python publier.py "<message>" <fichiers>')
+    else:
+        print("rien en attente : le disque et origin/main disent la meme chose")
+    r2 = _run([GIT, "log", "--oneline", "origin/main..HEAD"])
+    restants = [l for l in r2.stdout.splitlines() if l.strip()]
+    if restants:
+        print("")
+        print("COMMITS NON POUSSES :")
+        for l in restants:
+            print("   " + l)
+    return 1 if (lignes or restants) else 0
+
+
 def main():
+    if len(sys.argv) == 2 and sys.argv[1] in ("--verifier", "-v"):
+        return verifier()
     if len(sys.argv) < 3:
         print(__doc__.strip())
         return 2

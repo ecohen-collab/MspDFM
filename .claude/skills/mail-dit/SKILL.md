@@ -23,6 +23,14 @@ créer ou compléter dans Artis, ranger le mail, rendre un rapport court.
 6. **Rapport** : créé / complété / rangé / laissé, une ligne de raison chacun.
    Rien d'autre : pas de synthèse, pas de tendance, pas de recommandation.
 7. **Journaliser chaque action** — voir ci-dessous.
+8. **Si une règle a changé pendant le passage, la publier** — depuis le poste
+   d'Elliot seulement : `python publier.py --verifier` dit ce qui est écrit ici
+   et que le Cloud n'a pas. Une règle qui reste sur le disque ne vaut que pour
+   moi : la routine Cloud lit le **dépôt**, pas ce poste. Le 2026-10-15, deux
+   références y dormaient depuis des jours — la priorité `01` sur les incidents
+   de sécurité et les `PC-INC-*` en HLI — pendant que la routine créait des DIT
+   sans elles. `publier.py` committe, pousse et republie la consigne sur
+   `/data` en une fois.
 
 ## Le journal : ce qui reste quand le terminal se ferme
 
