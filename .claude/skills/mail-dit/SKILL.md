@@ -614,6 +614,70 @@ Une capture d'écran annoncée par le client (« voici le message qui s'affiche 
 se joint au ticket **et** se retranscrit en texte dans le commentaire : le
 technicien lit le ticket, pas forcément les pièces.
 
+## La session web Artis — ne jamais l'ouvrir soi-même
+
+**Tu n'as aucune raison d'ouvrir une session web toi-même.** Un seul appel en
+ouvre une, `agent_mail_dit._poser_type_travail(ctx)`, et il fait tout ce qui
+en a besoin **dans la même** : le type de travail Hotline / Non facturable,
+les tags de validation, et les accusés de réception. Appelle-le une fois, à la
+fin du passage, avec toutes les créations du lot. Si tu te retrouves à écrire
+`Web.ouvrir()`, `Web.connecter()` ou `session_dediee()` à la main, c'est que tu
+as pris le mauvais chemin : reviens à `_poser_type_travail`.
+
+### Pourquoi c'est à ce point verrouillé
+
+**Chaque connexion consomme un siège de licence global à DFM, et ce siège ne se
+rend pas.** Il n'existe aucune déconnexion utilisable : `disconnect.action` et
+`PT.action?disconnect=<session>` répondent tous deux HTTP 200 et laissent la
+session **pleinement vivante** — vérifié le 2026-09-10 en rejouant une action
+complète après coup. Le siège se libère à l'expiration, pas avant. Donc une
+session ouverte pour rien bloque un collègue pendant tout ce temps, et
+enchaîner les connexions bloque l'équipe entière.
+
+### « Erreur — ouvrir une nouvelle session » ne veut pas dire que la session est morte
+
+**C'est le piège le plus coûteux du module, et il oriente vers un faux
+problème.** `shared/form/flush.action` et `shared/form/save.action` attendent un
+champ **`componentName`** qui ne figure pas dans le formulaire : la fonction
+`ajaxFormParams` du bundle JS l'ajoute à la main, avec `cKey`, `cStatus` et
+`session`. S'il manque, les deux répondent la page « Erreur — ouvrir une
+nouvelle session » **alors que tout le reste de la session fonctionne
+parfaitement**.
+
+Devant ce message, donc : **ne te reconnecte pas**. Une reconnexion coûte un
+siège de plus et ne répare rien, puisque le paramètre manquera encore. Les
+fonctions du module passent déjà les bons champs — si tu vois ce message, c'est
+que tu as reconstruit la requête à la main.
+
+### Une saisie laissée ouverte bloque toute la navigation
+
+Après une écriture, Artis reste **en mode saisie** tant qu'on n'en sort pas :
+`userEvent=oK_Enregistrer` pour valider, `evtSortieChemin` pour abandonner.
+Une saisie laissée en cours bloque ensuite **toute** la navigation de la
+session — les écrans suivants répondent des erreurs qui n'ont aucun rapport.
+Une session qui « ne répond plus » après une écriture réussie est presque
+toujours une saisie non refermée, pas une session morte.
+
+### Depuis une routine Cloud, la session ne se réutilise pas
+
+`Web.ouvrir()` relit la session du compte MCO dans
+`<DATA_DIR>/artis_mco_session.json` et ne se reconnecte que si elle est morte.
+Ce fichier **n'existe pas** pour toi : `DATA_DIR` ne doit pas être posé dans
+une routine, et ce nom ne fait pas partie des trois fichiers de la liste
+blanche du relais. Chaque passage distant ouvre donc une session **neuve**.
+
+Ce n'est pas un défaut à contourner, c'est une raison de plus de n'en ouvrir
+qu'une : un passage, une session, un siège. Le conteneur, lui, a `/data` monté
+et réutilise la sienne — c'est pour cela qu'il peut travailler sans compter.
+
+### Si la session échoue quand même
+
+Ne boucle pas sur des reconnexions : chaque tentative prend un siège. Fais une
+seule tentative, et si elle échoue, **dis-le dans le rapport** en nommant les
+DIT concernées. Elles restent en `Terrain` / `Automatique` et sans accusé de
+réception : c'est réparable à la main en une minute, alors qu'une licence
+saturée arrête toute l'équipe.
+
 ## Garde-fous — ne jamais contourner
 
 - **Anti-doublon avant chaque création.** `creer_dit()` interroge Artis lui-même
