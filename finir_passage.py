@@ -73,6 +73,15 @@ def _journal():
     return lignes
 
 
+# Les DIT que `retard()` n'a pas pu relire — Artis injoignable, jeton refuse.
+# Elles ne sont PAS « rien a rattraper » : on ne sait simplement pas. Sans ce
+# compteur, une coupure reseau faisait conclure au script que tout etait fini,
+# et une DIT restee en Terrain / Automatique serait partie en facturation sans
+# que personne ne le voie (constate le 2026-10-15 : dix DIT illisibles d'affilee
+# suivies de « rien a rattraper »).
+ILLISIBLES = []
+
+
 def retard(jours=1):
     """Les DIT creees recemment qui sont restees en Terrain / Automatique.
 
@@ -103,10 +112,12 @@ def retard(jours=1):
             nums.append({"numero": n, "de": d.get("mail_de") or "",
                          "client": d.get("client_code") or ""})
     a_finir = []
+    del ILLISIBLES[:]
     for d in nums:
         f = E.relire_dit(d["numero"]) or {}
         if f.get("erreur"):
             print("  %s : illisible (%s)" % (d["numero"], str(f["erreur"])[:60]))
+            ILLISIBLES.append(d["numero"])
             continue
         if f.get("type_travail") != "Hotline" or f.get("facturation") != "NonFacturable":
             # Le tag se DEDUIT du motif, comme a la creation : le rattrapage
@@ -133,7 +144,16 @@ def main():
         jours = int(sys.argv[2]) if len(sys.argv) > 2 else 1
         print("recherche des DIT non finies sur %d jour(s)..." % jours)
         lot = retard(jours)
-        if not lot:
+        if ILLISIBLES:
+            # Ne JAMAIS annoncer « rien a rattraper » sur des DIT qu'on n'a pas
+            # pu lire : l'absence de reponse d'Artis n'est pas une preuve que
+            # le type de travail est pose. Code 1 pour que l'appelant le voie.
+            print("ATTENTION : %d DIT illisible(s), etat inconnu — %s"
+                  % (len(ILLISIBLES), ", ".join(ILLISIBLES)))
+            print("relancer `finir_passage.py --retard` quand Artis repond.")
+            if not lot:
+                return 1
+        elif not lot:
             print("rien a rattraper : toutes les DIT sont en Hotline / Non facturable")
             return 0
         print("%d DIT a finir" % len(lot))
